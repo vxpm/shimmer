@@ -1,0 +1,19 @@
+[package]
+name = "shimmer_core"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+proptest = "1.6"
+proptest-derive = "0.5"
+
+[dependencies]
+bitos.workspace = true
+bytesize.workspace = true
+easyerr.workspace = true
+paste.workspace = true
+strum.workspace = true
+zerocopy.workspace = true

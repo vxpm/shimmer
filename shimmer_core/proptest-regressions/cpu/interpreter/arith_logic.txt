@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b37866406940b49aa2a6bf58ba9151d3e48f83c29f096d150a594bf7b1d63862 # shrinks to state = Registers { gp: {..}, hi: 7210, lo: 1733987961, pc: 0 }, rt = R7, rs = R17, imm = 62182
+cc c4514cde9e8b1075c9b1cc404d87c8ac29e3f188e0b1b5b231d431fc1cf3467f # shrinks to state = (Registers { gp: {R3: 1071169269, R30: 1076314379, ..}, hi: 0, lo: 186251899, pc: 0 }, Registers { gp: {R0: 445190152, R1: 3893398092, R2: 2198332083, R3: 4094578464, R4: 1251344544, R5: 2023067296, R6: 902771990, R7: 1994941872, R8: 898085232, R9: 1905937361, R10: 2709078717, R11: 1213094260, R12: 4063069547, R13: 700693154, R14: 1566399944, R15: 1294935903, R16: 2125031140, R17: 4076803309, R18: 1006982286, R19: 700762302, R20: 135100465, R21: 2106526268, R22: 3671635391, R23: 117185557, R24: 2969974156, R25: 1813895568, R26: 2707419437, R27: 3349233479, R28: 1107251438, R29: 3531079269, R30: 1238107303, R31: 1136373676, ..} }), rd = R24, rs = R3, rt = R30
