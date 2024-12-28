@@ -1,5 +1,5 @@
-use crate::{TabContext, VioletTab};
-use eframe::egui::{self, style::ScrollStyle, Ui};
+use crate::tab::{Context, Tab};
+use eframe::egui::{self, Ui};
 use egui_virtual_list::VirtualList;
 use strum::{AsRefStr, VariantArray};
 
@@ -24,7 +24,7 @@ impl LogViewer {
             egui::ComboBox::from_label("")
                 .selected_text(self.src.as_ref())
                 .show_ui(ui, |ui| {
-                    ui.style_mut().wrap = Some(false);
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                     ui.set_min_width(60.0);
                     for variant in Source::VARIANTS {
                         if ui
@@ -38,7 +38,7 @@ impl LogViewer {
         });
     }
 
-    fn draw_logs(&mut self, ui: &mut Ui, ctx: TabContext) {
+    fn draw_logs(&mut self, ui: &mut Ui, ctx: Context) {
         // let logger = match self.src {
         //     Source::CPU => ctx.shared.psx.cpu.logger(),
         //     Source::Memory => ctx.shared.psx.memory.logger(),
@@ -119,7 +119,7 @@ impl LogViewer {
     }
 }
 
-impl VioletTab for LogViewer {
+impl Tab for LogViewer {
     fn new(id: u64) -> Self
     where
         Self: Sized,
@@ -138,7 +138,7 @@ impl VioletTab for LogViewer {
         "Logs".into()
     }
 
-    fn ui(&mut self, ui: &mut Ui, ctx: TabContext) {
+    fn ui(&mut self, ui: &mut Ui, ctx: Context) {
         ui.vertical(|ui| {
             self.draw_header(ui);
             ui.separator();

@@ -1,4 +1,7 @@
-use crate::{util::character_dimensions, TabContext, VioletTab};
+use crate::{
+    tab::{Context, Tab},
+    util::character_dimensions,
+};
 use eframe::{
     egui::{self, RichText, Ui},
     epaint::Color32,
@@ -9,7 +12,7 @@ pub struct Breakpoints {
 }
 
 impl Breakpoints {
-    pub fn draw_header(&mut self, ui: &mut Ui, ctx: &mut TabContext) {
+    pub fn draw_header(&mut self, ui: &mut Ui, ctx: &mut Context) {
         let (font_width, _) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
         ui.horizontal(|ui| {
@@ -39,7 +42,7 @@ impl Breakpoints {
         });
     }
 
-    pub fn draw_body(&mut self, ui: &mut Ui, ctx: &mut TabContext) {
+    pub fn draw_body(&mut self, ui: &mut Ui, ctx: &mut Context) {
         let (_, font_height) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
         let mut to_remove = Vec::new();
@@ -74,7 +77,7 @@ impl Breakpoints {
     }
 }
 
-impl VioletTab for Breakpoints {
+impl Tab for Breakpoints {
     fn new(_: u64) -> Self
     where
         Self: Sized,
@@ -88,7 +91,7 @@ impl VioletTab for Breakpoints {
         "Breakpoints".into()
     }
 
-    fn ui(&mut self, ui: &mut Ui, mut ctx: TabContext) {
+    fn ui(&mut self, ui: &mut Ui, mut ctx: Context) {
         ui.vertical(|ui| {
             self.draw_header(ui, &mut ctx);
             ui.separator();

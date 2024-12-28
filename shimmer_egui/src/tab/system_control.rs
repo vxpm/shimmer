@@ -1,4 +1,8 @@
-use crate::{colors::LIGHT_PURPLE, util::character_dimensions, TabContext, VioletTab};
+use crate::{
+    colors::LIGHT_PURPLE,
+    tab::{Context, Tab},
+    util::character_dimensions,
+};
 use eframe::{
     egui::{self, style::ScrollStyle, RichText, Ui},
     epaint::Color32,
@@ -11,7 +15,7 @@ pub struct SystemControl {
     commonmark_cache: CommonMarkCache,
 }
 
-impl VioletTab for SystemControl {
+impl Tab for SystemControl {
     fn new(_: u64) -> Self
     where
         Self: Sized,
@@ -25,7 +29,7 @@ impl VioletTab for SystemControl {
         "System Control".into()
     }
 
-    fn ui(&mut self, ui: &mut Ui, ctx: TabContext) {
+    fn ui(&mut self, ui: &mut Ui, ctx: Context) {
         ui.horizontal(|ui| {
             ui.checkbox(&mut ctx.shared.running, "Run");
             ui.label(format!(
@@ -42,7 +46,7 @@ impl VioletTab for SystemControl {
                 .add(
                     egui::DragValue::new(&mut scale)
                         .speed(0.01)
-                        .clamp_range(0.0..=5.0),
+                        .range(0.0..=5.0),
                 )
                 .changed()
             {
@@ -101,7 +105,7 @@ impl VioletTab for SystemControl {
                                 let response =
                                     ui.label(name.monospace().color(Color32::LIGHT_BLUE));
                                 response.on_hover_ui(|ui| {
-                                    CommonMarkViewer::new("register view").show(
+                                    CommonMarkViewer::new().show(
                                         ui,
                                         &mut self.commonmark_cache,
                                         description,

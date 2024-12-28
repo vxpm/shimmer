@@ -1,9 +1,9 @@
-use crate::{TabContext, VioletTab};
+use crate::tab::{Context, Tab};
 use eframe::egui::{self, Ui};
 
 pub struct Screen {}
 
-impl VioletTab for Screen {
+impl Tab for Screen {
     fn new(_: u64) -> Self
     where
         Self: Sized,
@@ -15,7 +15,7 @@ impl VioletTab for Screen {
         "Video Output".into()
     }
 
-    fn ui(&mut self, ui: &mut Ui, _ctx: TabContext) {
+    fn ui(&mut self, ui: &mut Ui, _ctx: Context) {
         ui.label("hello");
     }
 

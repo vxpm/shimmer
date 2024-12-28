@@ -5,18 +5,17 @@ edition = "2021"
 
 [dependencies]
 shimmer_core = { path = "../shimmer_core" }
-eframe = { version = "0.27", default-features = false, features = [
+eframe = { version = "0.30", default-features = false, features = [
     "wgpu",
     "default_fonts",
-    "x11",
     "wayland",
 ] }
-egui_dock = "0.12"
-strum = { version = "0.26.1", features = ["derive"] }
-parking_lot = "0.12.1"
-colorous = "1.0.12"
-tikv-jemallocator = "0.5.4"
-egui_commonmark = { version = "0.15.0", default-features = false, features = [
+egui_dock = { git = "https://github.com/bryceberger/egui_dock.git", branch = "egui-0.30" }
+strum = { version = "0.26", features = ["derive"] }
+parking_lot = "0.12"
+colorous = "1.0"
+tikv-jemallocator = "0.6"
+egui_commonmark = { version = "0.19", default-features = false, features = [
     "pulldown_cmark",
 ] }
-egui_virtual_list = "0.3.0"
+egui_virtual_list = "0.6"

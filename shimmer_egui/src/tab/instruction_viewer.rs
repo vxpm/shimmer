@@ -1,4 +1,8 @@
-use crate::{colors::LIGHT_PURPLE, util::character_dimensions, TabContext, VioletTab};
+use crate::{
+    colors::LIGHT_PURPLE,
+    tab::{Context, Tab},
+    util::character_dimensions,
+};
 use eframe::{
     egui::{self, RichText, Ui},
     epaint::Color32,
@@ -127,14 +131,7 @@ impl InstructionViewer {
         }
     }
 
-    fn draw_row(
-        &mut self,
-        ui: &mut Ui,
-        ctx: &TabContext,
-        addr: u32,
-        instr: Instruction,
-        valid: bool,
-    ) {
+    fn draw_row(&mut self, ui: &mut Ui, ctx: &Context, addr: u32, instr: Instruction, valid: bool) {
         const MNEMONIC_COLOR: Color32 = Color32::LIGHT_YELLOW;
 
         let mnemonic = instr.mnemonic().unwrap_or("ILLEGAL");
@@ -158,11 +155,7 @@ impl InstructionViewer {
             let mnemonic_response =
                 ui.label(RichText::new(mnemonic).color(MNEMONIC_COLOR).monospace());
             mnemonic_response.on_hover_ui(|ui| {
-                CommonMarkViewer::new("description viewer").show(
-                    ui,
-                    &mut self.commonmark_cache,
-                    description,
-                );
+                CommonMarkViewer::new().show(ui, &mut self.commonmark_cache, description);
             });
         });
 
@@ -171,7 +164,7 @@ impl InstructionViewer {
         });
     }
 
-    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut TabContext) {
+    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut Context) {
         let (_, available_height) = ui.available_size().into();
         let (_, font_height) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
@@ -236,7 +229,7 @@ impl InstructionViewer {
     }
 }
 
-impl VioletTab for InstructionViewer {
+impl Tab for InstructionViewer {
     fn new(_: u64) -> Self
     where
         Self: Sized,
@@ -255,7 +248,7 @@ impl VioletTab for InstructionViewer {
         "Instruction Viewer".into()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, mut ctx: TabContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
         let next = ctx.shared.psx.cpu.to_exec().1;
         if self.follow_next && next != self.old_next {
             self.target = next.value();

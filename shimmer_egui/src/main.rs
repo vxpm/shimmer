@@ -1,11 +1,5 @@
-mod breakpoints;
 mod colors;
-mod instruction_viewer;
-mod log_viewer;
-mod memory_viewer;
-mod screen;
-mod system_control;
-mod tty;
+mod tab;
 mod util;
 
 use eframe::{
@@ -13,18 +7,15 @@ use eframe::{
     epaint::Rounding,
 };
 use egui_dock::{DockArea, DockState};
-use instruction_viewer::InstructionViewer;
-use log_viewer::LogViewer;
-use memory_viewer::MemoryViewer;
 use parking_lot::{Mutex, MutexGuard};
-use screen::Screen;
 use shimmer_core::{cpu::Reg, PSX};
-use std::{any::Any, sync::Arc, time::Duration};
-use system_control::SystemControl;
-use tty::Terminal;
+use std::{sync::Arc, time::Duration};
+use tab::Tab;
+use tab::{
+    breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
+    memory_viewer::MemoryViewer, screen::Screen, system_control::SystemControl, tty::Terminal,
+};
 use util::Timer;
-
-use crate::breakpoints::Breakpoints;
 
 /// Data that's shared between the GUI and the emulation thread.
 struct Shared {
@@ -136,6 +127,7 @@ impl<'shared> EmulationCtx<'shared> {
     pub fn cycle(&mut self) {
         self.prologue();
 
+        // TODO: this is stupid, do something better
         if self.shared.running {
             self.catch_up();
         }
@@ -166,127 +158,29 @@ fn setup_emulation_thread() -> Arc<Mutex<Shared>> {
     shared
 }
 
-struct TabContext<'psx> {
-    shared: &'psx mut Shared,
-    is_focused: bool,
-}
-
-/// Trait for tabs in the GUI.
-trait VioletTab {
-    fn new(id: u64) -> Self
-    where
-        Self: Sized;
-
-    fn title(&mut self) -> egui::WidgetText;
-
-    fn ui(&mut self, ui: &mut egui::Ui, ctx: TabContext);
-
-    fn closable(&mut self) -> bool {
-        true
-    }
-
-    fn multiple_allowed() -> bool
-    where
-        Self: Sized,
-    {
-        false
-    }
-}
-
-trait AnyVioletTab: Any + VioletTab {
-    fn as_any(&self) -> &dyn Any;
-    fn as_tab(&self) -> &dyn VioletTab;
-}
-
-impl<T> AnyVioletTab for T
-where
-    T: Any + VioletTab,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_tab(&self) -> &dyn VioletTab {
-        self
-    }
-}
-
-struct TabWithId {
-    id: u64,
-    tab: Box<dyn AnyVioletTab>,
-}
-
-impl PartialEq for TabWithId {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-struct VioletTabViewer<'shared> {
-    shared: &'shared mut Shared,
-    focused_tab_id: Option<u64>,
-}
-
-impl<'psx> egui_dock::TabViewer for VioletTabViewer<'psx> {
-    type Tab = TabWithId;
-
-    fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
-        egui::Id::new(tab.id)
-    }
-
-    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
-        tab.tab.title()
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
-        let ctx = TabContext {
-            shared: &mut self.shared,
-            is_focused: self
-                .focused_tab_id
-                .map(|focused_tab_id| focused_tab_id == tab.id)
-                .unwrap_or(false),
-        };
-
-        tab.tab.ui(ui, ctx);
-    }
-
-    fn closeable(&mut self, tab: &mut Self::Tab) -> bool {
-        tab.tab.closable()
-    }
-
-    fn allowed_in_windows(&self, _tab: &mut Self::Tab) -> bool {
-        false
-    }
-
-    fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
-        [false, false]
-    }
-}
-
-/// Contains the GUI state.
-struct VioletEgui {
-    dock: DockState<TabWithId>,
+struct App {
+    dock: DockState<tab::Instance>,
     shared: Arc<Mutex<Shared>>,
     id: u64,
 }
 
-impl VioletEgui {
+impl App {
     fn new(_ctx: &eframe::CreationContext<'_>) -> Self {
         let shared = setup_emulation_thread();
-        let mut dock: DockState<TabWithId> = DockState::new(vec![]);
+        let mut dock: DockState<tab::Instance> = DockState::new(vec![]);
 
         let mut id = 0;
         macro_rules! tab {
             ($t:ty) => {{
                 id += 1;
-                TabWithId {
+                tab::Instance {
                     id,
                     tab: Box::new(<$t>::new(id)),
                 }
             }};
             (vec $t:ty) => {{
                 id += 1;
-                vec![TabWithId {
+                vec![tab::Instance {
                     id,
                     tab: Box::new(<$t>::new(id)),
                 }]
@@ -318,7 +212,7 @@ impl VioletEgui {
 
     fn open_tab<T>(&mut self)
     where
-        T: AnyVioletTab,
+        T: tab::AnyShimmerTab,
     {
         if !T::multiple_allowed() {
             let already_open = self
@@ -336,7 +230,7 @@ impl VioletEgui {
         surface.split_right(
             egui_dock::NodeIndex::root(),
             0.5,
-            vec![TabWithId {
+            vec![tab::Instance {
                 id: self.id,
                 tab: Box::new(T::new(self.id)),
             }],
@@ -346,7 +240,7 @@ impl VioletEgui {
     }
 }
 
-impl eframe::App for VioletEgui {
+impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut reset = false;
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -421,7 +315,7 @@ impl eframe::App for VioletEgui {
 
         DockArea::new(&mut self.dock).style(style).show(
             ctx,
-            &mut VioletTabViewer {
+            &mut tab::Viewer {
                 shared: &mut shared,
                 focused_tab_id,
             },
@@ -442,9 +336,9 @@ fn main() {
     native_options.viewport.maximized = Some(true);
 
     let result = eframe::run_native(
-        "violet - psx",
+        "shimmer - psx",
         native_options,
-        Box::new(|cc| Box::new(VioletEgui::new(cc))),
+        Box::new(|cc| Ok(Box::new(App::new(cc)))),
     );
 
     if let Err(e) = result {

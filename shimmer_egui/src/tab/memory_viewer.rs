@@ -1,4 +1,8 @@
-use crate::{colors::BG_HIGHLIGHT_LIGHTER, util::character_dimensions, TabContext, VioletTab};
+use crate::{
+    colors::BG_HIGHLIGHT_LIGHTER,
+    tab::{Context, Tab},
+    util::character_dimensions,
+};
 use eframe::{
     egui::{self, RichText, Ui},
     epaint::Color32,
@@ -105,7 +109,7 @@ pub struct MemoryViewer {
 }
 
 impl MemoryViewer {
-    fn draw_header(&mut self, ui: &mut Ui, ctx: &mut TabContext) {
+    fn draw_header(&mut self, ui: &mut Ui, ctx: &mut Context) {
         ui.horizontal(|ui| {
             let (font_width, _) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
@@ -130,7 +134,7 @@ impl MemoryViewer {
             egui::ComboBox::new("visualization", "")
                 .selected_text(self.visualization.as_ref())
                 .show_ui(ui, |ui| {
-                    ui.style_mut().wrap = Some(false);
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                     for variant in Visualization::VARIANTS {
                         ui.selectable_value(&mut self.visualization, *variant, variant.as_ref());
                     }
@@ -151,7 +155,7 @@ impl MemoryViewer {
             .to_string(),
         };
 
-        ui.style_mut().wrap = Some(true);
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
         ui.label(egui::RichText::new(view));
     }
 
@@ -245,7 +249,7 @@ impl MemoryViewer {
         });
     }
 
-    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut TabContext) {
+    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut Context) {
         let (available_width, available_height) = ui.available_size().into();
         let (font_width, font_height) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
@@ -279,7 +283,7 @@ impl MemoryViewer {
     }
 }
 
-impl VioletTab for MemoryViewer {
+impl Tab for MemoryViewer {
     fn new(_: u64) -> Self
     where
         Self: Sized,
@@ -297,7 +301,7 @@ impl VioletTab for MemoryViewer {
         "Memory Viewer".into()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, mut ctx: TabContext) {
+    fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
         ui.vertical(|ui| {
             self.draw_header(ui, &mut ctx);
             ui.separator();
