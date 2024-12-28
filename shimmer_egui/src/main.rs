@@ -15,6 +15,7 @@ use tab::{
     breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
     memory_viewer::MemoryViewer, screen::Screen, system_control::SystemControl, tty::Terminal,
 };
+use tinylog::{drain::buf::RecordBuf, Logger};
 use util::Timer;
 
 /// Data that's shared between the GUI and the emulation thread.
@@ -26,6 +27,9 @@ struct Shared {
     breakpoints: Vec<u32>,
     should_reset: bool,
 
+    // log records
+    log_records: RecordBuf,
+
     // ui
     terminal_output: String,
     alternative_names: bool,
@@ -34,13 +38,21 @@ struct Shared {
 impl Shared {
     fn new() -> Self {
         let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
+        let log_records = RecordBuf::new();
+        let logger = Logger::builder("psx")
+            .with_drain(log_records.drain())
+            .build();
+
         Shared {
-            psx: PSX::with_bios(bios),
+            psx: PSX::with_bios(bios, logger),
             running: false,
             running_timer: Timer::new(),
             emulated_time: Duration::ZERO,
             breakpoints: Vec::new(),
             should_reset: false,
+
+            log_records,
+
             terminal_output: String::new(),
             alternative_names: true,
         }

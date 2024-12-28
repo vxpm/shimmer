@@ -7,20 +7,23 @@ pub mod mem;
 mod util;
 
 use cpu::cop0;
+use tinylog::{Logger, debug};
 
 pub struct PSX {
     pub memory: mem::Memory,
     pub cpu: cpu::State,
     pub cop0: cop0::State,
+    pub logger: Logger,
 }
 
 impl PSX {
     /// Creates a new [`PSX`].
-    pub fn with_bios(bios: Vec<u8>) -> Self {
+    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> Self {
         Self {
             memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
             cpu: cpu::State::default(),
             cop0: cop0::State::default(),
+            logger,
         }
     }
 
@@ -33,6 +36,8 @@ impl PSX {
     }
 
     pub fn cycle(&mut self) {
+        debug!(self, "i'm cycling!");
+
         let bus = mem::Bus {
             memory: &mut self.memory,
             cpu: &mut self.cpu,

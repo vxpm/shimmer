@@ -7,6 +7,7 @@ edition = "2021"
 shimmer_core = { path = "../shimmer_core" }
 strum.workspace = true
 tinylog.workspace = true
+bytesize.workspace = true
 
 eframe = { version = "0.30", default-features = false, features = [
     "wgpu",
