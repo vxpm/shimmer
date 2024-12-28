@@ -4,8 +4,9 @@ resolver = "3"
 
 [workspace.dependencies]
 bitos = { path = "../bitos/bitos" }
-bitut = { git = "https://github.com/vxpm/bitut" }
+# bitut = { git = "https://github.com/vxpm/bitut" }
 easyerr = { path = "../easyerr/easyerr" }
+tinylog = { path = "../tinylog/tinylog" }
 
 bytesize = "1.3"
 paste = "1"
