@@ -1,5 +1,5 @@
 [workspace]
-members = ["shimmer_core", "shimmer_cli"]
+members = ["shimmer_core", "shimmer_cli", "shimmer_egui"]
 resolver = "3"
 
 [workspace.dependencies]

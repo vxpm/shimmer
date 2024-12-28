@@ -3,10 +3,11 @@ use bitos::{
     bitos,
     integer::{u5, u20, u26},
 };
+use strum::IntoStaticStr;
 
 /// The opcode of a [`Instruction`].
 #[bitos(6)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum Opcode {
     SPECIAL = 0x00,
     BZ = 0x01,
@@ -49,7 +50,7 @@ pub enum Opcode {
 }
 
 #[bitos(5)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum BZKind {
     BLTZ = 0x00,
     BGEZ = 0x01,
@@ -59,7 +60,7 @@ pub enum BZKind {
 
 /// The special opcode of a [`Instruction`] whose primary opcode is [`Opcode::Special`].
 #[bitos(6)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum SpecialOpcode {
     SLL = 0x00,
     SRL = 0x02,
@@ -92,7 +93,7 @@ pub enum SpecialOpcode {
 }
 
 #[bitos(5)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum CoOpcode {
     MFC = 0x00,
     CFC = 0x02,
@@ -103,7 +104,7 @@ pub enum CoOpcode {
 }
 
 #[bitos(6)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum SpecialCoOpcode {
     RFE = 0x10,
 }
@@ -180,7 +181,7 @@ pub enum ImmKind {
     U26,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Args {
     pub rd: Option<RegSource>,
     pub rs: Option<RegSource>,
@@ -372,6 +373,28 @@ impl Instruction {
             Opcode::SWC2 => args!(rs: CPU; rt: COP2; U16;),
             Opcode::SWC3 => args!(rs: CPU; rt: COP3; U16;),
         })
+    }
+
+    /// Returns the mnemonic of this instruction.
+    pub fn mnemonic(&self) -> Option<&'static str> {
+        if self.op() == Some(Opcode::SPECIAL) {
+            self.special_op().map(Into::into)
+        } else if self.op() == Some(Opcode::BZ) {
+            self.bz_kind().map(Into::into)
+        } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
+            self.cop_op().map(Into::into)
+        } else {
+            self.op().map(Into::into)
+        }
+    }
+
+    pub fn is_illegal(&self) -> bool {
+        match (self.op(), self.special_op(), self.cop_op()) {
+            (None, _, _) => true,
+            (Some(Opcode::SPECIAL), None, _) => true,
+            (Some(Opcode::COP0 | Opcode::COP2), _, None) => true,
+            _ => false,
+        }
     }
 
     #[inline(always)]

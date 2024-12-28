@@ -252,6 +252,12 @@ impl std::ops::Add<i32> for Address {
     }
 }
 
+impl PartialEq<u32> for Address {
+    fn eq(&self, other: &u32) -> bool {
+        self.0 == *other
+    }
+}
+
 pub type BoxedU8Arr<const LEN: usize> = Box<[u8; LEN]>;
 
 pub struct Memory {

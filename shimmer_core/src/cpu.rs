@@ -9,6 +9,7 @@ use instr::Instruction;
 use proptest_derive::Arbitrary;
 
 pub use interpreter::Interpreter;
+use strum::{EnumMessage, VariantArray};
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,7 +30,7 @@ impl COP {
 
 /// A general purpose register of the CPU.
 #[bitos(5)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray, EnumMessage)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Reg {
     /// `R0`, the only register with a constant value: it always evaluates to zero.
@@ -212,6 +213,10 @@ impl Reg {
             Reg::R31 => "RA",
         }
     }
+
+    pub fn description(&self) -> &'static str {
+        self.get_documentation().unwrap()
+    }
 }
 
 #[derive(Clone)]
@@ -272,4 +277,14 @@ pub struct State {
     regs: Registers,
     to_load: Option<(Reg, u32)>,
     to_exec: (Instruction, Address),
+}
+
+impl State {
+    pub fn to_exec(&self) -> (Instruction, Address) {
+        self.to_exec
+    }
+
+    pub fn regs(&self) -> &Registers {
+        &self.regs
+    }
 }
