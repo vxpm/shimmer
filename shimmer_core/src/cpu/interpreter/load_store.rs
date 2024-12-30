@@ -1,5 +1,6 @@
 use super::Interpreter;
 use crate::{cpu::instr::Instruction, mem::Address};
+use tinylog::error;
 
 impl Interpreter<'_> {
     /// `[rs + signed_imm16] = rt`
@@ -13,7 +14,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u32>(addr, rt).is_err() {
-            eprintln!("write failed");
+            error!(self.bus.cpu.logger, "sw failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -37,7 +38,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u16>(addr, rt as u16).is_err() {
-            eprintln!("write failed");
+            error!(self.bus.cpu.logger, "sh failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -52,7 +53,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u8>(addr, rt as u8).is_err() {
-            eprintln!("write failed");
+            error!(self.bus.cpu.logger, "sb failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -60,18 +61,24 @@ impl Interpreter<'_> {
     pub fn lb(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
-        let value = self.bus.read::<i8>(addr).expect("aligned");
 
-        self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
+        if let Ok(value) = self.bus.read::<i8>(addr) {
+            self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
+        } else {
+            error!(self.bus.cpu.logger, "lb failed on a misaligned address: {addr}"; address = addr);
+        }
     }
 
     /// `rt = [rs + signed_imm16] `. Delayed by one instruction.
     pub fn lbu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
-        let value = self.bus.read::<u8>(addr).expect("aligned");
 
-        self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
+        if let Ok(value) = self.bus.read::<u8>(addr) {
+            self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
+        } else {
+            error!(self.bus.cpu.logger, "lbu failed on a misaligned address: {addr}"; address = addr);
+        }
     }
 
     /// `rd = LO`. Delayed by one instruction.

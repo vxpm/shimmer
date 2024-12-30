@@ -8,6 +8,7 @@ use crate::{
 use easyerr::Error;
 
 pub use primitive::{Primitive, PrimitiveRw};
+use tinylog::{Logger, debug, warn};
 use zerocopy::IntoBytes;
 
 /// A memory segment refers to a specific range of memory addresses, each with it's own purpose and
@@ -318,6 +319,7 @@ pub struct Bus<'ctx> {
     pub memory: &'ctx mut Memory,
     pub cpu: &'ctx mut cpu::State,
     pub cop0: &'ctx mut cop0::State,
+    pub logger: &'ctx mut Logger,
 }
 
 impl Bus<'_> {
@@ -343,7 +345,7 @@ impl Bus<'_> {
 
             read
         } else {
-            eprintln!("unknown IO port at {addr}");
+            warn!(self.logger, "read from unknown IO port at {addr}"; address = addr);
             P::read_from(&[0, 0, 0, 0])
         }
     }
@@ -354,7 +356,7 @@ impl Bus<'_> {
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                eprintln!("unknown region at {addr} ({phys})");
+                warn!(self.logger, "read from unknown region at {addr} ({phys})"; address = addr);
                 return [0, 0, 0, 0].read();
             };
 
@@ -392,11 +394,12 @@ impl Bus<'_> {
         P: Primitive,
     {
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
-            eprintln!(
+            debug!(
+                self.logger,
                 "{} bytes written to {reg:?} ({}): 0x{:X?}",
                 size_of::<P>(),
                 addr,
-                value,
+                value;
             );
 
             match reg {
@@ -410,12 +413,13 @@ impl Bus<'_> {
                 }
             };
         } else {
-            // eprintln!(
-            //     "{} bytes written to unknown IO port {}: 0x{:X?}",
-            //     size_of::<P>(),
-            //     addr,
-            //     value,
-            // );
+            warn!(
+                self.logger,
+                "{} bytes written to unknown IO port {}: 0x{:X?}",
+                size_of::<P>(),
+                addr,
+                value,
+            );
 
             let offset = addr.value() - Region::IOPorts.start().value();
             value.write_to(&mut self.memory.io_stubs[offset as usize..]);
@@ -428,7 +432,7 @@ impl Bus<'_> {
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                eprintln!("unknown region at {addr} ({phys})");
+                warn!(self.logger, "write to unknown region at {addr} ({phys})"; address = addr);
                 return;
             };
 

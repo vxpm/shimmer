@@ -2,7 +2,7 @@
 ///
 /// A primitive is either a byte, half-word or word.
 /// That is, [`u8`], [`i8`], [`u16`], [`i16`], [`u32`] or [`i32`].
-pub trait Primitive: Copy + std::fmt::Debug {
+pub trait Primitive: Copy + std::fmt::Debug + Send + Sync + 'static {
     /// The alignment of this primitive.
     const ALIGNMENT: u32;
 

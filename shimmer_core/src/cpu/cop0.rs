@@ -110,7 +110,7 @@ impl std::fmt::Debug for InterruptMask {
 }
 
 #[bitos(5)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exception {
     Interrupt = 0x00,
     TlbModification = 0x01,

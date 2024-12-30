@@ -12,6 +12,7 @@ use crate::{
     cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
     mem::{self, Address},
 };
+use tinylog::{error, info};
 
 pub struct Interpreter<'ctx> {
     bus: mem::Bus<'ctx>,
@@ -33,9 +34,12 @@ impl<'ctx> Interpreter<'ctx> {
 
     /// Trigger an exception.
     fn trigger_exception(&mut self, exception: Exception) {
-        eprintln!(
-            "Triggered exception: {:?} @ 0x{:08X}",
-            exception, self.bus.cpu.regs.pc
+        info!(
+            self.bus.cpu.logger,
+            "triggered exception {:?} at {}",
+            exception, self.current_addr;
+            exception = exception,
+            address = self.current_addr,
         );
 
         // store return address in EPC and clear next instruction (exceptions
@@ -115,11 +119,12 @@ impl<'ctx> Interpreter<'ctx> {
                 return;
             }
 
-            eprintln!(
-                "triggered {:?} - status: 0x{:08X} mask: 0x{:08X}",
-                requested_interrupt,
-                self.bus.cop0.interrupt_status.into_bits(),
-                self.bus.cop0.interrupt_mask.into_bits()
+            info!(
+                self.bus.cpu.logger,
+                "triggered interrupt {:?} @ {}",
+                requested_interrupt, self.current_addr;
+                interrupt = requested_interrupt,
+                address = self.current_addr,
             );
 
             self.trigger_exception(Exception::Interrupt);
@@ -183,19 +188,18 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::SRA => self.sra(instr),
                             SpecialOpcode::DIV => self.div(instr),
                             SpecialOpcode::MFLO => self.mflo(instr),
-                            _ => panic!("can't execute special op {op:?}"),
+                            _ => error!(self.bus.cpu.logger, "can't execute special op {op:?}"),
                         }
                     } else {
-                        panic!("illegal special op");
+                        error!(self.bus.cpu.logger, "illegal special op");
                     }
                 }
                 _ => {
-                    println!();
-                    panic!("can't execute op {op:?}")
+                    error!(self.bus.cpu.logger, "can't execute op {op:?}")
                 }
             }
         } else {
-            panic!("illegal op");
+            error!(self.bus.cpu.logger, "illegal op");
         }
     }
 
@@ -289,7 +293,8 @@ pub mod test {
             let mut bus = $crate::mem::Bus {
                 memory: &mut memory,
                 cpu: &mut cpu,
-                cop0: &mut cop0
+                cop0: &mut cop0,
+                logger: &mut ::tinylog::Logger::dummy(),
             };
 
             for (i, byte) in code.into_iter().flat_map(|i| i.into_bits().to_le_bytes()).enumerate() {

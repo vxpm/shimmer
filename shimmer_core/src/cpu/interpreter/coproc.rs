@@ -1,5 +1,6 @@
 use super::Interpreter;
 use crate::cpu::{COP, instr::Instruction};
+use tinylog::error;
 
 impl Interpreter<'_> {
     /// `copn_rd = rt`
@@ -12,7 +13,7 @@ impl Interpreter<'_> {
                 COP::COP2 => (),
             }
         } else {
-            eprintln!("moving to unknown cop");
+            error!(self.bus.cpu.logger, "mtc to unknown cop");
         }
     }
 
@@ -27,7 +28,7 @@ impl Interpreter<'_> {
 
             self.bus.cpu.regs.write(instr.rt(), rd);
         } else {
-            eprintln!("moving from unknown cop");
+            error!(self.bus.cpu.logger, "mfc to unknown cop");
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, style::ScrollAnimation, Color32, Layout, RichText, Ui};
+use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
 use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx};
