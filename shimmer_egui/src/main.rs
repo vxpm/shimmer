@@ -7,7 +7,7 @@ use eframe::{
     epaint::Rounding,
 };
 use egui_dock::{DockArea, DockState};
-use parking_lot::{Mutex, MutexGuard};
+use parking_lot::Mutex;
 use shimmer_core::{cpu::Reg, PSX};
 use std::{sync::Arc, time::Duration};
 use tab::Tab;
@@ -23,21 +23,22 @@ struct Timing {
     emulated_time: Duration,
 }
 
+struct Controls {
+    running: bool,
+    breakpoints: Vec<u32>,
+    should_reset: bool,
+    alternative_names: bool,
+}
+
 /// Data that's shared between the GUI and the emulation thread.
 struct Shared {
     psx: PSX,
     timing: Timing,
-
-    running: bool,
-    breakpoints: Vec<u32>,
-    should_reset: bool,
+    controls: Controls,
+    terminal_output: String,
 
     log_family: LoggerFamily,
     log_records: RecordBuf,
-
-    // ui -- should this be here?
-    terminal_output: String,
-    alternative_names: bool,
 }
 
 impl Shared {
@@ -60,129 +61,19 @@ impl Shared {
                 running_timer: Timer::new(),
                 emulated_time: Duration::ZERO,
             },
-
-            running: false,
-            breakpoints: Vec::new(),
-            should_reset: false,
+            controls: Controls {
+                running: false,
+                breakpoints: Vec::new(),
+                should_reset: false,
+                alternative_names: true,
+            },
 
             log_family,
             log_records,
 
             terminal_output: String::new(),
-            alternative_names: true,
         }
     }
-}
-
-struct EmulationCtx<'shared> {
-    shared: parking_lot::MutexGuard<'shared, Shared>,
-    current_running: bool,
-    fractional_cycles: f64,
-}
-
-impl<'shared> EmulationCtx<'shared> {
-    pub fn prologue(&mut self) {
-        if self.shared.should_reset {
-            let old_shared = std::mem::replace(&mut *self.shared, Shared::new());
-            self.shared.breakpoints = old_shared.breakpoints;
-            self.current_running = false;
-        }
-
-        if self.shared.running != self.current_running {
-            if self.shared.running {
-                self.shared.timing.running_timer.resume();
-            } else {
-                self.shared.timing.running_timer.pause();
-            }
-
-            self.current_running = self.shared.running;
-        }
-    }
-
-    pub fn catch_up(&mut self) {
-        let time_behind = self
-            .shared
-            .timing
-            .running_timer
-            .elapsed()
-            .saturating_sub(self.shared.timing.emulated_time);
-
-        let cycles_to_run = 33_870_000 as f64 * time_behind.as_secs_f64() + self.fractional_cycles;
-
-        self.fractional_cycles = cycles_to_run.fract();
-        let full_cycles_to_run = cycles_to_run as u64;
-
-        let mut cycles_left = full_cycles_to_run;
-        while cycles_left > 0 {
-            let taken = 2048.min(cycles_left);
-            cycles_left -= taken;
-
-            for _ in 0..taken {
-                self.shared.psx.cycle();
-                if self.shared.psx.cpu.to_exec().1 == 0xB0 {
-                    let call = self.shared.psx.cpu.regs().read(Reg::R9);
-                    if call == 0x3D {
-                        let char = self.shared.psx.cpu.regs().read(Reg::A0);
-                        if let Ok(char) = char::try_from(char) {
-                            self.shared.terminal_output.push(char);
-                        }
-                    }
-                }
-
-                if self
-                    .shared
-                    .breakpoints
-                    .contains(&self.shared.psx.cpu.to_exec().1.value())
-                {
-                    self.shared.running = false;
-                    break;
-                }
-            }
-
-            MutexGuard::bump(&mut self.shared);
-
-            if !self.shared.running {
-                break;
-            }
-        }
-
-        let emulated_cycles = full_cycles_to_run - cycles_left;
-        self.shared.timing.emulated_time += time_behind
-            .mul_f64((emulated_cycles as f64 / full_cycles_to_run as f64).max(f64::EPSILON));
-    }
-
-    pub fn cycle(&mut self) {
-        self.prologue();
-
-        // TODO: this is stupid, do something better
-        if self.shared.running {
-            self.catch_up();
-        }
-
-        MutexGuard::bump(&mut self.shared);
-    }
-}
-
-fn setup_emulation_thread() -> Arc<Mutex<Shared>> {
-    let shared = Arc::new(Mutex::new(Shared::new()));
-
-    std::thread::spawn({
-        let shared = shared.clone();
-        move || {
-            let shared = shared.lock();
-            let mut ctx = EmulationCtx {
-                current_running: shared.running,
-                fractional_cycles: 0.0,
-                shared,
-            };
-
-            loop {
-                ctx.cycle();
-            }
-        }
-    });
-
-    shared
 }
 
 struct App {
@@ -193,7 +84,7 @@ struct App {
 
 impl App {
     fn new(_ctx: &eframe::CreationContext<'_>) -> Self {
-        let shared = setup_emulation_thread();
+        let shared = Arc::new(Mutex::new(Shared::new()));
         let mut dock: DockState<tab::Instance> = DockState::new(vec![]);
 
         let mut id = 0;
@@ -337,7 +228,7 @@ impl eframe::App for App {
 
         let mut shared = self.shared.lock();
         if reset {
-            shared.should_reset = true;
+            // shared.should_reset = true;
         }
 
         DockArea::new(&mut self.dock).style(style).show(
@@ -348,8 +239,8 @@ impl eframe::App for App {
             },
         );
 
-        if shared.running {
-            ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 75.0));
+        if shared.controls.running {
+            ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
         }
 
         std::mem::drop(shared);

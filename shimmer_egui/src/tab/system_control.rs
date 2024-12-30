@@ -31,7 +31,7 @@ impl Tab for SystemControl {
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut ctx.shared.running, "Run");
+            ui.checkbox(&mut ctx.shared.controls.running, "Run");
             ui.label(format!(
                 "{:.3?}/{:.3?}",
                 ctx.shared.timing.emulated_time,
@@ -68,14 +68,14 @@ impl Tab for SystemControl {
 
         ui.horizontal(|ui| {
             if ui
-                .add_enabled(!ctx.shared.running, egui::Button::new("Step"))
+                .add_enabled(!ctx.shared.controls.running, egui::Button::new("Step"))
                 .clicked()
             {
                 ctx.shared.psx.cycle();
             }
 
             ui.checkbox(
-                &mut ctx.shared.alternative_names,
+                &mut ctx.shared.controls.alternative_names,
                 "Alternative Register Names",
             );
         });
@@ -95,7 +95,7 @@ impl Tab for SystemControl {
                         {
                             for reg in chunk {
                                 let value = ctx.shared.psx.cpu.regs().read(*reg);
-                                let name = if ctx.shared.alternative_names {
+                                let name = if ctx.shared.controls.alternative_names {
                                     RichText::new(reg.alt_name())
                                 } else {
                                     RichText::new(format!("{:?}", reg))

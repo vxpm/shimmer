@@ -160,7 +160,7 @@ impl InstructionViewer {
         });
 
         ui.horizontal(|ui| {
-            self.draw_args(ui, ctx.shared.alternative_names, instr, args);
+            self.draw_args(ui, ctx.shared.controls.alternative_names, instr, args);
         });
     }
 

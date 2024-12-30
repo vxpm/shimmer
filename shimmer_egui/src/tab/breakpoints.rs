@@ -35,8 +35,8 @@ impl Breakpoints {
             if ui.button("Add").clicked() {
                 let target = u32::from_str_radix(&self.target_text, 16).unwrap_or(0) & !0b11;
 
-                if !ctx.shared.breakpoints.contains(&target) {
-                    ctx.shared.breakpoints.push(target);
+                if !ctx.shared.controls.breakpoints.contains(&target) {
+                    ctx.shared.controls.breakpoints.push(target);
                 }
             }
         });
@@ -49,9 +49,9 @@ impl Breakpoints {
         egui::ScrollArea::vertical().show_rows(
             ui,
             font_height,
-            ctx.shared.breakpoints.len(),
+            ctx.shared.controls.breakpoints.len(),
             |ui, row_range| {
-                for &breakpoint in &ctx.shared.breakpoints[row_range] {
+                for &breakpoint in &ctx.shared.controls.breakpoints[row_range] {
                     ui.horizontal(|ui| {
                         let color = if ctx.shared.psx.cpu.to_exec().1 == breakpoint {
                             Color32::LIGHT_RED
@@ -73,7 +73,10 @@ impl Breakpoints {
             },
         );
 
-        ctx.shared.breakpoints.retain(|b| !to_remove.contains(b));
+        ctx.shared
+            .controls
+            .breakpoints
+            .retain(|b| !to_remove.contains(b));
     }
 }
 
