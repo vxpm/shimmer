@@ -2,7 +2,7 @@ use crate::tab::{Context, Tab};
 use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
-use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx};
+use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx, Level};
 
 const ROW_SIZE: f32 = 25.0;
 
@@ -136,34 +136,44 @@ pub struct LogViewer {
 
     // user settings
     logger_ctx: LoggerContext,
-    logger_ctx_text: String,
     stick_to_bottom: bool,
 }
 
 impl LogViewer {
-    fn draw_header(&mut self, ui: &mut Ui) {
+    fn draw_header(&mut self, ui: &mut Ui, ctx: &mut Context) {
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.stick_to_bottom, "Stick to Bottom");
 
             ui.add_space(75.0);
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let response = ui.add(
-                    egui::TextEdit::singleline(&mut self.logger_ctx_text)
-                        .hint_text("e.g. gpu for psx::gpu")
-                        .desired_width(150.0),
-                );
+                let current_level = ctx.shared.log_family.level_of(&self.logger_ctx).unwrap();
+                let mut current_level_index = current_level as usize;
+                egui::ComboBox::from_label("Level:")
+                    .selected_text(current_level.to_string())
+                    .show_index(
+                        ui,
+                        &mut current_level_index,
+                        Level::Error as usize + 1,
+                        |i| unsafe { std::mem::transmute::<_, Level>(i as u8) }.to_string(),
+                    );
 
-                if response.lost_focus() {
-                    let segments = self
-                        .logger_ctx_text
-                        .split("::")
-                        .filter(|seg| !seg.is_empty());
-                    self.logger_ctx =
-                        segments.fold(LoggerContext::new("psx"), |acc, seg| acc.child(seg));
-                    self.stick_to_bottom = true;
+                let new_level = unsafe { std::mem::transmute(current_level_index as u8) };
+                if new_level != current_level {
+                    ctx.shared
+                        .log_family
+                        .set_level_of(&self.logger_ctx, new_level)
+                        .unwrap();
                 }
-                ui.label("Filter: ");
+
+                egui::ComboBox::from_label("Context:")
+                    .selected_text(&self.logger_ctx.to_string())
+                    .show_ui(ui, |ui| {
+                        for context in ctx.shared.log_family.contexts() {
+                            let context_str = context.to_string();
+                            ui.selectable_value(&mut self.logger_ctx, context, context_str);
+                        }
+                    });
             });
         });
     }
@@ -223,7 +233,6 @@ impl Tab for LogViewer {
             prefetch_buffer: Vec::new(),
 
             logger_ctx: LoggerContext::new("psx"),
-            logger_ctx_text: String::new(),
             stick_to_bottom: true,
         }
     }
@@ -232,10 +241,10 @@ impl Tab for LogViewer {
         "Logs".into()
     }
 
-    fn ui(&mut self, ui: &mut Ui, ctx: Context) {
+    fn ui(&mut self, ui: &mut Ui, mut ctx: Context) {
         let response = egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical(|ui| {
-                self.draw_header(ui);
+                self.draw_header(ui, &mut ctx);
                 ui.separator();
                 self.draw_logs(ui, ctx);
             });

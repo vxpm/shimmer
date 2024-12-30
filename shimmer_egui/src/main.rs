@@ -15,22 +15,27 @@ use tab::{
     breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
     memory_viewer::MemoryViewer, screen::Screen, system_control::SystemControl, tty::Terminal,
 };
-use tinylog::{drain::buf::RecordBuf, Logger};
+use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};
 use util::Timer;
+
+struct Timing {
+    running_timer: Timer,
+    emulated_time: Duration,
+}
 
 /// Data that's shared between the GUI and the emulation thread.
 struct Shared {
     psx: PSX,
+    timing: Timing,
+
     running: bool,
-    running_timer: Timer,
-    emulated_time: Duration,
     breakpoints: Vec<u32>,
     should_reset: bool,
 
-    // log records
+    log_family: LoggerFamily,
     log_records: RecordBuf,
 
-    // ui
+    // ui -- should this be here?
     terminal_output: String,
     alternative_names: bool,
 }
@@ -39,18 +44,28 @@ impl Shared {
     fn new() -> Self {
         let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
         let log_records = RecordBuf::new();
-        let logger = Logger::builder("psx")
+        let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
             .build();
 
+        let level = if cfg!(debug_assertions) {
+            tinylog::Level::Trace
+        } else {
+            tinylog::Level::Info
+        };
+        let root_logger = log_family.logger("psx", level);
         Shared {
-            psx: PSX::with_bios(bios, logger),
+            psx: PSX::with_bios(bios, root_logger),
+            timing: Timing {
+                running_timer: Timer::new(),
+                emulated_time: Duration::ZERO,
+            },
+
             running: false,
-            running_timer: Timer::new(),
-            emulated_time: Duration::ZERO,
             breakpoints: Vec::new(),
             should_reset: false,
 
+            log_family,
             log_records,
 
             terminal_output: String::new(),
@@ -75,9 +90,9 @@ impl<'shared> EmulationCtx<'shared> {
 
         if self.shared.running != self.current_running {
             if self.shared.running {
-                self.shared.running_timer.resume();
+                self.shared.timing.running_timer.resume();
             } else {
-                self.shared.running_timer.pause();
+                self.shared.timing.running_timer.pause();
             }
 
             self.current_running = self.shared.running;
@@ -87,9 +102,10 @@ impl<'shared> EmulationCtx<'shared> {
     pub fn catch_up(&mut self) {
         let time_behind = self
             .shared
+            .timing
             .running_timer
             .elapsed()
-            .saturating_sub(self.shared.emulated_time);
+            .saturating_sub(self.shared.timing.emulated_time);
 
         let cycles_to_run = 33_870_000 as f64 * time_behind.as_secs_f64() + self.fractional_cycles;
 
@@ -131,7 +147,7 @@ impl<'shared> EmulationCtx<'shared> {
         }
 
         let emulated_cycles = full_cycles_to_run - cycles_left;
-        self.shared.emulated_time += time_behind
+        self.shared.timing.emulated_time += time_behind
             .mul_f64((emulated_cycles as f64 / full_cycles_to_run as f64).max(f64::EPSILON));
     }
 

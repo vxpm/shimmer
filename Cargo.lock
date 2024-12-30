@@ -1763,15 +1763,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papaya"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ce63bf9dca3eab259cffd421f05661b3386aee36276f5aed9f71450b98f5c5c"
-dependencies = [
- "seize",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2124,16 +2115,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
-name = "seize"
-version = "0.4.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d84b0c858bdd30cb56f5597f8b3bf702ec23829e652cc636a1e5a7b9de46ae93"
-dependencies = [
- "libc",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "seq-macro"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2398,12 +2379,12 @@ name = "tinylog"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "easyerr",
  "erased-serde",
  "flume",
  "kstring",
  "lazy_format",
  "libc",
- "papaya",
  "rustc-hash 2.1.0",
  "smallbox",
  "yansi",

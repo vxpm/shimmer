@@ -34,13 +34,13 @@ impl Tab for SystemControl {
             ui.checkbox(&mut ctx.shared.running, "Run");
             ui.label(format!(
                 "{:.3?}/{:.3?}",
-                ctx.shared.emulated_time,
-                ctx.shared.running_timer.elapsed()
+                ctx.shared.timing.emulated_time,
+                ctx.shared.timing.running_timer.elapsed()
             ));
         });
 
         ui.horizontal(|ui| {
-            let mut scale = ctx.shared.running_timer.scale();
+            let mut scale = ctx.shared.timing.running_timer.scale();
             ui.label("Scale:");
             if ui
                 .add(
@@ -50,19 +50,19 @@ impl Tab for SystemControl {
                 )
                 .changed()
             {
-                ctx.shared.running_timer.set_scale(scale);
+                ctx.shared.timing.running_timer.set_scale(scale);
             }
 
             if ui.button("0.5x").clicked() {
-                ctx.shared.running_timer.set_scale(0.5);
+                ctx.shared.timing.running_timer.set_scale(0.5);
             }
 
             if ui.button("1x").clicked() {
-                ctx.shared.running_timer.set_scale(1.0);
+                ctx.shared.timing.running_timer.set_scale(1.0);
             }
 
             if ui.button("2x").clicked() {
-                ctx.shared.running_timer.set_scale(2.0);
+                ctx.shared.timing.running_timer.set_scale(2.0);
             }
         });
 
