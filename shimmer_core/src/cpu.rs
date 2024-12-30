@@ -276,6 +276,7 @@ impl Registers {
 #[derive(Debug, Clone, Default)]
 pub struct State {
     regs: Registers,
+    cache_control: u32,
     to_load: Option<(Reg, u32)>,
     to_exec: (Instruction, Address),
     logger: Logger,
@@ -288,5 +289,13 @@ impl State {
 
     pub fn regs(&self) -> &Registers {
         &self.regs
+    }
+
+    pub fn cache_control(&self) -> u32 {
+        self.cache_control
+    }
+
+    pub fn cache_control_mut(&mut self) -> &mut u32 {
+        &mut self.cache_control
     }
 }

@@ -276,9 +276,6 @@ pub struct Memory {
     pub bios: BoxedU8Arr<{ Region::BIOS.len() as usize }>,
     /// Some IO Ports are stubbed to write and read from this buffer.
     pub io_stubs: BoxedU8Arr<{ Region::IOPorts.len() as usize }>,
-    /// CPU cache control.
-    /// TODO: move this to CPU state
-    pub cache_control: [u8; 4],
 }
 
 impl Memory {
@@ -302,7 +299,6 @@ impl Memory {
             bios: Box::try_from(bios.into_boxed_slice())
                 .expect("boxed slice of the bios data should be exactly 4096 KiB big"),
             io_stubs: util::boxed_array(0),
-            cache_control: [0; 4],
         })
     }
 }
@@ -373,7 +369,7 @@ impl Bus<'_> {
                 Region::BIOS => self.memory.bios[offset as usize..].read(),
             }
         } else {
-            self.memory.cache_control.read()
+            self.cpu.cache_control().as_bytes().read()
         }
     }
 
@@ -450,7 +446,7 @@ impl Bus<'_> {
                 Region::BIOS => self.memory.bios[offset as usize..].write(value),
             }
         } else {
-            self.memory.cache_control.write(value);
+            self.cpu.cache_control_mut().as_mut_bytes().write(value);
         }
     }
 

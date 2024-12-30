@@ -102,12 +102,11 @@ impl<'shared> EmulationCtx<'shared> {
             cycles_left -= taken;
 
             for _ in 0..taken {
-                let _cycle_info = self.shared.psx.cycle();
-
+                self.shared.psx.cycle();
                 if self.shared.psx.cpu.to_exec().1 == 0xB0 {
                     let call = self.shared.psx.cpu.regs().read(Reg::R9);
                     if call == 0x3D {
-                        let char = self.shared.psx.cpu.regs().read(Reg::R4);
+                        let char = self.shared.psx.cpu.regs().read(Reg::A0);
                         if let Ok(char) = char::try_from(char) {
                             self.shared.terminal_output.push(char);
                         }
