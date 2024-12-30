@@ -18,4 +18,4 @@ egui_dock = "0.15"
 parking_lot = "0.12"
 colorous = "1.0"
 egui_commonmark = { version = "0.19", default-features = false }
-egui_virtual_list = "0.6"
+egui_table = "0.2.0"

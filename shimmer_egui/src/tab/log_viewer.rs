@@ -1,129 +1,190 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, Ui};
-use egui_virtual_list::VirtualList;
-use strum::{AsRefStr, VariantArray};
-use tinylog::Level;
+use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui};
+use egui_table::TableDelegate;
+use std::collections::BTreeMap;
+use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AsRefStr, VariantArray)]
-enum Source {
-    CPU,
-    Memory,
-    COP0,
-    GPU,
-}
+const ROW_SIZE: f32 = 25.0;
 
 pub struct LogViewer {
     id: u64,
-    src: Source,
-    virtual_list: VirtualList,
+    row_heights: BTreeMap<u64, f32>,
+    prefetch_buffer: Vec<RecordWithCtx>,
+
+    // user settings
+    logger_ctx: LoggerContext,
+    stick_to_bottom: bool,
+}
+
+struct LogTableDelegate<'a> {
+    ctx: Context<'a>,
+    logger_ctx: &'a LoggerContext,
+    extra_row_heights: &'a mut BTreeMap<u64, f32>,
+    prefetched: &'a mut Vec<RecordWithCtx>,
+    prefetched_offset: usize,
+}
+
+impl TableDelegate for LogTableDelegate<'_> {
+    fn prepare(&mut self, info: &egui_table::PrefetchInfo) {
+        self.prefetched_offset = info.visible_rows.start as usize;
+        self.prefetched.clear();
+        self.ctx.shared.log_records.get_range(
+            self.logger_ctx,
+            info.visible_rows.start as usize..info.visible_rows.end as usize,
+            &mut self.prefetched,
+        );
+    }
+
+    fn row_top_offset(&self, _ctx: &egui::Context, _table_id: egui::Id, row_index: u64) -> f32 {
+        self.extra_row_heights
+            .range(0..row_index)
+            .map(|(_, height)| height)
+            .sum::<f32>()
+            + row_index as f32 * self.default_row_height()
+    }
+
+    fn default_row_height(&self) -> f32 {
+        ROW_SIZE
+    }
+
+    fn header_cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::HeaderCellInfo) {
+        let egui_table::HeaderCellInfo { col_range, .. } = cell;
+
+        egui::Frame::none()
+            .inner_margin(egui::Margin::symmetric(4.0, 0.0))
+            .show(ui, |ui| match col_range.start {
+                0 => {
+                    ui.label("TIME");
+                }
+                1 => {
+                    ui.label("LEVEL");
+                }
+                2 => {
+                    ui.label("CONTEXT");
+                }
+                3 => {
+                    ui.label("MESSAGE");
+                }
+                _ => unreachable!(),
+            });
+    }
+
+    fn cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::CellInfo) {
+        let egui_table::CellInfo { row_nr, col_nr, .. } = *cell;
+
+        if row_nr % 2 == 0 {
+            ui.painter()
+                .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
+        }
+
+        let Some(record) = &self
+            .prefetched
+            .get(row_nr as usize - self.prefetched_offset)
+        else {
+            return;
+        };
+
+        egui::Frame::none()
+            .inner_margin(egui::Margin::symmetric(4.0, 4.0))
+            .show(ui, |ui| match col_nr {
+                0 => {
+                    ui.vertical(|ui| {
+                        ui.label(
+                            RichText::new(
+                                record.value.time().format("%F %H:%M:%S%.3f").to_string(),
+                            )
+                            .monospace()
+                            .weak(),
+                        );
+                    });
+                }
+                1 => {
+                    ui.vertical(|ui| {
+                        let color = match record.value.static_data.level {
+                            tinylog::Level::Trace => Color32::LIGHT_GRAY,
+                            tinylog::Level::Debug => Color32::LIGHT_BLUE,
+                            tinylog::Level::Info => Color32::LIGHT_GREEN,
+                            tinylog::Level::Warn => Color32::LIGHT_YELLOW,
+                            tinylog::Level::Error => Color32::LIGHT_RED,
+                        };
+
+                        ui.label(
+                            RichText::new(record.value.static_data.level.to_string())
+                                .monospace()
+                                .color(color)
+                                .strong(),
+                        );
+                    });
+                }
+                2 => {
+                    ui.vertical(|ui| {
+                        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                        ui.label(RichText::new(record.ctx.to_string()).monospace());
+                    });
+                }
+                3 => {
+                    ui.vertical(|ui| {
+                        let frame_response = egui::Frame::none().show(ui, |ui| {
+                            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                            ui.label(record.value.message.to_string());
+                        });
+
+                        let frame_size = frame_response.response.rect.size();
+                        self.extra_row_heights
+                            .insert(cell.row_nr, 8.0 + frame_size.y - ROW_SIZE);
+                    });
+                }
+                _ => unreachable!(),
+            });
+    }
 }
 
 impl LogViewer {
     fn draw_header(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Source:");
-            egui::ComboBox::from_label("")
-                .selected_text(self.src.as_ref())
-                .show_ui(ui, |ui| {
-                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-                    ui.set_min_width(60.0);
-                    for variant in Source::VARIANTS {
-                        if ui
-                            .selectable_value(&mut self.src, *variant, variant.as_ref())
-                            .changed()
-                        {
-                            self.virtual_list.reset();
-                        }
-                    }
-                });
-        });
+        ui.checkbox(&mut self.stick_to_bottom, "Stick to Bottom");
     }
 
     fn draw_logs(&mut self, ui: &mut Ui, ctx: Context) {
         let logs = &ctx.shared.log_records;
+        let logs_len = logs.len(self.logger_ctx.clone());
 
-        let log_ctx = tinylog::logger::Context::new("psx");
-        let logs_len = logs.len(log_ctx.clone());
-
-        self.virtual_list.hide_on_resize(None);
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
+        ui.style_mut().scroll_animation = ScrollAnimation::none();
 
-        // create a scrollable area for the logs
-        egui::ScrollArea::both()
-            .auto_shrink(false)
-            .stick_to_bottom(true)
-            .show(ui, |ui| {
-                ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+        let message_width = (ui.available_width() - 180.0 - 50.0 - 100.0).max(100.0);
+        let columns = [
+            egui_table::Column::new(180.0).resizable(false),
+            egui_table::Column::new(50.0).resizable(false),
+            egui_table::Column::new(100.0).resizable(false),
+            egui_table::Column::new(message_width).resizable(false),
+        ];
 
-                let mut logs_buf = Vec::new();
-                let mut id = 0;
-                self.virtual_list
-                    .ui_custom_layout(ui, logs_len, |ui, start_index| {
-                        egui::Grid::new(id).min_col_width(40.0).show(ui, |ui| {
-                            id += 1;
-                            logs.get_range(
-                                log_ctx.clone(),
-                                start_index..start_index + 1,
-                                &mut logs_buf,
-                            );
+        let id_salt = egui::Id::new(self.id);
+        let mut table = egui_table::Table::new()
+            .id_salt(id_salt)
+            .num_rows(logs_len as u64)
+            .columns(columns)
+            .num_sticky_cols(0)
+            .headers([egui_table::HeaderRow {
+                height: ROW_SIZE,
+                groups: Vec::new(),
+            }])
+            .auto_size_mode(egui_table::AutoSizeMode::OnParentResize);
 
-                            let log = &logs_buf[0];
-                            let time = egui::RichText::new(format!(
-                                "{}",
-                                log.value
-                                    .time()
-                                    // .with_timezone(&chrono::Local)
-                                    .format("%H:%M:%S.%3f")
-                            ))
-                            .color(egui::Color32::GRAY)
-                            .text_style(egui::TextStyle::Monospace);
+        if self.stick_to_bottom {
+            table = table.scroll_to_row(logs_len as u64, None);
+        }
 
-                            let level = egui::RichText::new(
-                                log.value.static_data.level.to_string(),
-                            )
-                            .color(match log.value.static_data.level {
-                                Level::Trace => egui::Color32::GRAY,
-                                Level::Debug => egui::Color32::GRAY,
-                                Level::Info => egui::Color32::LIGHT_BLUE,
-                                Level::Warn => egui::Color32::LIGHT_YELLOW,
-                                Level::Error => egui::Color32::LIGHT_RED,
-                            });
-
-                            let log_msg = log.value.message.to_string();
-                            let mut lines = log_msg.lines();
-                            let first_line = lines.next().unwrap_or("...");
-                            let has_more = lines.next().is_some();
-
-                            let message = egui::RichText::new(first_line)
-                                .color(if has_more {
-                                    egui::Color32::GRAY
-                                } else {
-                                    egui::Color32::LIGHT_GRAY
-                                })
-                                .monospace();
-
-                            ui.label(time);
-                            ui.label(level);
-                            ui.horizontal(|ui| {
-                                ui.separator();
-
-                                let response = ui.label(message);
-                                if has_more {
-                                    response.on_hover_text(
-                                        egui::RichText::new(log_msg.as_str())
-                                            .color(egui::Color32::LIGHT_GRAY)
-                                            // .small(),
-                                            .monospace(),
-                                    );
-                                }
-                            });
-
-                            ui.end_row();
-                        });
-
-                        1
-                    });
-            });
+        table.show(
+            ui,
+            &mut LogTableDelegate {
+                ctx,
+                logger_ctx: &self.logger_ctx,
+                extra_row_heights: &mut self.row_heights,
+                prefetched: &mut self.prefetch_buffer,
+                prefetched_offset: 0,
+            },
+        );
     }
 }
 
@@ -132,13 +193,13 @@ impl Tab for LogViewer {
     where
         Self: Sized,
     {
-        let mut list = VirtualList::new();
-        list.hide_on_resize(None);
-
         Self {
             id,
-            src: Source::CPU,
-            virtual_list: list,
+            row_heights: BTreeMap::new(),
+            prefetch_buffer: Vec::new(),
+
+            logger_ctx: LoggerContext::new("psx"),
+            stick_to_bottom: true,
         }
     }
 
@@ -147,11 +208,20 @@ impl Tab for LogViewer {
     }
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
-        ui.vertical(|ui| {
-            self.draw_header(ui);
-            ui.separator();
-            self.draw_logs(ui, ctx);
+        let response = egui::CentralPanel::default().show_inside(ui, |ui| {
+            ui.vertical(|ui| {
+                self.draw_header(ui);
+                ui.separator();
+                self.draw_logs(ui, ctx);
+            });
         });
+
+        if response.response.hovered() {
+            let scrolled = ui.input(|i| i.raw_scroll_delta.length_sq() > 0.0);
+            if scrolled {
+                self.stick_to_bottom = false;
+            }
+        }
     }
 
     fn multiple_allowed() -> bool

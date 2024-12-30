@@ -7,7 +7,7 @@ pub mod mem;
 mod util;
 
 use cpu::cop0;
-use tinylog::{Logger, debug};
+use tinylog::{Logger, debug, info, warn};
 
 pub struct PSX {
     pub memory: mem::Memory,
@@ -37,6 +37,8 @@ impl PSX {
 
     pub fn cycle(&mut self) {
         debug!(self, "i'm cycling!");
+        info!(self, "this is\na multiline\nlog");
+        warn!(self, "and this is a singleline log");
 
         let bus = mem::Bus {
             memory: &mut self.memory,
