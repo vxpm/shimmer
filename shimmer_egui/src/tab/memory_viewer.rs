@@ -249,7 +249,7 @@ impl MemoryViewer {
         });
     }
 
-    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut Context) {
+    fn draw_body(&mut self, ui: &mut Ui, ctx: &mut Context) -> Widths {
         let (available_width, available_height) = ui.available_size().into();
         let (font_width, font_height) = character_dimensions(ui, egui::TextStyle::Monospace, 'A');
 
@@ -274,12 +274,7 @@ impl MemoryViewer {
             }
         });
 
-        if ctx.is_focused {
-            let scrolled = ui.input(|i| i.smooth_scroll_delta);
-            self.view_target = self
-                .view_target
-                .saturating_add_signed((-scrolled.y / 8.0) as i32 * widths.byte_count as i32);
-        }
+        widths
     }
 }
 
@@ -302,10 +297,20 @@ impl Tab for MemoryViewer {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
-        ui.vertical(|ui| {
-            self.draw_header(ui, &mut ctx);
-            ui.separator();
-            self.draw_body(ui, &mut ctx);
+        let mut widths = None;
+        let response = egui::panel::CentralPanel::default().show_inside(ui, |ui| {
+            ui.vertical(|ui| {
+                self.draw_header(ui, &mut ctx);
+                ui.separator();
+                widths = Some(self.draw_body(ui, &mut ctx));
+            });
         });
+
+        if response.response.hovered() {
+            let scrolled = ui.input(|i| i.smooth_scroll_delta);
+            self.view_target = self.view_target.saturating_add_signed(
+                (-scrolled.y / 8.0) as i32 * widths.unwrap().byte_count as i32,
+            );
+        }
     }
 }

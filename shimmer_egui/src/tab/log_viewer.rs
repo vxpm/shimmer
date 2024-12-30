@@ -1,20 +1,10 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui};
+use eframe::egui::{self, style::ScrollAnimation, Color32, Layout, RichText, Ui};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
 use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx};
 
 const ROW_SIZE: f32 = 25.0;
-
-pub struct LogViewer {
-    id: u64,
-    row_heights: BTreeMap<u64, f32>,
-    prefetch_buffer: Vec<RecordWithCtx>,
-
-    // user settings
-    logger_ctx: LoggerContext,
-    stick_to_bottom: bool,
-}
 
 struct LogTableDelegate<'a> {
     ctx: Context<'a>,
@@ -139,9 +129,43 @@ impl TableDelegate for LogTableDelegate<'_> {
     }
 }
 
+pub struct LogViewer {
+    id: u64,
+    row_heights: BTreeMap<u64, f32>,
+    prefetch_buffer: Vec<RecordWithCtx>,
+
+    // user settings
+    logger_ctx: LoggerContext,
+    logger_ctx_text: String,
+    stick_to_bottom: bool,
+}
+
 impl LogViewer {
     fn draw_header(&mut self, ui: &mut Ui) {
-        ui.checkbox(&mut self.stick_to_bottom, "Stick to Bottom");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.stick_to_bottom, "Stick to Bottom");
+
+            ui.add_space(75.0);
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut self.logger_ctx_text)
+                        .hint_text("e.g. gpu for psx::gpu")
+                        .desired_width(150.0),
+                );
+
+                if response.lost_focus() {
+                    let segments = self
+                        .logger_ctx_text
+                        .split("::")
+                        .filter(|seg| !seg.is_empty());
+                    self.logger_ctx =
+                        segments.fold(LoggerContext::new("psx"), |acc, seg| acc.child(seg));
+                    self.stick_to_bottom = true;
+                }
+                ui.label("Filter: ");
+            });
+        });
     }
 
     fn draw_logs(&mut self, ui: &mut Ui, ctx: Context) {
@@ -199,6 +223,7 @@ impl Tab for LogViewer {
             prefetch_buffer: Vec::new(),
 
             logger_ctx: LoggerContext::new("psx"),
+            logger_ctx_text: String::new(),
             stick_to_bottom: true,
         }
     }

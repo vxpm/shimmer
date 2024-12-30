@@ -209,20 +209,8 @@ impl<'ctx> Interpreter<'ctx> {
         );
         self.current_addr = instr_addr;
 
-        // println!("{instr_addr}  {instr}");
-
         if instr_addr.value() == 0x8003_0000 {
             panic!("can sideload !! :)");
-        }
-
-        if instr_addr.value() == 0xB0 {
-            let call = self.bus.cpu.regs.read(Reg::R9);
-            if call == 0x3D {
-                let char = self.bus.cpu.regs.read(Reg::A0);
-                if let Ok(char) = char::try_from(char) {
-                    print!("{char}");
-                }
-            }
         }
 
         let to_load = self.bus.cpu.to_load.take();
