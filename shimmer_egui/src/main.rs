@@ -10,8 +10,9 @@ use eframe::{
 };
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
-use shimmer_core::{cpu::Reg, PSX};
+use shimmer_core::{cpu::Reg, exe::Executable, PSX};
 use std::{
+    io::Cursor,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -320,7 +321,7 @@ fn main() {
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.inner_size = Some(egui::Vec2::new(1333.0, 1000.0));
-    native_options.viewport.maximized = Some(true);
+    native_options.viewport.maximized = Some(false);
 
     let result = eframe::run_native(
         "shimmer - psx",

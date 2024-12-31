@@ -9,15 +9,15 @@ strum.workspace = true
 tinylog.workspace = true
 bytesize.workspace = true
 
+colorous = "1.0"
+crossbeam = "0.8"
+egui_commonmark = { version = "0.19", default-features = false }
 eframe = { version = "0.30", default-features = false, features = [
     "wgpu",
     "default_fonts",
     "wayland",
 ] }
 egui_dock = "0.15"
+egui_table = "0.2"
 parking_lot = "0.12"
-colorous = "1.0"
-egui_commonmark = { version = "0.19", default-features = false }
-egui_table = "0.2.0"
-crossbeam = "0.8.4"
-si-scale = "0.2.3"
+si-scale = "0.2"

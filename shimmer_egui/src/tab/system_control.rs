@@ -62,7 +62,7 @@ impl Tab for SystemControl {
             }
 
             if ui.button("x0.5").clicked() {
-                ctx.exclusive.timing.running_timer.set_scale(current * 0.1);
+                ctx.exclusive.timing.running_timer.set_scale(current * 0.5);
             }
 
             if ui.button("x2").clicked() {

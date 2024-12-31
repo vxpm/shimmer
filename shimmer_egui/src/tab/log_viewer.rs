@@ -1,5 +1,5 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui};
+use eframe::egui::{self, style::ScrollAnimation, Color32, Rect, RichText, Ui, UiBuilder, Vec2};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
 use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx, Level};
@@ -9,7 +9,8 @@ const ROW_SIZE: f32 = 25.0;
 struct LogTableDelegate<'a> {
     ctx: Context<'a>,
     logger_ctx: &'a LoggerContext,
-    extra_row_heights: &'a mut BTreeMap<u64, f32>,
+    message_width: f32,
+    row_heights: &'a mut BTreeMap<u64, f32>,
     prefetched: &'a mut Vec<RecordWithCtx>,
     prefetched_offset: usize,
 }
@@ -25,12 +26,10 @@ impl TableDelegate for LogTableDelegate<'_> {
         );
     }
 
-    fn row_top_offset(&self, _ctx: &egui::Context, _table_id: egui::Id, row_index: u64) -> f32 {
-        self.extra_row_heights
-            .range(0..row_index)
-            .map(|(_, height)| height)
+    fn row_top_offset(&self, _ctx: &egui::Context, _table_id: egui::Id, row_nr: u64) -> f32 {
+        (0..row_nr)
+            .map(|i| self.row_heights.get(&i).unwrap_or(&ROW_SIZE))
             .sum::<f32>()
-            + row_index as f32 * self.default_row_height()
     }
 
     fn default_row_height(&self) -> f32 {
@@ -114,14 +113,14 @@ impl TableDelegate for LogTableDelegate<'_> {
                 }
                 3 => {
                     ui.vertical(|ui| {
-                        let frame_response = egui::Frame::none().show(ui, |ui| {
+                        let (_, space) = ui.allocate_space(Vec2::new(self.message_width, ROW_SIZE));
+                        let response = ui.scope_builder(UiBuilder::new().max_rect(space), |ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                             ui.label(record.value.message.to_string());
                         });
 
-                        let frame_size = frame_response.response.rect.size();
-                        self.extra_row_heights
-                            .insert(cell.row_nr, 8.0 + frame_size.y - ROW_SIZE);
+                        let size = response.response.rect.size();
+                        self.row_heights.insert(cell.row_nr, 8.0 + size.y);
                     });
                 }
                 _ => unreachable!(),
@@ -203,7 +202,7 @@ impl LogViewer {
                 height: ROW_SIZE,
                 groups: Vec::new(),
             }])
-            .auto_size_mode(egui_table::AutoSizeMode::OnParentResize);
+            .auto_size_mode(egui_table::AutoSizeMode::Never);
 
         if self.stick_to_bottom {
             table = table.scroll_to_row(logs_len as u64, None);
@@ -214,7 +213,8 @@ impl LogViewer {
             &mut LogTableDelegate {
                 ctx,
                 logger_ctx: &self.logger_ctx,
-                extra_row_heights: &mut self.row_heights,
+                message_width,
+                row_heights: &mut self.row_heights,
                 prefetched: &mut self.prefetch_buffer,
                 prefetched_offset: 0,
             },
