@@ -1,15 +1,23 @@
 mod colors;
+mod emulation;
 mod tab;
 mod util;
 
+use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, menu},
     epaint::Rounding,
 };
-use egui_dock::{DockArea, DockState, Node, NodeIndex, SurfaceIndex};
+use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::{cpu::Reg, PSX};
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 use tab::Tab;
 use tab::{
     breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
@@ -18,11 +26,13 @@ use tab::{
 use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};
 use util::Timer;
 
+/// Variables related to timing.
 struct Timing {
     running_timer: Timer,
     emulated_time: Duration,
 }
 
+/// Variables related to controlling the emulation or the GUI.
 struct Controls {
     running: bool,
     breakpoints: Vec<u32>,
@@ -30,8 +40,8 @@ struct Controls {
     alternative_names: bool,
 }
 
-/// Data that's shared between the GUI and the emulation thread.
-struct Shared {
+/// State shared between the GUI and emulation threads that is locked behind a mutex.
+struct ExclusiveState {
     psx: PSX,
     timing: Timing,
     controls: Controls,
@@ -41,7 +51,7 @@ struct Shared {
     log_records: RecordBuf,
 }
 
-impl Shared {
+impl ExclusiveState {
     fn new() -> Self {
         let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
         let log_records = RecordBuf::new();
@@ -55,7 +65,8 @@ impl Shared {
             tinylog::Level::Info
         };
         let root_logger = log_family.logger("psx", level);
-        Shared {
+
+        Self {
             psx: PSX::with_bios(bios, root_logger),
             timing: Timing {
                 running_timer: Timer::new(),
@@ -67,26 +78,53 @@ impl Shared {
                 should_reset: false,
                 alternative_names: true,
             },
+            terminal_output: String::new(),
 
             log_family,
             log_records,
+        }
+    }
+}
 
-            terminal_output: String::new(),
+/// State shared between the GUI and emulation threads that is not locked behind a mutex.
+#[derive(Default)]
+struct SharedState {
+    should_advance: AtomicBool,
+}
+
+/// State shared between the GUI and emulation threads.
+struct State {
+    exclusive: Mutex<ExclusiveState>,
+    shared: SharedState,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            exclusive: Mutex::new(ExclusiveState::new()),
+            shared: Default::default(),
         }
     }
 }
 
 struct App {
     dock: DockState<tab::Instance>,
-    shared: Arc<Mutex<Shared>>,
+    state: Arc<State>,
     id: u64,
+    unparker: Unparker,
 }
 
 impl App {
     fn new(_ctx: &eframe::CreationContext<'_>) -> Self {
-        let shared = Arc::new(Mutex::new(Shared::new()));
-        let mut dock: DockState<tab::Instance> = DockState::new(vec![]);
+        let state = Arc::new(State::default());
+        let parker = Parker::new();
+        let unparker = parker.unparker().clone();
+        std::thread::spawn({
+            let state = state.clone();
+            || emulation::run(state, parker)
+        });
 
+        let mut dock: DockState<tab::Instance> = DockState::new(vec![]);
         let mut id = 0;
         macro_rules! tab {
             ($t:ty) => {{
@@ -123,8 +161,9 @@ impl App {
 
         Self {
             dock,
-            shared,
+            state,
             id: id + 1,
+            unparker,
         }
     }
 
@@ -225,14 +264,19 @@ impl eframe::App for App {
         style.tab_bar.bg_fill = ctx.style().visuals.panel_fill;
         style.dock_area_padding = None;
 
-        let mut shared = self.shared.lock();
+        self.state
+            .shared
+            .should_advance
+            .store(false, Ordering::Relaxed);
+        let mut exclusive = self.state.exclusive.lock();
+
         if reset {
-            // shared.should_reset = true;
+            exclusive.controls.should_reset = true;
         }
 
         let to_add = {
             let mut viewer = tab::Viewer {
-                shared: &mut shared,
+                exclusive: &mut exclusive,
                 focused_tab_id,
                 to_add: None,
             };
@@ -246,11 +290,14 @@ impl eframe::App for App {
             viewer.to_add
         };
 
-        if shared.controls.running {
+        if exclusive.controls.running {
+            exclusive.timing.running_timer.resume();
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
+        } else {
+            exclusive.timing.running_timer.pause();
         }
 
-        std::mem::drop(shared);
+        std::mem::drop(exclusive);
         if let Some((surface, node, tab)) = to_add {
             let node = Some((surface, node));
             match tab {
@@ -260,6 +307,12 @@ impl eframe::App for App {
                 tab::TabToAdd::InstructionViewer => self.open_tab::<InstructionViewer>(node),
             }
         }
+
+        self.state
+            .shared
+            .should_advance
+            .store(true, Ordering::Relaxed);
+        self.unparker.unpark();
     }
 }
 

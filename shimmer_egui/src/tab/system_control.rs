@@ -31,16 +31,16 @@ impl Tab for SystemControl {
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
         ui.horizontal(|ui| {
-            ui.checkbox(&mut ctx.shared.controls.running, "Run");
+            ui.checkbox(&mut ctx.exclusive.controls.running, "Run");
             ui.label(format!(
                 "{:.3?}/{:.3?}",
-                ctx.shared.timing.emulated_time,
-                ctx.shared.timing.running_timer.elapsed()
+                ctx.exclusive.timing.emulated_time,
+                ctx.exclusive.timing.running_timer.elapsed()
             ));
         });
 
         ui.horizontal(|ui| {
-            let mut scale = ctx.shared.timing.running_timer.scale();
+            let mut scale = ctx.exclusive.timing.running_timer.scale();
             ui.label("Scale:");
             if ui
                 .add(
@@ -50,32 +50,32 @@ impl Tab for SystemControl {
                 )
                 .changed()
             {
-                ctx.shared.timing.running_timer.set_scale(scale);
+                ctx.exclusive.timing.running_timer.set_scale(scale);
             }
 
             if ui.button("0.5x").clicked() {
-                ctx.shared.timing.running_timer.set_scale(0.5);
+                ctx.exclusive.timing.running_timer.set_scale(0.5);
             }
 
             if ui.button("1x").clicked() {
-                ctx.shared.timing.running_timer.set_scale(1.0);
+                ctx.exclusive.timing.running_timer.set_scale(1.0);
             }
 
             if ui.button("2x").clicked() {
-                ctx.shared.timing.running_timer.set_scale(2.0);
+                ctx.exclusive.timing.running_timer.set_scale(2.0);
             }
         });
 
         ui.horizontal(|ui| {
             if ui
-                .add_enabled(!ctx.shared.controls.running, egui::Button::new("Step"))
+                .add_enabled(!ctx.exclusive.controls.running, egui::Button::new("Step"))
                 .clicked()
             {
-                ctx.shared.psx.cycle();
+                ctx.exclusive.psx.cycle();
             }
 
             ui.checkbox(
-                &mut ctx.shared.controls.alternative_names,
+                &mut ctx.exclusive.controls.alternative_names,
                 "Alternative Register Names",
             );
         });
@@ -94,8 +94,8 @@ impl Tab for SystemControl {
                             Reg::VARIANTS[show_range.start * 2..show_range.end * 2].chunks(2)
                         {
                             for reg in chunk {
-                                let value = ctx.shared.psx.cpu.regs().read(*reg);
-                                let name = if ctx.shared.controls.alternative_names {
+                                let value = ctx.exclusive.psx.cpu.regs().read(*reg);
+                                let name = if ctx.exclusive.controls.alternative_names {
                                     RichText::new(reg.alt_name())
                                 } else {
                                     RichText::new(format!("{:?}", reg))

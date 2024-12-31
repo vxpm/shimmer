@@ -42,13 +42,17 @@ impl Timer {
     }
 
     pub fn resume(&mut self) {
-        self.resumed_at = Instant::now();
-        self.running = true;
+        if !self.running {
+            self.resumed_at = Instant::now();
+            self.running = true;
+        }
     }
 
     pub fn pause(&mut self) {
-        self.elapsed += self.resumed_at.elapsed().mul_f64(self.scale);
-        self.running = false;
+        if self.running {
+            self.elapsed += self.resumed_at.elapsed().mul_f64(self.scale);
+            self.running = false;
+        }
     }
 
     pub fn elapsed(&self) -> Duration {

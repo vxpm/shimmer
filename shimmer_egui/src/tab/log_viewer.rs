@@ -18,7 +18,7 @@ impl TableDelegate for LogTableDelegate<'_> {
     fn prepare(&mut self, info: &egui_table::PrefetchInfo) {
         self.prefetched_offset = info.visible_rows.start as usize;
         self.prefetched.clear();
-        self.ctx.shared.log_records.get_range(
+        self.ctx.exclusive.log_records.get_range(
             self.logger_ctx,
             info.visible_rows.start as usize..info.visible_rows.end as usize,
             &mut self.prefetched,
@@ -147,7 +147,7 @@ impl LogViewer {
             ui.add_space(75.0);
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let current_level = ctx.shared.log_family.level_of(&self.logger_ctx).unwrap();
+                let current_level = ctx.exclusive.log_family.level_of(&self.logger_ctx).unwrap();
                 let mut current_level_index = current_level as usize;
                 egui::ComboBox::from_label("Level:")
                     .selected_text(current_level.to_string())
@@ -160,7 +160,7 @@ impl LogViewer {
 
                 let new_level = unsafe { std::mem::transmute(current_level_index as u8) };
                 if new_level != current_level {
-                    ctx.shared
+                    ctx.exclusive
                         .log_family
                         .set_level_of(&self.logger_ctx, new_level)
                         .unwrap();
@@ -169,7 +169,7 @@ impl LogViewer {
                 egui::ComboBox::from_label("Context:")
                     .selected_text(&self.logger_ctx.to_string())
                     .show_ui(ui, |ui| {
-                        for context in ctx.shared.log_family.contexts() {
+                        for context in ctx.exclusive.log_family.contexts() {
                             let context_str = context.to_string();
                             ui.selectable_value(&mut self.logger_ctx, context, context_str);
                         }
@@ -179,7 +179,7 @@ impl LogViewer {
     }
 
     fn draw_logs(&mut self, ui: &mut Ui, ctx: Context) {
-        let logs = &ctx.shared.log_records;
+        let logs = &ctx.exclusive.log_records;
         let logs_len = logs.len(self.logger_ctx.clone());
 
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();

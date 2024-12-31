@@ -19,3 +19,4 @@ parking_lot = "0.12"
 colorous = "1.0"
 egui_commonmark = { version = "0.19", default-features = false }
 egui_table = "0.2.0"
+crossbeam = "0.8.4"

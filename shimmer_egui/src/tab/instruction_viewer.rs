@@ -160,7 +160,7 @@ impl InstructionViewer {
         });
 
         ui.horizontal(|ui| {
-            self.draw_args(ui, ctx.shared.controls.alternative_names, instr, args);
+            self.draw_args(ui, ctx.exclusive.controls.alternative_names, instr, args);
         });
     }
 
@@ -182,13 +182,13 @@ impl InstructionViewer {
                     let addr = begin_addr + row as u32 * 4;
 
                     let prev_instr = ctx
-                        .shared
+                        .exclusive
                         .psx
                         .bus()
                         .read_unaligned::<u32>(Address(addr.saturating_sub(4)));
-                    let instr = ctx.shared.psx.bus().read_unaligned::<u32>(Address(addr));
+                    let instr = ctx.exclusive.psx.bus().read_unaligned::<u32>(Address(addr));
                     let next_instr = ctx
-                        .shared
+                        .exclusive
                         .psx
                         .bus()
                         .read_unaligned::<u32>(Address(addr.saturating_add(4)));
@@ -250,7 +250,7 @@ impl Tab for InstructionViewer {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
-        let next = ctx.shared.psx.cpu.to_exec().1;
+        let next = ctx.exclusive.psx.cpu.to_exec().1;
         if self.follow_next && next != self.old_next {
             self.target = next.value();
             self.target_view = next.value();

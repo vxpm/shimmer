@@ -6,13 +6,13 @@ pub mod screen;
 pub mod system_control;
 pub mod tty;
 
-use crate::Shared;
+use crate::ExclusiveState;
 use eframe::egui::{self, UiBuilder, Vec2};
 use egui_dock::{NodeIndex, SurfaceIndex};
 use std::any::Any;
 
 pub struct Context<'psx> {
-    pub shared: &'psx mut Shared,
+    pub exclusive: &'psx mut ExclusiveState,
     pub is_focused: bool,
 }
 
@@ -70,8 +70,8 @@ pub enum TabToAdd {
     InstructionViewer,
 }
 
-pub struct Viewer<'shared> {
-    pub shared: &'shared mut Shared,
+pub struct Viewer<'state> {
+    pub exclusive: &'state mut ExclusiveState,
     pub focused_tab_id: Option<u64>,
     pub to_add: Option<(SurfaceIndex, NodeIndex, TabToAdd)>,
 }
@@ -89,7 +89,7 @@ impl<'psx> egui_dock::TabViewer for Viewer<'psx> {
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         let ctx = Context {
-            shared: &mut self.shared,
+            exclusive: &mut self.exclusive,
             is_focused: self
                 .focused_tab_id
                 .map(|focused_tab_id| focused_tab_id == tab.id)
