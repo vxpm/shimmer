@@ -293,6 +293,12 @@ impl eframe::App for App {
         if exclusive.controls.running {
             exclusive.timing.running_timer.resume();
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
+
+            self.state
+                .shared
+                .should_advance
+                .store(true, Ordering::Relaxed);
+            self.unparker.unpark();
         } else {
             exclusive.timing.running_timer.pause();
         }
@@ -307,12 +313,6 @@ impl eframe::App for App {
                 tab::TabToAdd::InstructionViewer => self.open_tab::<InstructionViewer>(node),
             }
         }
-
-        self.state
-            .shared
-            .should_advance
-            .store(true, Ordering::Relaxed);
-        self.unparker.unpark();
     }
 }
 
