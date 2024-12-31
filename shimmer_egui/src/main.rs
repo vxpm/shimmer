@@ -6,7 +6,7 @@ use eframe::{
     egui::{self, menu},
     epaint::Rounding,
 };
-use egui_dock::{DockArea, DockState};
+use egui_dock::{DockArea, DockState, Node, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::{cpu::Reg, PSX};
 use std::{sync::Arc, time::Duration};
@@ -128,7 +128,7 @@ impl App {
         }
     }
 
-    fn open_tab<T>(&mut self)
+    fn open_tab<T>(&mut self, node: Option<(SurfaceIndex, NodeIndex)>)
     where
         T: tab::AnyShimmerTab,
     {
@@ -144,15 +144,14 @@ impl App {
             }
         }
 
-        let surface = self.dock.main_surface_mut();
-        surface.split_right(
-            egui_dock::NodeIndex::root(),
-            0.5,
-            vec![tab::Instance {
-                id: self.id,
-                tab: Box::new(T::new(self.id)),
-            }],
-        );
+        if let Some((surface, node)) = node {
+            self.dock.set_focused_node_and_surface((surface, node));
+        }
+
+        self.dock.push_to_focused_leaf(tab::Instance {
+            id: self.id,
+            tab: Box::new(T::new(self.id)),
+        });
 
         self.id += 1;
     }
@@ -173,37 +172,37 @@ impl eframe::App for App {
 
                 ui.menu_button("Tabs", |ui| {
                     if ui.button("System Control").clicked() {
-                        self.open_tab::<SystemControl>();
+                        self.open_tab::<SystemControl>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Breakpoints").clicked() {
-                        self.open_tab::<Breakpoints>();
+                        self.open_tab::<Breakpoints>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Screen").clicked() {
-                        self.open_tab::<Screen>();
+                        self.open_tab::<Screen>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Instruction Viewer").clicked() {
-                        self.open_tab::<InstructionViewer>();
+                        self.open_tab::<InstructionViewer>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Memory Viewer").clicked() {
-                        self.open_tab::<MemoryViewer>();
+                        self.open_tab::<MemoryViewer>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Logs").clicked() {
-                        self.open_tab::<LogViewer>();
+                        self.open_tab::<LogViewer>(None);
                         ui.close_menu();
                     }
 
                     if ui.button("Terminal").clicked() {
-                        self.open_tab::<Terminal>();
+                        self.open_tab::<Terminal>(None);
                         ui.close_menu();
                     }
 
@@ -231,19 +230,36 @@ impl eframe::App for App {
             // shared.should_reset = true;
         }
 
-        DockArea::new(&mut self.dock).style(style).show(
-            ctx,
-            &mut tab::Viewer {
+        let to_add = {
+            let mut viewer = tab::Viewer {
                 shared: &mut shared,
                 focused_tab_id,
-            },
-        );
+                to_add: None,
+            };
+
+            DockArea::new(&mut self.dock)
+                .style(style)
+                .show_add_buttons(true)
+                .show_add_popup(true)
+                .show(ctx, &mut viewer);
+
+            viewer.to_add
+        };
 
         if shared.controls.running {
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
         }
 
         std::mem::drop(shared);
+        if let Some((surface, node, tab)) = to_add {
+            let node = Some((surface, node));
+            match tab {
+                tab::TabToAdd::Logs => self.open_tab::<LogViewer>(node),
+                tab::TabToAdd::Terminal => self.open_tab::<Terminal>(node),
+                tab::TabToAdd::MemoryViewer => self.open_tab::<MemoryViewer>(node),
+                tab::TabToAdd::InstructionViewer => self.open_tab::<InstructionViewer>(node),
+            }
+        }
     }
 }
 

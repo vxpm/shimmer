@@ -230,10 +230,7 @@ impl InstructionViewer {
 }
 
 impl Tab for InstructionViewer {
-    fn new(_: u64) -> Self
-    where
-        Self: Sized,
-    {
+    fn new(_: u64) -> Self {
         Self {
             target: 0xBFC0_0000,
             target_view: 0xBFC0_0000,
@@ -242,6 +239,10 @@ impl Tab for InstructionViewer {
             old_next: 0,
             commonmark_cache: CommonMarkCache::default(),
         }
+    }
+
+    fn multiple_allowed() -> bool {
+        true
     }
 
     fn title(&mut self) -> egui::WidgetText {

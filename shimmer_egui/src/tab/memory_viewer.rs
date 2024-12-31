@@ -279,10 +279,7 @@ impl MemoryViewer {
 }
 
 impl Tab for MemoryViewer {
-    fn new(_: u64) -> Self
-    where
-        Self: Sized,
-    {
+    fn new(_: u64) -> Self {
         Self {
             target: 0xBFC0_0000,
             target_text: String::from("BFC00000"),
@@ -294,6 +291,10 @@ impl Tab for MemoryViewer {
 
     fn title(&mut self) -> egui::WidgetText {
         "Memory Viewer".into()
+    }
+
+    fn multiple_allowed() -> bool {
+        true
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {

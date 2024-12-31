@@ -7,7 +7,8 @@ pub mod system_control;
 pub mod tty;
 
 use crate::Shared;
-use eframe::egui;
+use eframe::egui::{self, UiBuilder, Vec2};
+use egui_dock::{NodeIndex, SurfaceIndex};
 use std::any::Any;
 
 pub struct Context<'psx> {
@@ -61,9 +62,18 @@ impl PartialEq for Instance {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum TabToAdd {
+    Logs,
+    Terminal,
+    MemoryViewer,
+    InstructionViewer,
+}
+
 pub struct Viewer<'shared> {
     pub shared: &'shared mut Shared,
     pub focused_tab_id: Option<u64>,
+    pub to_add: Option<(SurfaceIndex, NodeIndex, TabToAdd)>,
 }
 
 impl<'psx> egui_dock::TabViewer for Viewer<'psx> {
@@ -99,5 +109,33 @@ impl<'psx> egui_dock::TabViewer for Viewer<'psx> {
 
     fn scroll_bars(&self, _tab: &Self::Tab) -> [bool; 2] {
         [false, false]
+    }
+
+    fn add_popup(
+        &mut self,
+        ui: &mut egui::Ui,
+        surface: egui_dock::SurfaceIndex,
+        node: egui_dock::NodeIndex,
+    ) {
+        let (_, rect) = ui.allocate_space(Vec2::new(100.0, 100.0));
+
+        // ugly currently but who cares
+        ui.allocate_new_ui(UiBuilder::new().max_rect(rect), |ui| {
+            if ui.button("Logs").clicked() {
+                self.to_add = Some((surface, node, TabToAdd::Logs));
+            }
+
+            if ui.button("Terminal").clicked() {
+                self.to_add = Some((surface, node, TabToAdd::Terminal));
+            }
+
+            if ui.button("Memory Viewer").clicked() {
+                self.to_add = Some((surface, node, TabToAdd::MemoryViewer));
+            }
+
+            if ui.button("Instruction Viewer").clicked() {
+                self.to_add = Some((surface, node, TabToAdd::InstructionViewer));
+            }
+        });
     }
 }
