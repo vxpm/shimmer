@@ -1,11 +1,14 @@
 use crate::State;
 use crossbeam::sync::Parker;
 use shimmer_core::cpu::Reg;
-use std::sync::{atomic::Ordering, Arc};
+use std::{
+    sync::{atomic::Ordering, Arc},
+    time::Duration,
+};
+
+pub const CPU_FREQ: u32 = 33_870_000;
 
 pub fn run(state: Arc<State>, parker: Parker) {
-    let mut fractional_cycles = 0.0;
-
     loop {
         let should_advance = state.shared.should_advance.load(Ordering::Relaxed);
         if !should_advance {
@@ -20,9 +23,8 @@ pub fn run(state: Arc<State>, parker: Parker) {
             .elapsed()
             .saturating_sub(exclusive.timing.emulated_time);
 
-        let cycles_to_run = 33_870_000 as f64 * time_behind.as_secs_f64() + fractional_cycles;
+        let cycles_to_run = CPU_FREQ as f64 * time_behind.as_secs_f64();
         let full_cycles_to_run = cycles_to_run as u64;
-        fractional_cycles = cycles_to_run.fract();
 
         let mut cycles_left = full_cycles_to_run;
         while cycles_left > 0 {
@@ -59,7 +61,7 @@ pub fn run(state: Arc<State>, parker: Parker) {
         }
 
         let emulated_cycles = full_cycles_to_run - cycles_left;
-        exclusive.timing.emulated_time += time_behind
-            .mul_f64((emulated_cycles as f64 / full_cycles_to_run as f64).max(f64::EPSILON));
+        exclusive.timing.emulated_time +=
+            Duration::from_secs_f64(emulated_cycles as f64 / CPU_FREQ as f64);
     }
 }

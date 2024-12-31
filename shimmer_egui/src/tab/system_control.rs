@@ -1,5 +1,6 @@
 use crate::{
     colors::LIGHT_PURPLE,
+    emulation::CPU_FREQ,
     tab::{Context, Tab},
     util::character_dimensions,
 };
@@ -45,25 +46,38 @@ impl Tab for SystemControl {
             if ui
                 .add(
                     egui::DragValue::new(&mut scale)
-                        .speed(0.01)
-                        .range(0.0..=5.0),
+                        .speed(0.001)
+                        .range(0.0..=5.0)
+                        .min_decimals(9)
+                        .max_decimals(9),
                 )
                 .changed()
             {
                 ctx.exclusive.timing.running_timer.set_scale(scale);
             }
 
-            if ui.button("0.5x").clicked() {
-                ctx.exclusive.timing.running_timer.set_scale(0.5);
+            let current = ctx.exclusive.timing.running_timer.scale();
+            if ui.button("x0.1").clicked() {
+                ctx.exclusive.timing.running_timer.set_scale(current * 0.1);
             }
 
-            if ui.button("1x").clicked() {
-                ctx.exclusive.timing.running_timer.set_scale(1.0);
+            if ui.button("x0.5").clicked() {
+                ctx.exclusive.timing.running_timer.set_scale(current * 0.1);
             }
 
-            if ui.button("2x").clicked() {
-                ctx.exclusive.timing.running_timer.set_scale(2.0);
+            if ui.button("x2").clicked() {
+                ctx.exclusive.timing.running_timer.set_scale(current * 2.0);
             }
+
+            if ui.button("x10").clicked() {
+                ctx.exclusive.timing.running_timer.set_scale(current * 10.0);
+            }
+
+            let cpu_freq: si_scale::value::Value = (CPU_FREQ as f64 * current).into();
+            ui.label(format!(
+                "(~ {}Hz)",
+                si_scale::format_value!(cpu_freq, "{:.3}")
+            ));
         });
 
         ui.horizontal(|ui| {
