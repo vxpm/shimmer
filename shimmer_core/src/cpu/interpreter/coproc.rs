@@ -13,7 +13,7 @@ impl Interpreter<'_> {
                 COP::COP2 => (),
             }
         } else {
-            error!(self.bus.cpu.logger, "mtc to unknown cop");
+            error!(self.bus.loggers.cpu, "mtc to unknown cop");
         }
     }
 
@@ -28,7 +28,7 @@ impl Interpreter<'_> {
 
             self.bus.cpu.regs.write(instr.rt(), rd);
         } else {
-            error!(self.bus.cpu.logger, "mfc to unknown cop");
+            error!(self.bus.loggers.cpu, "mfc to unknown cop");
         }
     }
 

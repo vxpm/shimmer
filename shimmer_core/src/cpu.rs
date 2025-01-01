@@ -10,7 +10,6 @@ use proptest_derive::Arbitrary;
 
 pub use interpreter::Interpreter;
 use strum::{EnumMessage, VariantArray};
-use tinylog::Logger;
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -279,7 +278,6 @@ pub struct State {
     cache_control: u32,
     to_load: Option<(Reg, u32)>,
     to_exec: (Instruction, Address),
-    logger: Logger,
 }
 
 impl State {

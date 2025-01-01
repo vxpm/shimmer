@@ -5,6 +5,7 @@ use strum::VariantArray;
 pub enum Reg {
     InterruptStatus,
     InterruptMask,
+    Post,
 }
 
 impl Reg {
@@ -12,6 +13,7 @@ impl Reg {
         let (addr, width) = match self {
             Reg::InterruptStatus => (0x1F80_1070, 4),
             Reg::InterruptMask => (0x1F80_1074, 4),
+            Reg::Post => (0x1F80_2041, 1),
         };
 
         (Address(addr), width)

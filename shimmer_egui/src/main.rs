@@ -10,7 +10,7 @@ use eframe::{
 };
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
-use shimmer_core::{cpu::Reg, exe::Executable, PSX};
+use shimmer_core::PSX;
 use std::{
     io::Cursor,
     sync::{
@@ -55,6 +55,11 @@ struct ExclusiveState {
 impl ExclusiveState {
     fn new() -> Self {
         let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
+
+        use shimmer_core::binrw::BinReaderExt;
+        let exe = std::fs::read("psxtest_cpu.exe").unwrap();
+        let exe: shimmer_core::exe::Executable = Cursor::new(exe).read_le().unwrap();
+
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -67,8 +72,11 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
+        let mut psx = PSX::with_bios(bios, root_logger);
+        // psx.memory.sideload = Some(exe);
+
         Self {
-            psx: PSX::with_bios(bios, root_logger),
+            psx,
             timing: Timing {
                 running_timer: Timer::new(),
                 emulated_time: Duration::ZERO,
@@ -272,7 +280,8 @@ impl eframe::App for App {
         let mut exclusive = self.state.exclusive.lock();
 
         if reset {
-            exclusive.controls.should_reset = true;
+            let old = std::mem::replace(&mut *exclusive, ExclusiveState::new());
+            exclusive.controls.breakpoints = old.controls.breakpoints;
         }
 
         let to_add = {

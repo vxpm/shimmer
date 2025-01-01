@@ -2,13 +2,16 @@ pub mod io;
 pub mod primitive;
 
 use crate::{
+    Loggers,
     cpu::{self, cop0},
+    exe::Executable,
     util,
 };
+use binrw::BinRead;
 use easyerr::Error;
 
 pub use primitive::{Primitive, PrimitiveRw};
-use tinylog::{Logger, debug, warn};
+use tinylog::{debug, trace, warn};
 use zerocopy::IntoBytes;
 
 /// A memory segment refers to a specific range of memory addresses, each with it's own purpose and
@@ -179,7 +182,7 @@ impl PhysicalAddress {
 }
 
 /// A virtual memory address. This is a thin wrapper around a [`u32`].
-#[derive(Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, BinRead)]
 pub struct Address(pub u32);
 
 impl std::fmt::Display for Address {
@@ -276,6 +279,8 @@ pub struct Memory {
     pub bios: BoxedU8Arr<{ Region::BIOS.len() as usize }>,
     /// Some IO Ports are stubbed to write and read from this buffer.
     pub io_stubs: BoxedU8Arr<{ Region::IOPorts.len() as usize }>,
+    /// Executable to side load, if any.
+    pub sideload: Option<Executable>,
 }
 
 impl Memory {
@@ -299,6 +304,7 @@ impl Memory {
             bios: Box::try_from(bios.into_boxed_slice())
                 .expect("boxed slice of the bios data should be exactly 4096 KiB big"),
             io_stubs: util::boxed_array(0),
+            sideload: None,
         })
     }
 }
@@ -315,7 +321,7 @@ pub struct Bus<'ctx> {
     pub memory: &'ctx mut Memory,
     pub cpu: &'ctx mut cpu::State,
     pub cop0: &'ctx mut cop0::State,
-    pub logger: &'ctx mut Logger,
+    pub loggers: &'ctx mut Loggers,
 }
 
 impl Bus<'_> {
@@ -324,6 +330,12 @@ impl Bus<'_> {
         P: Primitive,
     {
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
+            let default = || {
+                self.memory.io_stubs[addr.physical().unwrap().value() as usize
+                    - Region::IOPorts.start().value() as usize..]
+                    .read()
+            };
+
             let read = match reg {
                 io::Reg::InterruptStatus => {
                     let value = self.cop0.interrupt_status.into_bits();
@@ -337,11 +349,12 @@ impl Bus<'_> {
 
                     P::read_from(&bytes[offset..])
                 }
+                _ => default(),
             };
 
             read
         } else {
-            warn!(self.logger, "read from unknown IO port at {addr}"; address = addr);
+            warn!(self.loggers.bus, "read from unknown IO port at {addr}"; address = addr);
             P::read_from(&[0, 0, 0, 0])
         }
     }
@@ -352,7 +365,7 @@ impl Bus<'_> {
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                warn!(self.logger, "read from unknown region at {addr} ({phys})"; address = addr);
+                warn!(self.loggers.bus, "read from unknown region at {addr} ({phys})"; address = addr);
                 return [0, 0, 0, 0].read();
             };
 
@@ -391,12 +404,18 @@ impl Bus<'_> {
     {
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             debug!(
-                self.logger,
+                self.loggers.bus,
                 "{} bytes written to {reg:?} ({}): 0x{:X?}",
                 size_of::<P>(),
                 addr,
                 value;
             );
+
+            let mut default = || {
+                self.memory.io_stubs[addr.physical().unwrap().value() as usize
+                    - Region::IOPorts.start().value() as usize..]
+                    .write(value)
+            };
 
             match reg {
                 io::Reg::InterruptStatus => {
@@ -407,10 +426,16 @@ impl Bus<'_> {
                     let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();
                     value.write_to(&mut reg_bytes[offset..]);
                 }
+                io::Reg::Post => {
+                    trace!(self.loggers.bus, "POST {:02X}", value);
+                    default();
+                }
+                #[allow(unreachable_patterns)]
+                _ => default(),
             };
         } else {
             warn!(
-                self.logger,
+                self.loggers.bus,
                 "{} bytes written to unknown IO port {}: 0x{:X?}",
                 size_of::<P>(),
                 addr,
@@ -428,7 +453,7 @@ impl Bus<'_> {
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                warn!(self.logger, "write to unknown region at {addr} ({phys})"; address = addr);
+                warn!(self.loggers.bus, "write to unknown region at {addr} ({phys})"; address = addr);
                 return;
             };
 

@@ -1,5 +1,5 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, style::ScrollAnimation, Color32, Rect, RichText, Ui, UiBuilder, Vec2};
+use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui, UiBuilder, Vec2};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
 use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx, Level};
@@ -11,25 +11,38 @@ struct LogTableDelegate<'a> {
     logger_ctx: &'a LoggerContext,
     message_width: f32,
     row_heights: &'a mut BTreeMap<u64, f32>,
-    prefetched: &'a mut Vec<RecordWithCtx>,
-    prefetched_offset: usize,
+    prefetched: &'a mut BTreeMap<u64, RecordWithCtx>,
 }
 
 impl TableDelegate for LogTableDelegate<'_> {
     fn prepare(&mut self, info: &egui_table::PrefetchInfo) {
-        self.prefetched_offset = info.visible_rows.start as usize;
         self.prefetched.clear();
+
+        let mut buf = Vec::with_capacity(32);
         self.ctx.exclusive.log_records.get_range(
             self.logger_ctx,
             info.visible_rows.start as usize..info.visible_rows.end as usize,
-            &mut self.prefetched,
+            &mut buf,
         );
+
+        for (row_nr, record) in info.visible_rows.clone().zip(buf) {
+            self.prefetched.insert(row_nr, record);
+        }
     }
 
     fn row_top_offset(&self, _ctx: &egui::Context, _table_id: egui::Id, row_nr: u64) -> f32 {
-        (0..row_nr)
-            .map(|i| self.row_heights.get(&i).unwrap_or(&ROW_SIZE))
-            .sum::<f32>()
+        let mut known = 0;
+        let known_height = self
+            .row_heights
+            .range(0..row_nr)
+            .map(|r| {
+                known += 1;
+                *r.1
+            })
+            .sum::<f32>();
+
+        let missing = row_nr - known;
+        known_height + ROW_SIZE * missing as f32
     }
 
     fn default_row_height(&self) -> f32 {
@@ -66,10 +79,7 @@ impl TableDelegate for LogTableDelegate<'_> {
                 .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
         }
 
-        let Some(record) = &self
-            .prefetched
-            .get(row_nr as usize - self.prefetched_offset)
-        else {
+        let Some(record) = &self.prefetched.get(&row_nr) else {
             return;
         };
 
@@ -131,7 +141,7 @@ impl TableDelegate for LogTableDelegate<'_> {
 pub struct LogViewer {
     id: u64,
     row_heights: BTreeMap<u64, f32>,
-    prefetch_buffer: Vec<RecordWithCtx>,
+    prefetch_buffer: BTreeMap<u64, RecordWithCtx>,
 
     // user settings
     logger_ctx: LoggerContext,
@@ -216,7 +226,6 @@ impl LogViewer {
                 message_width,
                 row_heights: &mut self.row_heights,
                 prefetched: &mut self.prefetch_buffer,
-                prefetched_offset: 0,
             },
         );
     }
@@ -230,7 +239,7 @@ impl Tab for LogViewer {
         Self {
             id,
             row_heights: BTreeMap::new(),
-            prefetch_buffer: Vec::new(),
+            prefetch_buffer: BTreeMap::new(),
 
             logger_ctx: LoggerContext::new("psx"),
             stick_to_bottom: true,

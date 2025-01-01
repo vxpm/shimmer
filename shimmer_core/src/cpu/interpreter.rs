@@ -10,9 +10,10 @@ use super::{
 };
 use crate::{
     cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
-    mem::{self, Address},
+    kernel,
+    mem::{self, Address, Region},
 };
-use tinylog::{error, info};
+use tinylog::{debug, error, info, warn};
 
 pub struct Interpreter<'ctx> {
     bus: mem::Bus<'ctx>,
@@ -32,10 +33,31 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
+    fn sideload(&mut self) {
+        if let Some(exe) = &self.bus.memory.sideload {
+            self.bus.cpu.regs.pc = exe.header.initial_pc.value();
+            self.bus.cpu.regs.write(Reg::GP, exe.header.initial_gp);
+
+            let destination_ram =
+                exe.header.destination.physical().unwrap().value() - Region::Ram.start().value();
+
+            self.bus.memory.ram[destination_ram as usize..][..exe.header.length as usize]
+                .copy_from_slice(&exe.program);
+
+            if exe.header.initial_sp_base != 0 {
+                let initial_sp = exe
+                    .header
+                    .initial_sp_base
+                    .wrapping_add(exe.header.initial_sp_offset);
+                self.bus.cpu.regs.write(Reg::SP, initial_sp);
+            }
+        }
+    }
+
     /// Trigger an exception.
     fn trigger_exception(&mut self, exception: Exception) {
         info!(
-            self.bus.cpu.logger,
+            self.bus.loggers.cpu,
             "triggered exception {:?} at {}",
             exception, self.current_addr;
             exception = exception,
@@ -120,7 +142,7 @@ impl<'ctx> Interpreter<'ctx> {
             }
 
             info!(
-                self.bus.cpu.logger,
+                self.bus.loggers.cpu,
                 "triggered interrupt {:?} @ {}",
                 requested_interrupt, self.current_addr;
                 interrupt = requested_interrupt,
@@ -188,18 +210,39 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::SRA => self.sra(instr),
                             SpecialOpcode::DIV => self.div(instr),
                             SpecialOpcode::MFLO => self.mflo(instr),
-                            _ => error!(self.bus.cpu.logger, "can't execute special op {op:?}"),
+                            _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {
-                        error!(self.bus.cpu.logger, "illegal special op");
+                        error!(self.bus.loggers.cpu, "illegal special op");
                     }
                 }
                 _ => {
-                    error!(self.bus.cpu.logger, "can't execute op {op:?}")
+                    error!(self.bus.loggers.cpu, "can't execute op {op:?}")
                 }
             }
         } else {
-            error!(self.bus.cpu.logger, "illegal op");
+            error!(self.bus.loggers.cpu, "illegal op");
+        }
+    }
+
+    fn log_kernel_calls(&self) {
+        let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+        let func = match self.current_addr.value() {
+            0xA0 => kernel::Function::a0(code),
+            0xB0 => kernel::Function::b0(code),
+            0xC0 => kernel::Function::c0(code),
+            _ => return,
+        };
+
+        if let Some(func) = func {
+            if func != kernel::Function::PutChar {
+                debug!(self.bus.loggers.kernel, "executed kernel function {func:?}");
+            }
+        } else {
+            warn!(
+                self.bus.loggers.kernel,
+                "executed unknown kernel function 0x{:02X} at {}", code, self.current_addr
+            );
         }
     }
 
@@ -213,8 +256,10 @@ impl<'ctx> Interpreter<'ctx> {
         );
         self.current_addr = instr_addr;
 
+        self.log_kernel_calls();
+
         if instr_addr.value() == 0x8003_0000 {
-            panic!("can sideload !! :)");
+            self.sideload();
         }
 
         let to_load = self.bus.cpu.to_load.take();
@@ -226,7 +271,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        self.check_interrupts();
+        // self.check_interrupts();
     }
 
     #[inline(always)]
@@ -294,7 +339,7 @@ pub mod test {
                 memory: &mut memory,
                 cpu: &mut cpu,
                 cop0: &mut cop0,
-                logger: &mut ::tinylog::Logger::dummy(),
+                loggers: &mut $crate::Loggers::new(::tinylog::Logger::dummy()),
             };
 
             for (i, byte) in code.into_iter().flat_map(|i| i.into_bits().to_le_bytes()).enumerate() {

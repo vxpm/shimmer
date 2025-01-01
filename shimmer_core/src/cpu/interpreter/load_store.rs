@@ -14,7 +14,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u32>(addr, rt).is_err() {
-            error!(self.bus.cpu.logger, "sw failed on a misaligned address: {addr}"; address = addr);
+            error!(self.bus.loggers.cpu, "sw failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -38,7 +38,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u16>(addr, rt as u16).is_err() {
-            error!(self.bus.cpu.logger, "sh failed on a misaligned address: {addr}"; address = addr);
+            error!(self.bus.loggers.cpu, "sh failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -53,7 +53,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u8>(addr, rt as u8).is_err() {
-            error!(self.bus.cpu.logger, "sb failed on a misaligned address: {addr}"; address = addr);
+            error!(self.bus.loggers.cpu, "sb failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -65,7 +65,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<i8>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
-            error!(self.bus.cpu.logger, "lb failed on a misaligned address: {addr}"; address = addr);
+            error!(self.bus.loggers.cpu, "lb failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
@@ -77,7 +77,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<u8>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
-            error!(self.bus.cpu.logger, "lbu failed on a misaligned address: {addr}"; address = addr);
+            error!(self.bus.loggers.cpu, "lbu failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
