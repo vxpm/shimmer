@@ -35,8 +35,8 @@ impl Interpreter<'_> {
         }
     }
 
+    /// Prepares a return from an exception.
     pub fn rfe(&mut self, _instr: Instruction) {
-        error!(self.bus.loggers.cpu, "{}", self.current_addr);
         self.bus
             .cop0
             .regs

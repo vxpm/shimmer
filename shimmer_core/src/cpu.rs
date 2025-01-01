@@ -9,10 +9,10 @@ use instr::Instruction;
 use proptest_derive::Arbitrary;
 
 pub use interpreter::Interpreter;
-use strum::{EnumMessage, VariantArray};
+use strum::{EnumMessage, IntoStaticStr, VariantArray};
 
 #[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum COP {
     COP0,
     /// GTE

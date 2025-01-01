@@ -40,13 +40,9 @@ pub enum Opcode {
     SW = 0x2B,
     SWR = 0x2E,
     LWC0 = 0x30,
-    LWC1 = 0x31,
     LWC2 = 0x32,
-    LWC3 = 0x33,
     SWC0 = 0x38,
-    SWC1 = 0x39,
     SWC2 = 0x3A,
-    SWC3 = 0x3B,
 }
 
 #[bitos(5)]
@@ -167,9 +163,7 @@ pub struct Instruction {
 pub enum RegSource {
     CPU,
     COP0,
-    COP1,
     COP2,
-    COP3,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -224,31 +218,16 @@ macro_rules! args {
 
 impl std::fmt::Display for Instruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Some(args) = self.args() else {
+        let Some(mnemonic) = self.mnemonic() else {
             return write!(f, "ILLEGAL");
         };
+        write!(f, "{mnemonic}")?;
 
-        let op = self.op().unwrap();
-        match op {
-            Opcode::SPECIAL => {
-                let op = self.special_op().unwrap();
-                write!(f, "{op:?}")?;
-            }
-            Opcode::COP0 | Opcode::COP2 => {
-                let cop = self.cop().unwrap();
-                let op = self.cop_op().unwrap();
-
-                write!(f, "{cop:?}_{op:?}")?;
-            }
-            _ => write!(f, "{op:?}")?,
-        }
-
+        let args = self.args().unwrap();
         let prefix = |src| match src {
             RegSource::CPU => "",
             RegSource::COP0 => "COP0_",
-            RegSource::COP1 => "COP1_",
             RegSource::COP2 => "COP2_",
-            RegSource::COP3 => "COP3_",
         };
 
         let mut is_first = true;
@@ -350,8 +329,26 @@ impl Instruction {
             Opcode::ORI => args!(rs: CPU; rt: CPU; U16;),
             Opcode::XORI => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LUI => args!(rt: CPU; U16;),
-            Opcode::COP0 => args!(),
-            Opcode::COP2 => args!(),
+            Opcode::COP0 => match self.cop_op()? {
+                CoOpcode::MFC => args!(rd: COP0; rt: CPU;),
+                CoOpcode::CFC => args!(rd: COP0; rt: CPU;),
+                CoOpcode::MTC => args!(rd: COP0; rt: CPU;),
+                CoOpcode::CTC => args!(rd: COP0; rt: CPU;),
+                CoOpcode::BRANCH => args!(),
+                CoOpcode::SPECIAL => match self.cop_special_op()? {
+                    SpecialCoOpcode::RFE => args!(),
+                },
+            },
+            Opcode::COP2 => match self.cop_op()? {
+                CoOpcode::MFC => args!(rd: COP2; rt: CPU;),
+                CoOpcode::CFC => args!(rd: COP2; rt: CPU;),
+                CoOpcode::MTC => args!(rd: COP2; rt: CPU;),
+                CoOpcode::CTC => args!(rd: COP2; rt: CPU;),
+                CoOpcode::BRANCH => args!(),
+                CoOpcode::SPECIAL => match self.cop_special_op()? {
+                    SpecialCoOpcode::RFE => args!(),
+                },
+            },
             Opcode::LB => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LH => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LWL => args!(rs: CPU; rt: CPU; U16;),
@@ -365,26 +362,30 @@ impl Instruction {
             Opcode::SW => args!(rs: CPU; rt: CPU; U16;),
             Opcode::SWR => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LWC0 => args!(rs: CPU; rt: COP0; U16;),
-            Opcode::LWC1 => args!(rs: CPU; rt: COP1; U16;),
             Opcode::LWC2 => args!(rs: CPU; rt: COP2; U16;),
-            Opcode::LWC3 => args!(rs: CPU; rt: COP3; U16;),
             Opcode::SWC0 => args!(rs: CPU; rt: COP0; U16;),
-            Opcode::SWC1 => args!(rs: CPU; rt: COP1; U16;),
             Opcode::SWC2 => args!(rs: CPU; rt: COP2; U16;),
-            Opcode::SWC3 => args!(rs: CPU; rt: COP3; U16;),
         })
     }
 
     /// Returns the mnemonic of this instruction.
-    pub fn mnemonic(&self) -> Option<&'static str> {
+    pub fn mnemonic(&self) -> Option<String> {
         if self.op() == Some(Opcode::SPECIAL) {
-            self.special_op().map(Into::into)
+            self.special_op()
+                .map(|s| <&'static str>::from(s).to_owned())
         } else if self.op() == Some(Opcode::BZ) {
-            self.bz_kind().map(Into::into)
+            self.bz_kind().map(|s| <&'static str>::from(s).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
-            self.cop_op().map(Into::into)
+            let cop = self.cop().map(|s| <&'static str>::from(s)).unwrap();
+            if self.cop_op() == Some(CoOpcode::SPECIAL) {
+                self.cop_special_op()
+                    .map(|op| format!("{cop}_{}", <&'static str>::from(op)))
+            } else {
+                self.cop_op()
+                    .map(|op| format!("{cop}_{}", <&'static str>::from(op)))
+            }
         } else {
-            self.op().map(Into::into)
+            self.op().map(|s| <&'static str>::from(s).to_owned())
         }
     }
 

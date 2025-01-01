@@ -80,7 +80,7 @@ impl InstructionViewer {
         const IMM_COLOR: Color32 = LIGHT_PURPLE;
 
         macro_rules! helper {
-            ($reg:ident, $color:ident, $call:ident, $call_cop0:ident) => {
+            ($reg:ident, $color:ident, $call:ident) => {
                 if let Some(src) = args.$reg {
                     match src {
                         RegSource::CPU => {
@@ -95,22 +95,25 @@ impl InstructionViewer {
                             response.on_hover_text(stringify!($reg));
                         }
                         RegSource::COP0 => {
-                            // let reg = instr.$call_cop0();
-                            // let name = RichText::new(format!("COP0_{reg:?}"));
-                            // let response = ui.label(name.color($color).monospace());
-                            // response.on_hover_text(stringify!($reg));
+                            let reg = instr.$call();
+                            let name = RichText::new(format!("COP0_{reg:?}"));
+                            let response = ui.label(name.color($color).monospace());
+                            response.on_hover_text(stringify!($reg));
                         }
-                        RegSource::COP1 => (),
-                        RegSource::COP2 => (),
-                        RegSource::COP3 => (),
+                        RegSource::COP2 => {
+                            let reg = instr.$call();
+                            let name = RichText::new(format!("COP0_{reg:?}"));
+                            let response = ui.label(name.color($color).monospace());
+                            response.on_hover_text(stringify!($reg));
+                        }
                     }
                 }
             };
         }
 
-        helper!(rd, RD_COLOR, rd, reg_destination_cop0);
-        helper!(rt, RT_COLOR, rt, reg_target_cop0);
-        helper!(rs, RS_COLOR, rs, reg_source_cop0);
+        helper!(rd, RD_COLOR, rd);
+        helper!(rt, RT_COLOR, rt);
+        helper!(rs, RS_COLOR, rs);
 
         if let Some(imm_kind) = args.imm {
             let (imm, width) = match imm_kind {
@@ -134,8 +137,8 @@ impl InstructionViewer {
     fn draw_row(&mut self, ui: &mut Ui, ctx: &Context, addr: u32, instr: Instruction, valid: bool) {
         const MNEMONIC_COLOR: Color32 = Color32::LIGHT_YELLOW;
 
-        let mnemonic = instr.mnemonic().unwrap_or("ILLEGAL");
-        let description = "";
+        let mnemonic = instr.mnemonic().unwrap_or_else(|| "ILLEGAL".into());
+        let description = "TODO";
         let args = instr.args().unwrap_or_default();
 
         ui.horizontal(|ui| {
