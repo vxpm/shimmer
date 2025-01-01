@@ -438,7 +438,7 @@ impl Bus<'_> {
                     trace!(self.loggers.bus, "POST {:02X}", value);
                     default();
                 }
-                #[allow(unreachable_patterns)]
+                #[expect(unreachable_patterns)]
                 _ => default(),
             };
         } else {

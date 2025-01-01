@@ -12,7 +12,6 @@ use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::PSX;
 use std::{
-    io::Cursor,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -67,7 +66,7 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let mut psx = PSX::with_bios(bios, root_logger);
+        let psx = PSX::with_bios(bios, root_logger);
 
         // use shimmer_core::binrw::BinReaderExt;
         // let exe = std::fs::read("psxtest_cpu.exe").unwrap();

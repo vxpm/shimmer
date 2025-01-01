@@ -76,7 +76,7 @@ pub struct Viewer<'state> {
     pub to_add: Option<(SurfaceIndex, NodeIndex, TabToAdd)>,
 }
 
-impl<'psx> egui_dock::TabViewer for Viewer<'psx> {
+impl egui_dock::TabViewer for Viewer<'_> {
     type Tab = Instance;
 
     fn id(&mut self, tab: &mut Self::Tab) -> egui::Id {
@@ -89,7 +89,7 @@ impl<'psx> egui_dock::TabViewer for Viewer<'psx> {
 
     fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
         let ctx = Context {
-            exclusive: &mut self.exclusive,
+            exclusive: self.exclusive,
             is_focused: self
                 .focused_tab_id
                 .map(|focused_tab_id| focused_tab_id == tab.id)

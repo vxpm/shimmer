@@ -376,7 +376,7 @@ impl Instruction {
         } else if self.op() == Some(Opcode::BZ) {
             self.bz_kind().map(|s| <&'static str>::from(s).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
-            let cop = self.cop().map(|s| <&'static str>::from(s)).unwrap();
+            let cop = self.cop().map(<&'static str>::from).unwrap();
             if self.cop_op() == Some(CoOpcode::SPECIAL) {
                 self.cop_special_op()
                     .map(|op| format!("{cop}_{}", <&'static str>::from(op)))

@@ -390,7 +390,7 @@ pub mod test {
                 bus.write::<_, false>($crate::mem::Address(bus.cpu.regs.pc.wrapping_add(i as u32)), byte).unwrap();
             }
 
-            #[allow(unused_mut)]
+            #[expect(unused_mut)]
             let mut $interpreter = $crate::cpu::Interpreter::new(bus);
         };
     }

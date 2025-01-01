@@ -129,7 +129,7 @@ mod tests {
         (any::<u32>(), any::<i16>().prop_map(|o| o.wrapping_mul(4))).prop_filter(
             "base and offset must add to a valid address",
             |(base, offset)| {
-                let addr = Address(base.wrapping_add_signed(*offset as i32));
+                let addr = Address(base.wrapping_add_signed(i32::from(*offset)));
                 let addr_end = addr + 4u32;
 
                 addr.value() % 4 == 0
@@ -180,7 +180,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            let addr = Address(rs.wrapping_add_signed(imm as i32));
+            let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u32, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
@@ -203,7 +203,7 @@ mod tests {
             let rt_start = interpreter.bus.cpu.regs.read(rt);
 
             // setup value at address
-            let addr = Address(rs.wrapping_add_signed(imm as i32));
+            let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             interpreter.bus.write::<_, false>(addr, mem_value).unwrap();
 
             interpreter.cycle_n(2);
@@ -228,7 +228,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            let addr = Address(rs.wrapping_add_signed(imm as i32));
+            let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u16, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
@@ -249,7 +249,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            let addr = Address(rs.wrapping_add_signed(imm as i32));
+            let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u8, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
@@ -272,7 +272,7 @@ mod tests {
             let rt_start = interpreter.bus.cpu.regs.read(rt);
 
             // setup value at address
-            let addr = Address(rs.wrapping_add_signed(imm as i32));
+            let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             interpreter.bus.write::<_, false>(addr, mem_value as u8).unwrap();
 
             interpreter.cycle_n(2);

@@ -164,10 +164,11 @@ impl LogViewer {
                         ui,
                         &mut current_level_index,
                         Level::Error as usize + 1,
-                        |i| unsafe { std::mem::transmute::<_, Level>(i as u8) }.to_string(),
+                        |i| unsafe { std::mem::transmute::<u8, Level>(i as u8) }.to_string(),
                     );
 
-                let new_level = unsafe { std::mem::transmute(current_level_index as u8) };
+                let new_level =
+                    unsafe { std::mem::transmute::<u8, Level>(current_level_index as u8) };
                 if new_level != current_level {
                     ctx.exclusive
                         .log_family
@@ -176,7 +177,7 @@ impl LogViewer {
                 }
 
                 egui::ComboBox::from_label("Context:")
-                    .selected_text(&self.logger_ctx.to_string())
+                    .selected_text(self.logger_ctx.to_string())
                     .show_ui(ui, |ui| {
                         for context in ctx.exclusive.log_family.contexts() {
                             let context_str = context.to_string();

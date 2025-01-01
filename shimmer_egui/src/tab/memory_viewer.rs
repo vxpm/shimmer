@@ -179,12 +179,10 @@ impl MemoryViewer {
                 .bus()
                 .read_unaligned::<i32, true>(addr)
                 .to_string(),
-            Visualization::F32 => (unsafe {
-                std::mem::transmute::<u32, f32>(
-                    ctx.exclusive.psx.bus().read_unaligned::<u32, true>(addr),
-                )
-            })
-            .to_string(),
+            Visualization::F32 => {
+                (f32::from_bits(ctx.exclusive.psx.bus().read_unaligned::<u32, true>(addr)))
+                    .to_string()
+            }
         };
 
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
@@ -306,7 +304,7 @@ impl MemoryViewer {
                     })
                 }));
 
-                self.draw_row(ui, &widths, base as u32);
+                self.draw_row(ui, &widths, base);
             }
         });
 

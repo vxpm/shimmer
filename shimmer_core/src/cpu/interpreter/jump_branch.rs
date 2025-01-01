@@ -164,10 +164,10 @@ mod tests {
         (any::<u32>(), any::<i16>()).prop_filter(
             "resulting address must be a valid address",
             |(base, offset)| {
-                let addr = Address(base.wrapping_add_signed((*offset as i32) << 2));
+                let addr = Address(base.wrapping_add_signed(i32::from(*offset) << 2));
 
                 let valid_addr_range = (-128..128).all(|offset| {
-                    let addr = Address(base.wrapping_add_signed((offset as i32) << 2));
+                    let addr = Address(base.wrapping_add_signed(offset << 2));
                     addr.physical()
                         .is_some_and(|p| p.region().is_some_and(|r| r != Region::IOPorts))
                 });
@@ -219,7 +219,7 @@ mod tests {
 
             interpreter.cycle();
             let result = if rs != rt {
-                interpreter.bus.cpu.regs.pc.wrapping_add_signed((offset as i32) << 2)
+                interpreter.bus.cpu.regs.pc.wrapping_add_signed(i32::from(offset) << 2)
             } else {
                 interpreter.bus.cpu.regs.pc.wrapping_add(4)
             };
@@ -257,7 +257,7 @@ mod tests {
 
             interpreter.cycle();
             let result = if rs == rt {
-                interpreter.bus.cpu.regs.pc.wrapping_add_signed((offset as i32) << 2)
+                interpreter.bus.cpu.regs.pc.wrapping_add_signed(i32::from(offset) << 2)
             } else {
                 interpreter.bus.cpu.regs.pc.wrapping_add(4)
             };

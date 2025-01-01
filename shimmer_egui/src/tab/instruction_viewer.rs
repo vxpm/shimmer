@@ -120,8 +120,8 @@ impl InstructionViewer {
                 ImmKind::U5 => (instr.imm5().value() as u32, 5usize),
                 ImmKind::U16 => (instr.imm16() as u32, 16),
                 ImmKind::I16 => (instr.imm16() as u32, 16),
-                ImmKind::U20 => (instr.imm20().value() as u32, 20),
-                ImmKind::U26 => (instr.imm26().value() as u32, 26),
+                ImmKind::U20 => (instr.imm20().value(), 20),
+                ImmKind::U26 => (instr.imm26().value(), 26),
             };
 
             let hex_width = (width.div_ceil(4)).next_multiple_of(2);
@@ -146,12 +146,10 @@ impl InstructionViewer {
                 RichText::new(format!("{:08X}", addr))
                     .color(if addr == self.target {
                         Color32::LIGHT_RED
+                    } else if valid {
+                        Color32::LIGHT_BLUE
                     } else {
-                        if valid {
-                            Color32::LIGHT_BLUE
-                        } else {
-                            Color32::DARK_GRAY
-                        }
+                        Color32::DARK_GRAY
                     })
                     .monospace(),
             );
@@ -222,7 +220,7 @@ impl InstructionViewer {
                     };
 
                     let valid = !Instruction::from_bits(instr).is_illegal() && invalid_score() <= 5;
-                    self.draw_row(ui, &ctx, addr, Instruction::from_bits(instr), valid);
+                    self.draw_row(ui, ctx, addr, Instruction::from_bits(instr), valid);
                     ui.end_row();
                 }
             });
