@@ -27,7 +27,7 @@ impl Interpreter<'_> {
         self.bus.cpu.to_load = Some((instr.rt(), value));
     }
 
-    /// `[rs + signed_imm16] = rt`
+    /// `(half)[rs + signed_imm16] = rt`
     pub fn sh(&mut self, instr: Instruction) {
         if self.bus.cop0.regs.system_status().isolate_cache() {
             return;
@@ -42,7 +42,7 @@ impl Interpreter<'_> {
         }
     }
 
-    /// `[rs + signed_imm16] = rt`
+    /// `(byte)[rs + signed_imm16] = rt`
     pub fn sb(&mut self, instr: Instruction) {
         if self.bus.cop0.regs.system_status().isolate_cache() {
             return;
@@ -57,7 +57,7 @@ impl Interpreter<'_> {
         }
     }
 
-    /// `rt = [rs + signed_imm16] `. Delayed by one instruction.
+    /// `rt = (signext)(byte)[rs + signed_imm16] `. Delayed by one instruction.
     pub fn lb(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
@@ -69,7 +69,7 @@ impl Interpreter<'_> {
         }
     }
 
-    /// `rt = [rs + signed_imm16] `. Delayed by one instruction.
+    /// `rt = (zeroext)(byte)[rs + signed_imm16] `. Delayed by one instruction.
     pub fn lbu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
@@ -78,6 +78,18 @@ impl Interpreter<'_> {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
             error!(self.bus.loggers.cpu, "lbu failed on a misaligned address: {addr}"; address = addr);
+        }
+    }
+
+    /// `rt = (zeroext)(half)[rs + signed_imm16] `. Delayed by one instruction.
+    pub fn lhu(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+
+        if let Ok(value) = self.bus.read::<u16, false>(addr) {
+            self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
+        } else {
+            error!(self.bus.loggers.cpu, "lhu failed on a misaligned address: {addr}"; address = addr);
         }
     }
 

@@ -179,6 +179,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::BZ => self.bz(instr),
                 Opcode::SLTI => self.slti(instr),
                 Opcode::SLTIU => self.sltiu(instr),
+                Opcode::LHU => self.lhu(instr),
                 Opcode::COP0 | Opcode::COP2 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
@@ -217,6 +218,8 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::MFHI => self.mfhi(instr),
                             SpecialOpcode::MTLO => self.mtlo(instr),
                             SpecialOpcode::MTHI => self.mthi(instr),
+                            SpecialOpcode::SLT => self.slt(instr),
+                            SpecialOpcode::DIVU => self.divu(instr),
                             _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {

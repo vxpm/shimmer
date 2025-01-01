@@ -33,16 +33,14 @@ impl Interpreter<'_> {
     pub fn or(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
-        let result = rs | rt;
-
-        self.bus.cpu.regs.write(instr.rd(), result);
+        self.bus.cpu.regs.write(instr.rd(), rs | rt);
     }
 
     /// `rt = rs + signed_imm16`
     pub fn addi(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
-
         let result = rs.checked_add(i32::from(instr.signed_imm16()));
+
         if let Some(value) = result {
             self.bus.cpu.regs.write(instr.rt(), value as u32);
         } else {
@@ -61,9 +59,7 @@ impl Interpreter<'_> {
     pub fn addu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
-
-        let result = rs.wrapping_add(rt);
-        self.bus.cpu.regs.write(instr.rd(), result);
+        self.bus.cpu.regs.write(instr.rd(), rs.wrapping_add(rt));
     }
 
     /// `rt = rs & imm16`
@@ -84,9 +80,7 @@ impl Interpreter<'_> {
     pub fn and(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
-        let result = rs & rt;
-
-        self.bus.cpu.regs.write(instr.rd(), result);
+        self.bus.cpu.regs.write(instr.rd(), rs & rt);
     }
 
     /// `rd = rs + rt`
@@ -105,19 +99,15 @@ impl Interpreter<'_> {
     /// `if rs < signed_imm16 { rt = 1 } else { rt = 0 }`
     pub fn slti(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
-        self.bus
-            .cpu
-            .regs
-            .write(instr.rd(), u32::from(rs < i32::from(instr.signed_imm16())));
+        let result = rs < i32::from(instr.signed_imm16());
+        self.bus.cpu.regs.write(instr.rt(), u32::from(result));
     }
 
     /// `rd = rs - rt`
     pub fn subu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
-        let result = rs.wrapping_sub(rt);
-
-        self.bus.cpu.regs.write(instr.rd(), result);
+        self.bus.cpu.regs.write(instr.rd(), rs.wrapping_sub(rt));
     }
 
     /// `rd = rt (signed)>> imm5`
@@ -128,6 +118,32 @@ impl Interpreter<'_> {
     }
 
     pub fn div(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
+        let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
+        let (div, rem) = (
+            rs.checked_div(rt).unwrap_or_default(),
+            rs.checked_rem(rt).unwrap_or_default(),
+        );
+
+        self.bus.cpu.regs.lo = div as u32;
+        self.bus.cpu.regs.hi = rem as u32;
+    }
+
+    /// `if rs < signed_imm16 { rt = 1 } else { rt = 0 }`
+    pub fn sltiu(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let result = rs < (i32::from(instr.signed_imm16()) as u32);
+        self.bus.cpu.regs.write(instr.rt(), u32::from(result));
+    }
+
+    /// `if rs (signed)< rt { rd = 1 } else { rd = 0 }`
+    pub fn slt(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
+        let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
+        self.bus.cpu.regs.write(instr.rd(), u32::from(rs < rt));
+    }
+
+    pub fn divu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
         let (div, rem) = (
@@ -137,15 +153,6 @@ impl Interpreter<'_> {
 
         self.bus.cpu.regs.lo = div;
         self.bus.cpu.regs.hi = rem;
-    }
-
-    /// `if rs < signed_imm16 { rt = 1 } else { rt = 0 }`
-    pub fn sltiu(&mut self, instr: Instruction) {
-        let rs = self.bus.cpu.regs.read(instr.rs());
-        self.bus.cpu.regs.write(
-            instr.rd(),
-            u32::from(rs < (i32::from(instr.signed_imm16()) as u32)),
-        );
     }
 }
 
