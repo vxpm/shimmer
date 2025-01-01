@@ -13,7 +13,7 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
-        if self.bus.write::<u32>(addr, rt).is_err() {
+        if self.bus.write::<u32, false>(addr, rt).is_err() {
             error!(self.bus.loggers.cpu, "sw failed on a misaligned address: {addr}"; address = addr);
         }
     }
@@ -22,7 +22,7 @@ impl Interpreter<'_> {
     pub fn lw(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
-        let value = self.bus.read(addr).expect("aligned");
+        let value = self.bus.read::<u32, false>(addr).expect("aligned");
 
         self.bus.cpu.to_load = Some((instr.rt(), value));
     }
@@ -37,7 +37,7 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
-        if self.bus.write::<u16>(addr, rt as u16).is_err() {
+        if self.bus.write::<u16, false>(addr, rt as u16).is_err() {
             error!(self.bus.loggers.cpu, "sh failed on a misaligned address: {addr}"; address = addr);
         }
     }
@@ -52,7 +52,7 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
-        if self.bus.write::<u8>(addr, rt as u8).is_err() {
+        if self.bus.write::<u8, false>(addr, rt as u8).is_err() {
             error!(self.bus.loggers.cpu, "sb failed on a misaligned address: {addr}"; address = addr);
         }
     }
@@ -62,7 +62,7 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
-        if let Ok(value) = self.bus.read::<i8>(addr) {
+        if let Ok(value) = self.bus.read::<i8, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
             error!(self.bus.loggers.cpu, "lb failed on a misaligned address: {addr}"; address = addr);
@@ -74,16 +74,31 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
-        if let Ok(value) = self.bus.read::<u8>(addr) {
+        if let Ok(value) = self.bus.read::<u8, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
             error!(self.bus.loggers.cpu, "lbu failed on a misaligned address: {addr}"; address = addr);
         }
     }
 
-    /// `rd = LO`. Delayed by one instruction.
+    /// `rd = LO`.
     pub fn mflo(&mut self, instr: Instruction) {
         self.bus.cpu.regs.write(instr.rd(), self.bus.cpu.regs.lo);
+    }
+
+    /// `rd = HI`.
+    pub fn mfhi(&mut self, instr: Instruction) {
+        self.bus.cpu.regs.write(instr.rd(), self.bus.cpu.regs.hi);
+    }
+
+    /// `HI = rs`.
+    pub fn mthi(&mut self, instr: Instruction) {
+        self.bus.cpu.regs.hi = self.bus.cpu.regs.read(instr.rs());
+    }
+
+    /// `LO = rs`.
+    pub fn mtlo(&mut self, instr: Instruction) {
+        self.bus.cpu.regs.hi = self.bus.cpu.regs.read(instr.rs());
     }
 }
 
@@ -154,14 +169,14 @@ mod tests {
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
             let addr = Address(rs.wrapping_add_signed(imm as i32));
-            let old = interpreter.bus.read::<u32>(addr).unwrap();
+            let old = interpreter.bus.read::<u32, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
-                prop_assert_eq!(old, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
             } else {
-                prop_assert_eq!(rt, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(rt, interpreter.bus.read::<_, false>(addr).unwrap());
             }
         }
 
@@ -177,7 +192,7 @@ mod tests {
 
             // setup value at address
             let addr = Address(rs.wrapping_add_signed(imm as i32));
-            interpreter.bus.write(addr, mem_value).unwrap();
+            interpreter.bus.write::<_, false>(addr, mem_value).unwrap();
 
             interpreter.cycle_n(2);
 
@@ -189,7 +204,7 @@ mod tests {
 
             // now the value should have been loaded
             let rt = interpreter.bus.cpu.regs.read(rt);
-            prop_assert_eq!(rt, interpreter.bus.read(addr).unwrap());
+            prop_assert_eq!(rt, interpreter.bus.read::<_, false>(addr).unwrap());
         }
 
         #[test]
@@ -202,14 +217,14 @@ mod tests {
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
             let addr = Address(rs.wrapping_add_signed(imm as i32));
-            let old = interpreter.bus.read::<u16>(addr).unwrap();
+            let old = interpreter.bus.read::<u16, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
-                prop_assert_eq!(old, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
             } else {
-                prop_assert_eq!(rt as u16, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(rt as u16, interpreter.bus.read::<_, false>(addr).unwrap());
             }
         }
 
@@ -223,14 +238,14 @@ mod tests {
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
             let addr = Address(rs.wrapping_add_signed(imm as i32));
-            let old = interpreter.bus.read::<u8>(addr).unwrap();
+            let old = interpreter.bus.read::<u8, false>(addr).unwrap();
 
             interpreter.cycle_n(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
-                prop_assert_eq!(old, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
             } else {
-                prop_assert_eq!(rt as u8, interpreter.bus.read(addr).unwrap());
+                prop_assert_eq!(rt as u8, interpreter.bus.read::<_, false>(addr).unwrap());
             }
         }
 
@@ -246,7 +261,7 @@ mod tests {
 
             // setup value at address
             let addr = Address(rs.wrapping_add_signed(imm as i32));
-            interpreter.bus.write(addr, mem_value as u8).unwrap();
+            interpreter.bus.write::<_, false>(addr, mem_value as u8).unwrap();
 
             interpreter.cycle_n(2);
 
@@ -258,7 +273,7 @@ mod tests {
 
             // now the value should have been loaded
             let rt = interpreter.bus.cpu.regs.read(rt);
-            prop_assert_eq!(rt as u8, interpreter.bus.read(addr).unwrap());
+            prop_assert_eq!(rt as u8, interpreter.bus.read::<_, false>(addr).unwrap());
         }
     }
 }

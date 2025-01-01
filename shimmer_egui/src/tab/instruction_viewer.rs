@@ -185,13 +185,17 @@ impl InstructionViewer {
                         .exclusive
                         .psx
                         .bus()
-                        .read_unaligned::<u32>(Address(addr.saturating_sub(4)));
-                    let instr = ctx.exclusive.psx.bus().read_unaligned::<u32>(Address(addr));
+                        .read_unaligned::<u32, true>(Address(addr.saturating_sub(4)));
+                    let instr = ctx
+                        .exclusive
+                        .psx
+                        .bus()
+                        .read_unaligned::<u32, true>(Address(addr));
                     let next_instr = ctx
                         .exclusive
                         .psx
                         .bus()
-                        .read_unaligned::<u32>(Address(addr.saturating_add(4)));
+                        .read_unaligned::<u32, true>(Address(addr.saturating_add(4)));
 
                     // heuristic to determine if it is likely to be a real instruction or not
                     let bytes = prev_instr

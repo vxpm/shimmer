@@ -1,5 +1,6 @@
 mod arith_logic;
 mod coproc;
+mod exception;
 mod jump_branch;
 mod load_store;
 
@@ -22,8 +23,8 @@ pub struct Interpreter<'ctx> {
 }
 
 // these are only the general exception vectors...
-pub const EXCEPTION_VECTOR_KSEG0: u32 = 0x8000_0080;
-pub const EXCEPTION_VECTOR_KSEG1: u32 = 0xBFC0_0180;
+pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
+pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
 impl<'ctx> Interpreter<'ctx> {
     pub fn new(bus: mem::Bus<'ctx>) -> Self {
@@ -113,7 +114,9 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        self.bus.cpu.regs.pc = exception_handler;
+        dbg!(exception_handler);
+
+        self.bus.cpu.regs.pc = exception_handler.value();
     }
 
     fn check_interrupts(&mut self) {
@@ -210,6 +213,10 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::SRA => self.sra(instr),
                             SpecialOpcode::DIV => self.div(instr),
                             SpecialOpcode::MFLO => self.mflo(instr),
+                            SpecialOpcode::SYSCALL => self.syscall(instr),
+                            SpecialOpcode::MFHI => self.mfhi(instr),
+                            SpecialOpcode::MTLO => self.mtlo(instr),
+                            SpecialOpcode::MTHI => self.mthi(instr),
                             _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {
@@ -248,7 +255,7 @@ impl<'ctx> Interpreter<'ctx> {
 
     pub fn cycle(&mut self) {
         let pc_addr = Address(self.bus.cpu.regs.pc);
-        let fetched = self.bus.read(pc_addr).expect("pc is aligned");
+        let fetched = self.bus.read::<_, true>(pc_addr).expect("pc is aligned");
 
         let (instr, instr_addr) = std::mem::replace(
             &mut self.bus.cpu.to_exec,
@@ -271,7 +278,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        // self.check_interrupts();
+        self.check_interrupts();
     }
 
     #[inline(always)]
@@ -343,7 +350,7 @@ pub mod test {
             };
 
             for (i, byte) in code.into_iter().flat_map(|i| i.into_bits().to_le_bytes()).enumerate() {
-                bus.write($crate::mem::Address(bus.cpu.regs.pc.wrapping_add(i as u32)), byte).unwrap();
+                bus.write::<_, false>($crate::mem::Address(bus.cpu.regs.pc.wrapping_add(i as u32)), byte).unwrap();
             }
 
             #[allow(unused_mut)]

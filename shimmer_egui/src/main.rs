@@ -37,7 +37,6 @@ struct Timing {
 struct Controls {
     running: bool,
     breakpoints: Vec<u32>,
-    should_reset: bool,
     alternative_names: bool,
 }
 
@@ -56,10 +55,6 @@ impl ExclusiveState {
     fn new() -> Self {
         let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
 
-        use shimmer_core::binrw::BinReaderExt;
-        let exe = std::fs::read("psxtest_cpu.exe").unwrap();
-        let exe: shimmer_core::exe::Executable = Cursor::new(exe).read_le().unwrap();
-
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -72,7 +67,11 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let mut psx = PSX::with_bios(bios, root_logger);
+        let psx = PSX::with_bios(bios, root_logger);
+
+        // use shimmer_core::binrw::BinReaderExt;
+        // let exe = std::fs::read("psxtest_cpu.exe").unwrap();
+        // let exe: shimmer_core::exe::Executable = Cursor::new(exe).read_le().unwrap();
         // psx.memory.sideload = Some(exe);
 
         Self {
@@ -84,7 +83,6 @@ impl ExclusiveState {
             controls: Controls {
                 running: false,
                 breakpoints: Vec::new(),
-                should_reset: false,
                 alternative_names: true,
             },
             terminal_output: String::new(),

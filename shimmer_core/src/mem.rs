@@ -325,7 +325,7 @@ pub struct Bus<'ctx> {
 }
 
 impl Bus<'_> {
-    fn read_io_ports<P>(&self, addr: Address) -> P
+    fn read_io_ports<P, const SILENT: bool>(&self, addr: Address) -> P
     where
         P: Primitive,
     {
@@ -354,18 +354,24 @@ impl Bus<'_> {
 
             read
         } else {
-            warn!(self.loggers.bus, "read from unknown IO port at {addr}"; address = addr);
+            if !SILENT {
+                warn!(self.loggers.bus, "read from unknown IO port at {addr}"; address = addr);
+            }
+
             P::read_from(&[0, 0, 0, 0])
         }
     }
 
-    pub fn read_unaligned<P>(&self, addr: Address) -> P
+    pub fn read_unaligned<P, const SILENT: bool>(&self, addr: Address) -> P
     where
         P: Primitive,
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                warn!(self.loggers.bus, "read from unknown region at {addr} ({phys})"; address = addr);
+                if !SILENT {
+                    warn!(self.loggers.bus, "read from unknown region at {addr} ({phys})"; address = addr);
+                }
+
                 return [0, 0, 0, 0].read();
             };
 
@@ -376,7 +382,7 @@ impl Bus<'_> {
                 Region::RamMirror => self.memory.ram[(offset & 0x001F_FFFF) as usize..].read(),
                 Region::Expansion1 => self.memory.expansion_1[offset as usize..].read(),
                 Region::ScratchPad => self.memory.scratchpad[offset as usize..].read(),
-                Region::IOPorts => self.read_io_ports(addr),
+                Region::IOPorts => self.read_io_ports::<P, SILENT>(addr),
                 Region::Expansion2 => self.memory.expansion_2[offset as usize..].read(),
                 Region::Expansion3 => self.memory.expansion_3[offset as usize..].read(),
                 Region::BIOS => self.memory.bios[offset as usize..].read(),
@@ -386,30 +392,32 @@ impl Bus<'_> {
         }
     }
 
-    pub fn read<P>(&self, addr: Address) -> Result<P, MisalignedAddressErr>
+    pub fn read<P, const SILENT: bool>(&self, addr: Address) -> Result<P, MisalignedAddressErr>
     where
         P: Primitive,
     {
         (addr.is_aligned(P::ALIGNMENT))
-            .then(|| self.read_unaligned(addr))
+            .then(|| self.read_unaligned::<P, SILENT>(addr))
             .ok_or(MisalignedAddressErr {
                 addr,
                 alignment: P::ALIGNMENT,
             })
     }
 
-    fn write_io_ports<P>(&mut self, addr: Address, value: P)
+    fn write_io_ports<P, const SILENT: bool>(&mut self, addr: Address, value: P)
     where
         P: Primitive,
     {
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
-            debug!(
-                self.loggers.bus,
-                "{} bytes written to {reg:?} ({}): 0x{:X?}",
-                size_of::<P>(),
-                addr,
-                value;
-            );
+            if !SILENT {
+                debug!(
+                    self.loggers.bus,
+                    "{} bytes written to {reg:?} ({}): 0x{:X?}",
+                    size_of::<P>(),
+                    addr,
+                    value;
+                );
+            }
 
             let mut default = || {
                 self.memory.io_stubs[addr.physical().unwrap().value() as usize
@@ -434,26 +442,31 @@ impl Bus<'_> {
                 _ => default(),
             };
         } else {
-            warn!(
-                self.loggers.bus,
-                "{} bytes written to unknown IO port {}: 0x{:X?}",
-                size_of::<P>(),
-                addr,
-                value,
-            );
+            if !SILENT {
+                warn!(
+                    self.loggers.bus,
+                    "{} bytes written to unknown IO port {}: 0x{:X?}",
+                    size_of::<P>(),
+                    addr,
+                    value,
+                );
+            }
 
             let offset = addr.value() - Region::IOPorts.start().value();
             value.write_to(&mut self.memory.io_stubs[offset as usize..]);
         }
     }
 
-    pub fn write_unaligned<P>(&mut self, addr: Address, value: P)
+    pub fn write_unaligned<P, const SILENT: bool>(&mut self, addr: Address, value: P)
     where
         P: Primitive,
     {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
-                warn!(self.loggers.bus, "write to unknown region at {addr} ({phys})"; address = addr);
+                if !SILENT {
+                    warn!(self.loggers.bus, "write to unknown region at {addr} ({phys})"; address = addr);
+                }
+
                 return;
             };
 
@@ -465,7 +478,7 @@ impl Bus<'_> {
                 }
                 Region::Expansion1 => self.memory.expansion_1[offset as usize..].write(value),
                 Region::ScratchPad => self.memory.scratchpad[offset as usize..].write(value),
-                Region::IOPorts => self.write_io_ports(addr, value),
+                Region::IOPorts => self.write_io_ports::<P, SILENT>(addr, value),
                 Region::Expansion2 => self.memory.expansion_2[offset as usize..].write(value),
                 Region::Expansion3 => self.memory.expansion_3[offset as usize..].write(value),
                 Region::BIOS => self.memory.bios[offset as usize..].write(value),
@@ -475,12 +488,16 @@ impl Bus<'_> {
         }
     }
 
-    pub fn write<P>(&mut self, addr: Address, value: P) -> Result<(), MisalignedAddressErr>
+    pub fn write<P, const SILENT: bool>(
+        &mut self,
+        addr: Address,
+        value: P,
+    ) -> Result<(), MisalignedAddressErr>
     where
         P: Primitive,
     {
         (addr.is_aligned(P::ALIGNMENT))
-            .then(|| self.write_unaligned(addr, value))
+            .then(|| self.write_unaligned::<P, SILENT>(addr, value))
             .ok_or(MisalignedAddressErr {
                 addr,
                 alignment: P::ALIGNMENT,
