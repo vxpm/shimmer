@@ -11,7 +11,7 @@ use binrw::BinRead;
 use easyerr::Error;
 
 pub use primitive::{Primitive, PrimitiveRw};
-use tinylog::{debug, trace, warn};
+use tinylog::{debug, warn};
 use zerocopy::IntoBytes;
 
 /// A memory segment refers to a specific range of memory addresses, each with it's own purpose and
@@ -355,7 +355,12 @@ impl Bus<'_> {
             read
         } else {
             if !SILENT {
-                warn!(self.loggers.bus, "read from unknown IO port at {addr}"; address = addr);
+                warn!(
+                    self.loggers.bus,
+                    "{} bytes read from unknown IO port {}",
+                    size_of::<P>(),
+                    addr,
+                );
             }
 
             P::read_from(&[0, 0, 0, 0])
@@ -369,7 +374,10 @@ impl Bus<'_> {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
                 if !SILENT {
-                    warn!(self.loggers.bus, "read from unknown region at {addr} ({phys})"; address = addr);
+                    warn!(
+                        self.loggers.bus,
+                        "read from {addr} ({phys}) which is in an unknown region"
+                    );
                 }
 
                 return [0, 0, 0, 0].read();
@@ -435,7 +443,6 @@ impl Bus<'_> {
                     value.write_to(&mut reg_bytes[offset..]);
                 }
                 io::Reg::Post => {
-                    trace!(self.loggers.bus, "POST {:02X}", value);
                     default();
                 }
                 #[expect(unreachable_patterns)]
@@ -464,7 +471,10 @@ impl Bus<'_> {
         if let Some(phys) = addr.physical() {
             let Some(region) = phys.region() else {
                 if !SILENT {
-                    warn!(self.loggers.bus, "write to unknown region at {addr} ({phys})"; address = addr);
+                    warn!(
+                        self.loggers.bus,
+                        "write to {addr} ({phys}) which is in an unknown region"
+                    );
                 }
 
                 return;

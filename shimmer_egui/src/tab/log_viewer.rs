@@ -127,6 +127,27 @@ impl TableDelegate for LogTableDelegate<'_> {
                         let response = ui.scope_builder(UiBuilder::new().max_rect(space), |ui| {
                             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
                             ui.label(record.value.message.to_string());
+
+                            if !record.value.attachments.is_empty() {
+                                ui.horizontal(|ui| {
+                                    for attachment in &record.value.attachments {
+                                        let key = &attachment.key;
+                                        let value = if let Some(display) =
+                                            attachment.value.as_display()
+                                        {
+                                            display.to_string()
+                                        } else if let Some(debug) = attachment.value.as_debug() {
+                                            format!("{debug:?}")
+                                        } else {
+                                            "(opaque)".to_string()
+                                        };
+
+                                        ui.label(
+                                            RichText::new(format!("{key:?}: {}", value)).small(),
+                                        );
+                                    }
+                                });
+                            }
                         });
 
                         let size = response.response.rect.size();
