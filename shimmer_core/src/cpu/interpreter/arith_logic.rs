@@ -117,6 +117,7 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.write(instr.rd(), result as u32);
     }
 
+    /// `LO = rs (signed)/ rt; HI = rs (signed)% rt`
     pub fn div(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
         let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
@@ -143,6 +144,7 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.write(instr.rd(), u32::from(rs < rt));
     }
 
+    /// `LO = rs / rt; HI = rs % rt`
     pub fn divu(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
@@ -153,6 +155,48 @@ impl Interpreter<'_> {
 
         self.bus.cpu.regs.lo = div;
         self.bus.cpu.regs.hi = rem;
+    }
+
+    /// `rd = rt << rs`
+    pub fn sllv(&mut self, instr: Instruction) {
+        let rt = self.bus.cpu.regs.read(instr.rt());
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let result = rt.unbounded_shl(rs);
+        self.bus.cpu.regs.write(instr.rd(), result);
+    }
+
+    /// `rd = !(rs | rt)`
+    pub fn nor(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let rt = self.bus.cpu.regs.read(instr.rt());
+        self.bus.cpu.regs.write(instr.rd(), !(rs | rt));
+    }
+
+    /// `rd = rt (signed)>> rs`
+    pub fn srav(&mut self, instr: Instruction) {
+        let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let result = rt.unbounded_shr(rs);
+        self.bus.cpu.regs.write(instr.rd(), result as u32);
+    }
+
+    /// `rd = rt >> rs`
+    pub fn srlv(&mut self, instr: Instruction) {
+        let rt = self.bus.cpu.regs.read(instr.rt());
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let result = rt.unbounded_shr(rs);
+        self.bus.cpu.regs.write(instr.rd(), result);
+    }
+
+    pub fn multu(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs()) as u64;
+        let rt = self.bus.cpu.regs.read(instr.rt()) as u64;
+        let result = zerocopy::byteorder::little_endian::U64::new(rs * rt);
+        let [low, high]: [zerocopy::byteorder::little_endian::U32; 2] =
+            zerocopy::transmute!(result);
+
+        self.bus.cpu.regs.lo = low.get();
+        self.bus.cpu.regs.hi = high.get();
     }
 }
 

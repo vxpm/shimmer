@@ -180,6 +180,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::SLTI => self.slti(instr),
                 Opcode::SLTIU => self.sltiu(instr),
                 Opcode::LHU => self.lhu(instr),
+                Opcode::LH => self.lh(instr),
                 Opcode::COP0 | Opcode::COP2 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
@@ -220,6 +221,11 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::MTHI => self.mthi(instr),
                             SpecialOpcode::SLT => self.slt(instr),
                             SpecialOpcode::DIVU => self.divu(instr),
+                            SpecialOpcode::SLLV => self.sllv(instr),
+                            SpecialOpcode::NOR => self.nor(instr),
+                            SpecialOpcode::SRAV => self.srav(instr),
+                            SpecialOpcode::SRLV => self.srlv(instr),
+                            SpecialOpcode::MULTU => self.multu(instr),
                             _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {

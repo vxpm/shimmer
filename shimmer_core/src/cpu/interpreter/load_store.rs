@@ -93,6 +93,18 @@ impl Interpreter<'_> {
         }
     }
 
+    /// `rt = (signext)(half)[rs + signed_imm16] `. Delayed by one instruction.
+    pub fn lh(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+
+        if let Ok(value) = self.bus.read::<i16, false>(addr) {
+            self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
+        } else {
+            error!(self.bus.loggers.cpu, "lhu failed on a misaligned address: {addr}"; address = addr);
+        }
+    }
+
     /// `rd = LO`.
     pub fn mflo(&mut self, instr: Instruction) {
         self.bus.cpu.regs.write(instr.rd(), self.bus.cpu.regs.lo);
