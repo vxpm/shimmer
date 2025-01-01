@@ -98,7 +98,7 @@ impl Interpreter<'_> {
 
     /// `LO = rs`.
     pub fn mtlo(&mut self, instr: Instruction) {
-        self.bus.cpu.regs.hi = self.bus.cpu.regs.read(instr.rs());
+        self.bus.cpu.regs.lo = self.bus.cpu.regs.read(instr.rs());
     }
 }
 

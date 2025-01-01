@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::cpu::{COP, instr::Instruction};
-use tinylog::error;
+use tinylog::{error, warn};
 
 impl Interpreter<'_> {
     /// `copn_rd = rt`
@@ -10,7 +10,7 @@ impl Interpreter<'_> {
             match cop {
                 COP::COP0 => self.bus.cop0.regs.write(instr.rd(), rt),
                 // TODO: remove stub
-                COP::COP2 => (),
+                COP::COP2 => warn!(self.bus.loggers.cpu, "mtc to cop2 stubbed"),
             }
         } else {
             error!(self.bus.loggers.cpu, "mtc to unknown cop");
@@ -23,7 +23,10 @@ impl Interpreter<'_> {
             let rd = match cop {
                 COP::COP0 => self.bus.cop0.regs.read(instr.rd()),
                 // TODO: remove stub
-                COP::COP2 => 0,
+                COP::COP2 => {
+                    warn!(self.bus.loggers.cpu, "mfc to cop2 stubbed");
+                    0
+                }
             };
 
             self.bus.cpu.regs.write(instr.rt(), rd);
@@ -33,12 +36,12 @@ impl Interpreter<'_> {
     }
 
     pub fn rfe(&mut self, _instr: Instruction) {
+        error!(self.bus.loggers.cpu, "{}", self.current_addr);
         self.bus
             .cop0
             .regs
             .system_status_mut()
             .restore_from_exception();
-        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }
 

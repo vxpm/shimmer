@@ -50,6 +50,7 @@ pub fn run(state: Arc<State>, parker: Parker) {
                     .contains(&exclusive.psx.cpu.to_exec().1.value())
                 {
                     exclusive.controls.running = false;
+                    state.shared.should_advance.store(false, Ordering::Relaxed);
                     break;
                 }
             }

@@ -57,14 +57,6 @@ impl<'ctx> Interpreter<'ctx> {
 
     /// Trigger an exception.
     fn trigger_exception(&mut self, exception: Exception) {
-        info!(
-            self.bus.loggers.cpu,
-            "triggered exception {:?} at {}",
-            exception, self.current_addr;
-            exception = exception,
-            address = self.current_addr,
-        );
-
         // store return address in EPC and clear next instruction (exceptions
         // have no delay slot)
         //
@@ -114,7 +106,15 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        dbg!(exception_handler);
+        info!(
+            self.bus.loggers.cpu,
+            "triggered exception {:?} at {}. in_branch_delay={:?}, sr={:?}, exception_handler={:?}",
+            exception,
+            self.current_addr,
+            in_branch_delay,
+            self.bus.cop0.regs.system_status().clone(),
+            exception_handler
+        );
 
         self.bus.cpu.regs.pc = exception_handler.value();
     }
@@ -242,9 +242,43 @@ impl<'ctx> Interpreter<'ctx> {
         };
 
         if let Some(func) = func {
-            if func != kernel::Function::PutChar {
-                debug!(self.bus.loggers.kernel, "executed kernel function {func:?}");
-            }
+            let args = match func.args() {
+                0 => vec![],
+                1 => vec![self.bus.cpu.regs.read(Reg::A0)],
+                2 => vec![
+                    self.bus.cpu.regs.read(Reg::A0),
+                    self.bus.cpu.regs.read(Reg::A1),
+                ],
+                3 => vec![
+                    self.bus.cpu.regs.read(Reg::A0),
+                    self.bus.cpu.regs.read(Reg::A1),
+                    self.bus.cpu.regs.read(Reg::A2),
+                ],
+                4 => vec![
+                    self.bus.cpu.regs.read(Reg::A0),
+                    self.bus.cpu.regs.read(Reg::A1),
+                    self.bus.cpu.regs.read(Reg::A2),
+                    self.bus.cpu.regs.read(Reg::A3),
+                ],
+                _ => vec![
+                    self.bus.cpu.regs.read(Reg::A0),
+                    self.bus.cpu.regs.read(Reg::A1),
+                    self.bus.cpu.regs.read(Reg::A2),
+                    self.bus.cpu.regs.read(Reg::A3),
+                ],
+            };
+
+            let args = args
+                .into_iter()
+                .map(|x| format!("0x{x:08X}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            debug!(
+                self.bus.loggers.kernel,
+                "executed kernel function {func:?}({args})"
+            );
+            if func != kernel::Function::PutChar {}
         } else {
             warn!(
                 self.bus.loggers.kernel,
@@ -278,7 +312,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        self.check_interrupts();
+        // self.check_interrupts();
     }
 
     #[inline(always)]

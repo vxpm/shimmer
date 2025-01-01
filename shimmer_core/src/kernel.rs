@@ -1,31 +1,31 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Function {
-    PutChar,
-    Strlen,
-    Printf,
-    InitHeap,
-    SysDeqIntRP,
-    Write,
-    DequeueCdIntr,
-    CloseEvent,
-    Remove96,
-    EnqueueTimerAndVblankIrqs,
-    AllocKernelMemory,
-    EnqueueSyscallHandler,
-    SysInitMemory,
-    FlushCache,
-    Memcpy,
+    AddCDROMDevice,
     AddDrv,
     AddMemCardDevice,
-    AddCDROMDevice,
-    Strcmp,
-    CharToUpper,
-    InitDefInt,
     AddNullconDriver,
-    InstallDevices,
-    ResetEntryInt,
-    InstallExceptionHandlers,
     AdjustA0Table,
+    AllocKernelMemory,
+    CharToUpper,
+    CloseEvent,
+    DequeueCdIntr,
+    EnqueueSyscallHandler,
+    EnqueueTimerAndVblankIrqs,
+    FlushCache,
+    InitDefInt,
+    InitHeap,
+    InstallDevices,
+    InstallExceptionHandlers,
+    Memcpy,
+    Printf,
+    PutChar,
+    Remove96,
+    ResetEntryInt,
+    Strcmp,
+    Strlen,
+    SysDeqIntRP,
+    SysInitMemory,
+    Write,
 }
 
 impl Function {
@@ -73,5 +73,13 @@ impl Function {
             0x1C => Self::AdjustA0Table,
             _ => return None,
         })
+    }
+
+    pub fn args(&self) -> usize {
+        match self {
+            Function::Printf => 4,
+            Function::PutChar => 1,
+            _ => 0,
+        }
     }
 }

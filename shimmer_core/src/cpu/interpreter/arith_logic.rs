@@ -127,7 +127,6 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.write(instr.rd(), result as u32);
     }
 
-    /// `rd = rt (signed)>> imm5`
     pub fn div(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
