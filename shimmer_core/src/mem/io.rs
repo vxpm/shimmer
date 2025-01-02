@@ -3,8 +3,15 @@ use strum::VariantArray;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray)]
 pub enum Reg {
+    // Interrupt
     InterruptStatus,
     InterruptMask,
+
+    // GPU
+    Gp0,
+    Gp1,
+
+    // Etc
     Post,
 }
 
@@ -13,6 +20,10 @@ impl Reg {
         let (addr, width) = match self {
             Reg::InterruptStatus => (0x1F80_1070, 4),
             Reg::InterruptMask => (0x1F80_1074, 4),
+
+            Reg::Gp0 => (0x1F80_1810, 4),
+            Reg::Gp1 => (0x1F80_1814, 4),
+
             Reg::Post => (0x1F80_2041, 1),
         };
 

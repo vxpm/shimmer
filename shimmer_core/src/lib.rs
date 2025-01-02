@@ -5,6 +5,7 @@
 
 pub mod cpu;
 pub mod exe;
+pub mod gpu;
 pub mod kernel;
 pub mod mem;
 mod util;
@@ -36,6 +37,7 @@ pub struct PSX {
     pub memory: mem::Memory,
     pub cpu: cpu::State,
     pub cop0: cop0::State,
+    pub gpu: gpu::State,
     pub loggers: Loggers,
 }
 
@@ -46,27 +48,24 @@ impl PSX {
             memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
             cpu: cpu::State::default(),
             cop0: cop0::State::default(),
+            gpu: gpu::State::default(),
             loggers: Loggers::new(logger),
         }
     }
 
+    #[inline(always)]
     pub fn bus(&mut self) -> mem::Bus {
         mem::Bus {
             memory: &mut self.memory,
             cpu: &mut self.cpu,
             cop0: &mut self.cop0,
+            gpu: &mut self.gpu,
             loggers: &mut self.loggers,
         }
     }
 
     pub fn cycle(&mut self) {
-        let bus = mem::Bus {
-            memory: &mut self.memory,
-            cpu: &mut self.cpu,
-            cop0: &mut self.cop0,
-            loggers: &mut self.loggers,
-        };
-
+        let bus = self.bus();
         let mut interpreter = cpu::Interpreter::new(bus);
         interpreter.cycle();
     }

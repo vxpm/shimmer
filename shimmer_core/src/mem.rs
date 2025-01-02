@@ -5,7 +5,7 @@ use crate::{
     Loggers,
     cpu::{self, cop0},
     exe::Executable,
-    util,
+    gpu, util,
 };
 use binrw::BinRead;
 use easyerr::Error;
@@ -321,6 +321,7 @@ pub struct Bus<'ctx> {
     pub memory: &'ctx mut Memory,
     pub cpu: &'ctx mut cpu::State,
     pub cop0: &'ctx mut cop0::State,
+    pub gpu: &'ctx mut gpu::State,
     pub loggers: &'ctx mut Loggers,
 }
 
@@ -345,6 +346,12 @@ impl Bus<'_> {
                 }
                 io::Reg::InterruptMask => {
                     let value = self.cop0.interrupt_mask.into_bits();
+                    let bytes = value.as_bytes();
+
+                    P::read_from(&bytes[offset..])
+                }
+                io::Reg::Gp1 => {
+                    let value = self.gpu.status.into_bits();
                     let bytes = value.as_bytes();
 
                     P::read_from(&bytes[offset..])
@@ -445,7 +452,7 @@ impl Bus<'_> {
                 io::Reg::Post => {
                     default();
                 }
-                #[expect(unreachable_patterns)]
+                #[allow(unreachable_patterns)]
                 _ => default(),
             };
         } else {

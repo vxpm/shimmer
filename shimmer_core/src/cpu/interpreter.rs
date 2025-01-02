@@ -384,11 +384,14 @@ pub mod test {
             let mut cop0 = $crate::cpu::cop0::State::default();
             cop0.regs = cop0_regs;
 
+            let mut gpu = $crate::gpu::State::default();
+
             let mut memory = $crate::mem::Memory::with_bios(vec![]).unwrap();
             let mut bus = $crate::mem::Bus {
                 memory: &mut memory,
                 cpu: &mut cpu,
                 cop0: &mut cop0,
+                gpu: &mut gpu,
                 loggers: &mut $crate::Loggers::new(::tinylog::Logger::dummy()),
             };
 
@@ -396,7 +399,6 @@ pub mod test {
                 bus.write::<_, false>($crate::mem::Address(bus.cpu.regs.pc.wrapping_add(i as u32)), byte).unwrap();
             }
 
-            #[expect(unused_mut)]
             let mut $interpreter = $crate::cpu::Interpreter::new(bus);
         };
     }
