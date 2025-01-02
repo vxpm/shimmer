@@ -182,7 +182,7 @@ impl PhysicalAddress {
 }
 
 /// A virtual memory address. This is a thin wrapper around a [`u32`].
-#[derive(Clone, Copy, PartialEq, Eq, Default, BinRead)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, BinRead)]
 pub struct Address(pub u32);
 
 impl std::fmt::Display for Address {
@@ -350,13 +350,12 @@ impl Bus<'_> {
     where
         P: Primitive,
     {
-        if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
-            let default = || {
-                self.memory.io_stubs[addr.physical().unwrap().value() as usize
-                    - Region::IOPorts.start().value() as usize..]
-                    .read()
-            };
+        let default = || {
+            let offset = addr.physical().unwrap().value() - Region::IOPorts.start().value();
+            P::read_from_buf(&self.memory.io_stubs[offset as usize..])
+        };
 
+        if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             let read = match reg {
                 io::Reg::InterruptStatus => {
                     let value = self.cop0.interrupt_status.into_bits();
@@ -390,7 +389,7 @@ impl Bus<'_> {
                 );
             }
 
-            P::read_from_buf(&[0, 0, 0, 0])
+            default()
         }
     }
 
@@ -411,7 +410,6 @@ impl Bus<'_> {
             };
 
             let offset = phys.value() - region.start().value();
-
             match region {
                 Region::Ram => self.memory.ram[offset as usize..].read(),
                 Region::RamMirror => self.memory.ram[(offset & 0x001F_FFFF) as usize..].read(),
@@ -443,22 +441,26 @@ impl Bus<'_> {
     where
         P: Primitive,
     {
+        let mut default = || {
+            let offset = addr.physical().unwrap().value() - Region::IOPorts.start().value();
+            value.write_to(&mut self.memory.io_stubs[offset as usize..])
+        };
+
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                debug!(
-                    self.loggers.bus,
-                    "{} bytes written to {reg:?} ({}): 0x{:X?}",
-                    size_of::<P>(),
-                    addr,
-                    value;
-                );
+                let ignore_list = [io::Reg::SRAMFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
+                if !ignore_list.contains(&reg) && !reg.is_spu_voice() {
+                    debug!(
+                        self.loggers.bus,
+                        "{} bytes written to {reg:?}[{}..{}] ({}): 0x{:X?}",
+                        size_of::<P>(),
+                        offset,
+                        offset + size_of::<P>(),
+                        addr,
+                        value,
+                    );
+                }
             }
-
-            let mut default = || {
-                self.memory.io_stubs[addr.physical().unwrap().value() as usize
-                    - Region::IOPorts.start().value() as usize..]
-                    .write(value)
-            };
 
             match reg {
                 io::Reg::InterruptStatus => {
@@ -476,10 +478,6 @@ impl Bus<'_> {
                 io::Reg::Gp1 => {
                     // self.gpu.status.set_ready_to_send_vram(true);
                 }
-                io::Reg::Post => {
-                    default();
-                }
-                #[allow(unreachable_patterns)]
                 _ => default(),
             };
         } else {
@@ -493,8 +491,7 @@ impl Bus<'_> {
                 );
             }
 
-            let offset = addr.value() - Region::IOPorts.start().value();
-            value.write_to(&mut self.memory.io_stubs[offset as usize..]);
+            default()
         }
     }
 

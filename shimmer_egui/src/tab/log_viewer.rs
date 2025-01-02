@@ -1,10 +1,10 @@
 use crate::tab::{Context, Tab};
-use eframe::egui::{self, style::ScrollAnimation, Color32, RichText, Ui, UiBuilder, Vec2};
+use eframe::egui::{self, Color32, RichText, Ui, UiBuilder, Vec2, style::ScrollAnimation};
 use egui_table::TableDelegate;
 use std::collections::BTreeMap;
-use tinylog::{logger::Context as LoggerContext, record::RecordWithCtx, Level};
+use tinylog::{Level, logger::Context as LoggerContext, record::RecordWithCtx};
 
-const ROW_SIZE: f32 = 25.0;
+const ROW_SIZE: f32 = 35.0;
 
 struct LogTableDelegate<'a> {
     ctx: Context<'a>,
@@ -235,16 +235,13 @@ impl LogViewer {
             table = table.scroll_to_row(logs_len as u64, None);
         }
 
-        table.show(
-            ui,
-            &mut LogTableDelegate {
-                ctx,
-                logger_ctx: &self.logger_ctx,
-                message_width,
-                row_heights: &mut self.row_heights,
-                prefetched: &mut self.prefetch_buffer,
-            },
-        );
+        table.show(ui, &mut LogTableDelegate {
+            ctx,
+            logger_ctx: &self.logger_ctx,
+            message_width,
+            row_heights: &mut self.row_heights,
+            prefetched: &mut self.prefetch_buffer,
+        });
     }
 }
 
