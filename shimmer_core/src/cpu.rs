@@ -14,9 +14,9 @@ use strum::{EnumMessage, IntoStaticStr, VariantArray};
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum COP {
-    COP0,
+    COP0 = 0,
     /// GTE
-    COP2,
+    COP2 = 2,
 }
 
 impl COP {

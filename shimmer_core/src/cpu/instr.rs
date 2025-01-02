@@ -377,7 +377,6 @@ impl Instruction {
             self.bz_kind().map(|s| <&'static str>::from(s).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
             let Some(cop) = self.cop().map(<&'static str>::from) else {
-                eprintln!("what?");
                 return None;
             };
             if self.cop_op() == Some(CoOpcode::SPECIAL) {
@@ -599,6 +598,15 @@ impl Instruction {
             .with_cop_op(CoOpcode::MFC)
             .with_rd(rd)
             .with_rt(rt)
+    }
+
+    #[inline(always)]
+    pub fn rfe() -> Self {
+        Self::NOP
+            .with_op(Opcode::COP0)
+            .with_cop(COP::COP0)
+            .with_cop_op(CoOpcode::SPECIAL)
+            .with_cop_special_op(SpecialCoOpcode::RFE)
     }
 }
 

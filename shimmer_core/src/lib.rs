@@ -35,6 +35,7 @@ impl Scheduler {
             event,
             happens_in: after,
         });
+
         self.scheduled
             .sort_unstable_by_key(|e| std::cmp::Reverse(e.happens_in));
     }
@@ -131,9 +132,9 @@ impl PSX {
                 .map(|e| e.happens_in > cycles_left)
                 .unwrap_or(true)
             {
+                let bus = self.bus();
+                let mut interpreter = cpu::Interpreter::new(bus);
                 for _ in 0..cycles_left {
-                    let bus = self.bus();
-                    let mut interpreter = cpu::Interpreter::new(bus);
                     interpreter.cycle();
                 }
 
@@ -142,9 +143,9 @@ impl PSX {
             }
 
             let next_event = self.scheduler.pop().unwrap();
+            let bus = self.bus();
+            let mut interpreter = cpu::Interpreter::new(bus);
             for _ in 0..next_event.happens_in {
-                let bus = self.bus();
-                let mut interpreter = cpu::Interpreter::new(bus);
                 interpreter.cycle();
             }
 

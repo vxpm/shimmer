@@ -1,6 +1,10 @@
 use super::Interpreter;
-use crate::{cpu::instr::Instruction, mem::Address};
+use crate::{
+    cpu::{cop0::Exception, instr::Instruction},
+    mem::Address,
+};
 use tinylog::error;
+use zerocopy::IntoBytes;
 
 impl Interpreter<'_> {
     /// `[rs + signed_imm16] = rt`
@@ -38,7 +42,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u16, false>(addr, rt as u16).is_err() {
-            error!(self.bus.loggers.cpu, "sh failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorStore);
         }
     }
 
@@ -53,7 +57,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u8, false>(addr, rt as u8).is_err() {
-            error!(self.bus.loggers.cpu, "sb failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorStore);
         }
     }
 
@@ -65,7 +69,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<i8, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
-            error!(self.bus.loggers.cpu, "lb failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorLoad);
         }
     }
 
@@ -77,7 +81,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<u8, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
-            error!(self.bus.loggers.cpu, "lbu failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorLoad);
         }
     }
 
@@ -89,7 +93,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<u16, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
-            error!(self.bus.loggers.cpu, "lhu failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorLoad);
         }
     }
 
@@ -101,7 +105,7 @@ impl Interpreter<'_> {
         if let Ok(value) = self.bus.read::<i16, false>(addr) {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
-            error!(self.bus.loggers.cpu, "lhu failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorLoad);
         }
     }
 
@@ -123,6 +127,64 @@ impl Interpreter<'_> {
     /// `LO = rs`.
     pub fn mtlo(&mut self, instr: Instruction) {
         self.bus.cpu.regs.lo = self.bus.cpu.regs.read(instr.rs());
+    }
+
+    pub fn lwl(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let len = 4 - addr.value() % 4;
+
+        let mut result = self.bus.cpu.regs.read(instr.rt()).to_be_bytes();
+        for (i, byte) in (0..len).zip(result.as_mut_bytes()) {
+            let addr = addr + i;
+            *byte = self.bus.read_unaligned::<u8, false>(addr);
+        }
+
+        self.bus
+            .cpu
+            .regs
+            .write(instr.rt(), u32::from_be_bytes(result));
+    }
+
+    pub fn lwr(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let len = addr.value() % 4;
+
+        let mut result = self.bus.cpu.regs.read(instr.rt()).to_le_bytes();
+        for (i, byte) in (0..len).zip(result.as_mut_bytes()) {
+            let addr = addr - i;
+            *byte = self.bus.read_unaligned::<u8, false>(addr);
+        }
+
+        self.bus
+            .cpu
+            .regs
+            .write(instr.rt(), u32::from_le_bytes(result));
+    }
+
+    pub fn swl(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let len = 4 - addr.value() % 4;
+
+        let value = self.bus.cpu.regs.read(instr.rt()).to_be_bytes();
+        for (i, byte) in (0..len).zip(value.as_bytes()) {
+            let addr = addr + i;
+            self.bus.write_unaligned::<u8, false>(addr, *byte);
+        }
+    }
+
+    pub fn swr(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let len = addr.value() % 4;
+
+        let value = self.bus.cpu.regs.read(instr.rt()).to_le_bytes();
+        for (i, byte) in (0..len).zip(value.as_bytes()) {
+            let addr = addr - i;
+            self.bus.write_unaligned::<u8, false>(addr, *byte);
+        }
     }
 }
 

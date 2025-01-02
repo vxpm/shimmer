@@ -53,55 +53,55 @@ pub enum DmaDirection {
 #[derive(Debug, Clone, Copy)]
 pub struct GpuStatus {
     #[bits(0..4)]
-    texpage_x_base: u4,
+    pub texpage_x_base: u4,
     #[bits(4..5)]
-    texpage_y_base: u1,
+    pub texpage_y_base: u1,
     #[bits(5..7)]
-    semi_transparency_mode: SemiTransparencyMode,
+    pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
-    texpage_depth: Option<TexturePageDepth>,
+    pub texpage_depth: Option<TexturePageDepth>,
     #[bits(9..10)]
-    compression_mode: CompressionMode,
+    pub compression_mode: CompressionMode,
     #[bits(10..11)]
-    enable_drawing_to_display: bool,
+    pub enable_drawing_to_display: bool,
     /// If enabled, drawing sets the mask bit on pixels.
     #[bits(11..12)]
-    write_to_mask: bool,
+    pub write_to_mask: bool,
     /// If enabled, pixels can only be drawn to non-masked areas.
     #[bits(12..13)]
-    enable_mask: bool,
+    pub enable_mask: bool,
     #[bits(13..14)]
-    interlace: bool,
+    pub interlace: bool,
     #[bits(14..15)]
-    flip_screen_x: bool,
+    pub flip_screen_x: bool,
     #[bits(16..18)]
-    horizontal_resolution: HorizontalResolution,
+    pub horizontal_resolution: HorizontalResolution,
     #[bits(18..19)]
-    force_horizontal_368: bool,
+    pub force_horizontal_368: bool,
     #[bits(19..20)]
-    vertical_resolution: VerticalResolution,
+    pub vertical_resolution: VerticalResolution,
     #[bits(20..21)]
-    video_mode: VideoMode,
+    pub video_mode: VideoMode,
     #[bits(21..22)]
-    display_depth: DisplayDepth,
+    pub display_depth: DisplayDepth,
     #[bits(22..23)]
-    vertical_interlace: bool,
+    pub vertical_interlace: bool,
     #[bits(23..24)]
-    disable_display: bool,
+    pub disable_display: bool,
     #[bits(24..25)]
-    interrupt_request: bool,
+    pub interrupt_request: bool,
     #[bits(25..26)]
-    dma_request: bool,
+    pub dma_request: bool,
     #[bits(26..27)]
-    ready_to_receive_packet: bool,
+    pub ready_to_receive_packet: bool,
     #[bits(27..28)]
-    ready_to_send_vram: bool,
+    pub ready_to_send_vram: bool,
     #[bits(28..29)]
-    ready_to_receive_block: bool,
+    pub ready_to_receive_block: bool,
     #[bits(29..31)]
-    dma_direction: DmaDirection,
+    pub dma_direction: DmaDirection,
     #[bits(31..32)]
-    interlace_odd: bool,
+    pub interlace_odd: bool,
 }
 
 impl Default for GpuStatus {

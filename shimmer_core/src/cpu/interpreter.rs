@@ -57,31 +57,26 @@ impl<'ctx> Interpreter<'ctx> {
 
     /// Trigger an exception.
     fn trigger_exception(&mut self, exception: Exception) {
-        // store return address in EPC and clear next instruction (exceptions
-        // have no delay slot)
-        //
-        // if we are in a delay slot, we must save the address of the previous instruction as the
-        // return address. this is because, if we were to take the branch, returning to the delay
-        // slot would not take the branch anymore! so we must execute the branch again in order to
-        // avoid this.
+        let exception_ocurred_at = self.bus.cpu.to_exec().1.value();
+        let next_would_be = self.bus.cpu.regs.pc;
 
-        // HACK: ideally should be set by instructions (in_branch_delay)
-        let in_branch_delay = (self.bus.cpu.regs.pc.wrapping_sub(self.current_addr.value())) != 4;
+        let in_branch_delay = (next_would_be.wrapping_sub(exception_ocurred_at)) != 4;
 
         self.bus.cop0.regs.write(
             Reg::COP0_EPC,
             if in_branch_delay {
-                self.current_addr.value().saturating_sub(4)
+                exception_ocurred_at.wrapping_sub(4)
             } else {
-                self.current_addr.value()
+                exception_ocurred_at
             },
         );
 
         info!(
             self.bus.loggers.cpu,
-            "triggered exception {:?} at {}",
+            "triggered exception {:?} at {} (next would be: {})",
             exception,
-            self.current_addr;
+            Address(exception_ocurred_at),
+            Address(next_would_be);
             in_branch_delay = in_branch_delay,
             sr = self.bus.cop0.regs.system_status().clone(),
         );
@@ -118,7 +113,7 @@ impl<'ctx> Interpreter<'ctx> {
         self.bus.cpu.regs.pc = exception_handler.value();
     }
 
-    fn check_interrupts(&mut self) {
+    pub fn check_interrupts(&mut self) {
         // (I_STAT & I_MASK)
         let masked_interrupt_status = self
             .bus
@@ -146,7 +141,7 @@ impl<'ctx> Interpreter<'ctx> {
             info!(
                 self.bus.loggers.cpu,
                 "triggered interrupt {:?} at {}",
-                requested_interrupt, self.current_addr;
+                requested_interrupt, self.bus.cpu.to_exec().1;
             );
 
             self.trigger_exception(Exception::Interrupt);
@@ -178,6 +173,10 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::SLTIU => self.sltiu(instr),
                 Opcode::LHU => self.lhu(instr),
                 Opcode::LH => self.lh(instr),
+                Opcode::LWL => self.lwl(instr),
+                Opcode::LWR => self.lwr(instr),
+                Opcode::SWL => self.swl(instr),
+                Opcode::SWR => self.swr(instr),
                 Opcode::COP0 | Opcode::COP2 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
@@ -295,8 +294,6 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     pub fn cycle(&mut self) {
-        let interrupts_enabled = self.bus.cop0.regs.system_status().interrupts_enabled();
-
         let pc_addr = Address(self.bus.cpu.regs.pc);
         let fetched = self.bus.read::<_, true>(pc_addr).expect("pc is aligned");
 
@@ -321,10 +318,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-
-        if interrupts_enabled {
-            self.check_interrupts();
-        }
+        self.check_interrupts();
     }
 
     #[inline(always)]

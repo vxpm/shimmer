@@ -244,7 +244,7 @@ impl std::ops::Add<u32> for Address {
     type Output = Self;
 
     fn add(self, rhs: u32) -> Self::Output {
-        Self(self.0 + rhs)
+        Self(self.0.wrapping_add(rhs))
     }
 }
 
@@ -253,6 +253,22 @@ impl std::ops::Add<i32> for Address {
 
     fn add(self, rhs: i32) -> Self::Output {
         Self(self.0.wrapping_add_signed(rhs))
+    }
+}
+
+impl std::ops::Sub<u32> for Address {
+    type Output = Self;
+
+    fn sub(self, rhs: u32) -> Self::Output {
+        Self(self.0.wrapping_sub(rhs))
+    }
+}
+
+impl std::ops::Sub<i32> for Address {
+    type Output = Self;
+
+    fn sub(self, rhs: i32) -> Self::Output {
+        Self(self.0.wrapping_add_signed(-rhs))
     }
 }
 
@@ -354,6 +370,16 @@ impl Bus<'_> {
                     let value = self.gpu.status.into_bits();
                     let bytes = value.as_bytes();
 
+                    if !SILENT {
+                        debug!(
+                            self.loggers.bus,
+                            "{} bytes read from {reg:?} ({})",
+                            size_of::<P>(),
+                            addr;
+                            value = self.gpu.status
+                        );
+                    }
+
                     P::read_from_buf(&bytes[offset..])
                 }
                 _ => default(),
@@ -452,6 +478,9 @@ impl Bus<'_> {
                 io::Reg::InterruptMask => {
                     let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();
                     value.write_to(&mut reg_bytes[offset..]);
+                }
+                io::Reg::Gp1 => {
+                    self.gpu.status.set_ready_to_send_vram(true);
                 }
                 io::Reg::Post => {
                     default();
