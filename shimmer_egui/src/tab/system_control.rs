@@ -85,7 +85,7 @@ impl Tab for SystemControl {
                 .add_enabled(!ctx.exclusive.controls.running, egui::Button::new("Step"))
                 .clicked()
             {
-                ctx.exclusive.psx.cycle();
+                ctx.exclusive.psx.cycle_for(1);
             }
 
             ui.checkbox(

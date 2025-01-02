@@ -1,14 +1,26 @@
+use zerocopy::{FromBytes, Immutable, IntoBytes};
+
 /// Trait for memory primitives.
 ///
 /// A primitive is either a byte, half-word or word.
 /// That is, [`u8`], [`i8`], [`u16`], [`i16`], [`u32`] or [`i32`].
-pub trait Primitive: Copy + std::fmt::Debug + std::fmt::UpperHex + Send + Sync + 'static {
+pub trait Primitive:
+    std::fmt::Debug
+    + std::fmt::UpperHex
+    + Copy
+    + Immutable
+    + FromBytes
+    + IntoBytes
+    + Send
+    + Sync
+    + 'static
+{
     /// The alignment of this primitive.
     const ALIGNMENT: u32;
 
     /// Reads a value of this primitive from a buffer. If `buf` does not contain enough data, it's
     /// going to be completed with zeros.
-    fn read_from(buf: &[u8]) -> Self;
+    fn read_from_buf(buf: &[u8]) -> Self;
 
     /// Writes this primitive to the given buffer. If `buf` is not big enough, remaining bytes are
     /// going to be silently dropped.
@@ -22,7 +34,7 @@ macro_rules! impl_primitive {
                 const ALIGNMENT: u32 = align_of::<Self>() as u32;
 
                 #[inline(always)]
-                fn read_from(buf: &[u8]) -> Self {
+                fn read_from_buf(buf: &[u8]) -> Self {
                     const SELF_SIZE: usize = size_of::<$type>();
 
                     /// Unhappy path for when `buf` is too small.
@@ -96,7 +108,7 @@ where
     P: Primitive,
 {
     fn read(&self) -> P {
-        P::read_from(self)
+        P::read_from_buf(self)
     }
 
     fn write(&mut self, value: P) {

@@ -32,7 +32,7 @@ pub fn run(state: Arc<State>, parker: Parker) {
             cycles_left -= taken;
 
             for _ in 0..taken {
-                exclusive.psx.cycle();
+                exclusive.psx.cycle_for(1);
 
                 if exclusive.psx.cpu.to_exec().1 == 0xB0 {
                     let call = exclusive.psx.cpu.regs().read(Reg::R9);

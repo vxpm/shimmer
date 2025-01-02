@@ -342,19 +342,19 @@ impl Bus<'_> {
                     let value = self.cop0.interrupt_status.into_bits();
                     let bytes = value.as_bytes();
 
-                    P::read_from(&bytes[offset..])
+                    P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::InterruptMask => {
                     let value = self.cop0.interrupt_mask.into_bits();
                     let bytes = value.as_bytes();
 
-                    P::read_from(&bytes[offset..])
+                    P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Gp1 => {
                     let value = self.gpu.status.into_bits();
                     let bytes = value.as_bytes();
 
-                    P::read_from(&bytes[offset..])
+                    P::read_from_buf(&bytes[offset..])
                 }
                 _ => default(),
             };
@@ -370,7 +370,7 @@ impl Bus<'_> {
                 );
             }
 
-            P::read_from(&[0, 0, 0, 0])
+            P::read_from_buf(&[0, 0, 0, 0])
         }
     }
 
@@ -442,8 +442,12 @@ impl Bus<'_> {
 
             match reg {
                 io::Reg::InterruptStatus => {
-                    let reg_bytes = self.cop0.interrupt_status.as_mut_bytes();
-                    value.write_to(&mut reg_bytes[offset..]);
+                    let reg_bytes = &mut self.cop0.interrupt_status.as_mut_bytes()[offset..];
+                    let value_bytes = value.as_bytes();
+
+                    for (value_byte, reg_byte) in value_bytes.iter().zip(reg_bytes) {
+                        *reg_byte &= value_byte;
+                    }
                 }
                 io::Reg::InterruptMask => {
                     let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();

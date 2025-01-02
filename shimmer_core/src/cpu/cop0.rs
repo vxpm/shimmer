@@ -1,5 +1,6 @@
 use super::COP;
 use crate::cpu::Reg;
+use bitos::BitUtils;
 use bitos::bitos;
 use strum::FromRepr;
 use zerocopy::{FromBytes, Immutable, IntoBytes};
@@ -83,19 +84,6 @@ pub struct InterruptMask {
     enabled: [bool; 10],
 }
 
-// impl mem::Reg for InterruptMask {
-//     type Primitive = u32;
-//     const ADDRESS: Address = Address(0x1F80_1074);
-//
-//     fn read(&self) -> Self::Primitive {
-//         self.0
-//     }
-//
-//     fn write(&mut self, value: Self::Primitive) {
-//         self.0 = value;
-//     }
-// }
-
 impl std::fmt::Debug for InterruptMask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set()
@@ -172,9 +160,9 @@ impl Cause {
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CpuState {
-    #[bits(0..1)]
+    #[bits(0)]
     interrupts_enabled: bool,
-    #[bits(1..2)]
+    #[bits(1)]
     user_mode: bool,
 }
 
@@ -196,15 +184,15 @@ pub struct SystemStatus {
     // cm: u1,
     // pe: u1,
     // ts: u1,
-    #[bits(22..23)]
+    #[bits(22)]
     pub boot_exception_vectors_in_kseg1: bool,
-    #[bits(28..29)]
+    #[bits(28)]
     pub cop0_enabled_in_user_mode: bool,
-    #[bits(29..30)]
+    #[bits(29)]
     pub cop1_enabled: bool,
-    #[bits(30..31)]
+    #[bits(30)]
     pub cop2_enabled: bool,
-    #[bits(31..32)]
+    #[bits(31)]
     pub cop3_enabled: bool,
 }
 
@@ -269,8 +257,12 @@ impl Registers {
     }
 
     pub fn write(&mut self, reg: Reg, value: u32) {
-        self.0[reg as usize] = value;
-        self.0[0] = 0;
+        match reg {
+            Reg::COP0_CAUSE => {
+                self.0[reg as usize] = self.0[reg as usize].with_bits(8, 10, value.bits(8, 10))
+            }
+            _ => self.0[reg as usize] = value,
+        }
     }
 
     pub fn system_status(&self) -> &SystemStatus {

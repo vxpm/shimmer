@@ -66,7 +66,7 @@ impl<'ctx> Interpreter<'ctx> {
         // avoid this.
 
         // HACK: ideally should be set by instructions (in_branch_delay)
-        let in_branch_delay = (self.bus.cpu.regs.pc - self.current_addr.value()) != 4;
+        let in_branch_delay = (self.bus.cpu.regs.pc.wrapping_sub(self.current_addr.value())) != 4;
 
         self.bus.cop0.regs.write(
             Reg::COP0_EPC,
@@ -75,6 +75,15 @@ impl<'ctx> Interpreter<'ctx> {
             } else {
                 self.current_addr.value()
             },
+        );
+
+        info!(
+            self.bus.loggers.cpu,
+            "triggered exception {:?} at {}",
+            exception,
+            self.current_addr;
+            in_branch_delay = in_branch_delay,
+            sr = self.bus.cop0.regs.system_status().clone(),
         );
 
         // flush pipeline
@@ -106,16 +115,6 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        info!(
-            self.bus.loggers.cpu,
-            "triggered exception {:?} at {}. in_branch_delay={:?}, sr={:?}, exception_handler={:?}",
-            exception,
-            self.current_addr,
-            in_branch_delay,
-            self.bus.cop0.regs.system_status().clone(),
-            exception_handler
-        );
-
         self.bus.cpu.regs.pc = exception_handler.value();
     }
 
@@ -146,10 +145,8 @@ impl<'ctx> Interpreter<'ctx> {
 
             info!(
                 self.bus.loggers.cpu,
-                "triggered interrupt {:?} @ {}",
+                "triggered interrupt {:?} at {}",
                 requested_interrupt, self.current_addr;
-                interrupt = requested_interrupt,
-                address = self.current_addr,
             );
 
             self.trigger_exception(Exception::Interrupt);
@@ -298,6 +295,8 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     pub fn cycle(&mut self) {
+        let interrupts_enabled = self.bus.cop0.regs.system_status().interrupts_enabled();
+
         let pc_addr = Address(self.bus.cpu.regs.pc);
         let fetched = self.bus.read::<_, true>(pc_addr).expect("pc is aligned");
 
@@ -322,7 +321,10 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        self.check_interrupts();
+
+        if interrupts_enabled {
+            self.check_interrupts();
+        }
     }
 
     #[inline(always)]

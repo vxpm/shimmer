@@ -129,24 +129,19 @@ impl TableDelegate for LogTableDelegate<'_> {
                             ui.label(record.value.message.to_string());
 
                             if !record.value.attachments.is_empty() {
-                                ui.horizontal(|ui| {
-                                    for attachment in &record.value.attachments {
-                                        let key = &attachment.key;
-                                        let value = if let Some(display) =
-                                            attachment.value.as_display()
-                                        {
-                                            display.to_string()
-                                        } else if let Some(debug) = attachment.value.as_debug() {
-                                            format!("{debug:?}")
-                                        } else {
-                                            "(opaque)".to_string()
-                                        };
+                                for attachment in &record.value.attachments {
+                                    let key = &attachment.key;
+                                    let value = if let Some(display) = attachment.value.as_display()
+                                    {
+                                        display.to_string()
+                                    } else if let Some(debug) = attachment.value.as_debug() {
+                                        format!("{debug:?}")
+                                    } else {
+                                        "(opaque)".to_string()
+                                    };
 
-                                        ui.label(
-                                            RichText::new(format!("{key:?}: {}", value)).small(),
-                                        );
-                                    }
-                                });
+                                    ui.label(RichText::new(format!("{key:?}: {}", value)).small());
+                                }
                             }
                         });
 
