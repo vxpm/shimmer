@@ -226,6 +226,7 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::SRAV => self.srav(instr),
                             SpecialOpcode::SRLV => self.srlv(instr),
                             SpecialOpcode::MULTU => self.multu(instr),
+                            SpecialOpcode::XOR => self.xor(instr),
                             _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {
@@ -321,7 +322,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        // self.check_interrupts();
+        self.check_interrupts();
     }
 
     #[inline(always)]

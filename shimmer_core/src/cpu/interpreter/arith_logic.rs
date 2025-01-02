@@ -198,6 +198,13 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.lo = low.get();
         self.bus.cpu.regs.hi = high.get();
     }
+
+    /// `rd = rs ^ rt`
+    pub fn xor(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let rt = self.bus.cpu.regs.read(instr.rt());
+        self.bus.cpu.regs.write(instr.rd(), rs ^ rt);
+    }
 }
 
 #[cfg(test)]
