@@ -44,7 +44,6 @@ struct ExclusiveState {
     psx: PSX,
     timing: Timing,
     controls: Controls,
-    terminal_output: String,
 
     log_family: LoggerFamily,
     log_records: RecordBuf,
@@ -85,7 +84,6 @@ impl ExclusiveState {
                 breakpoints: Vec::new(),
                 alternative_names: true,
             },
-            terminal_output: String::new(),
 
             log_family,
             log_records,
@@ -157,8 +155,8 @@ impl App {
         let [system_control, mem_viewer] =
             surface.split_left(egui_dock::NodeIndex::root(), 0.77, tab!(vec Screen));
         surface[mem_viewer].append_tab(tab!(MemoryViewer));
-        let [_, log_viewer] = surface.split_below(mem_viewer, 0.63, tab!(vec LogViewer));
-        surface[log_viewer].append_tab(tab!(Terminal));
+        surface[mem_viewer].append_tab(tab!(LogViewer));
+        let [_, _] = surface.split_below(mem_viewer, 0.63, tab!(vec Terminal));
         surface.split_below(system_control, 0.47, tab!(vec Breakpoints));
         surface.split_right(
             egui_dock::NodeIndex::root(),

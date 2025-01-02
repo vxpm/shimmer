@@ -202,7 +202,7 @@ mod tests {
             let high = interpreter.bus.cpu.regs.pc & (0b1111 << 28);
             let low = target.value() << 2;
             let addr = high | low;
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             prop_assert_eq!(interpreter.bus.cpu.regs.pc, addr);
         }
@@ -239,7 +239,7 @@ mod tests {
             let low = target.value() << 2;
             let addr = high | low;
             let pc = interpreter.bus.cpu.regs.pc;
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             prop_assert_eq!(interpreter.bus.cpu.regs.pc, addr);
             prop_assert_eq!(interpreter.bus.cpu.regs.read(Reg::RA), pc.wrapping_add(8));

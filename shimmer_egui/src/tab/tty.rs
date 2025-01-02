@@ -37,7 +37,7 @@ impl Tab for Terminal {
             .auto_shrink(Vec2b::new(false, false))
             .show(&mut ui, |ui| {
                 ui.label(
-                    RichText::new(&ctx.exclusive.terminal_output)
+                    RichText::new(&ctx.exclusive.psx.memory.kernel_stdout)
                         .monospace()
                         .color(Color32::LIGHT_GRAY),
                 );

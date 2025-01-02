@@ -257,7 +257,7 @@ mod tests {
             let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u32, false>(addr).unwrap();
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
                 prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
@@ -280,7 +280,7 @@ mod tests {
             let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             interpreter.bus.write::<_, false>(addr, mem_value).unwrap();
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             // nothing should have changed yet: load delay
             let rt_delay = interpreter.bus.cpu.regs.read(rt);
@@ -305,7 +305,7 @@ mod tests {
             let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u16, false>(addr).unwrap();
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
                 prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
@@ -326,7 +326,7 @@ mod tests {
             let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             let old = interpreter.bus.read::<u8, false>(addr).unwrap();
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             if interpreter.bus.cop0.regs.system_status().isolate_cache() {
                 prop_assert_eq!(old, interpreter.bus.read::<_, false>(addr).unwrap());
@@ -349,7 +349,7 @@ mod tests {
             let addr = Address(rs.wrapping_add_signed(i32::from(imm)));
             interpreter.bus.write::<_, false>(addr, mem_value as u8).unwrap();
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             // nothing should have changed yet: load delay
             let rt_delay = interpreter.bus.cpu.regs.read(rt);

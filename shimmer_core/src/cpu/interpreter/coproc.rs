@@ -67,7 +67,7 @@ mod tests {
                 mtc(cop, rd, rt)
             };
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let cop0_rd = interpreter.bus.cop0.regs.read(rd);
             let rt = interpreter.bus.cpu.regs.read(rt);
@@ -81,7 +81,7 @@ mod tests {
                 mfc(cop, rd, rt)
             };
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let cop0_rd = interpreter.bus.cop0.regs.read(rd);
             let rt = interpreter.bus.cpu.regs.read(rt);

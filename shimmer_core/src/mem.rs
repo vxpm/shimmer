@@ -297,6 +297,8 @@ pub struct Memory {
     pub io_stubs: BoxedU8Arr<{ Region::IOPorts.len() as usize }>,
     /// Executable to side load, if any.
     pub sideload: Option<Executable>,
+    /// Kernel STDOUT.
+    pub kernel_stdout: String,
 }
 
 impl Memory {
@@ -320,7 +322,9 @@ impl Memory {
             bios: Box::try_from(bios.into_boxed_slice())
                 .expect("boxed slice of the bios data should be exactly 4096 KiB big"),
             io_stubs: util::boxed_array(0),
+
             sideload: None,
+            kernel_stdout: String::new(),
         })
     }
 }
@@ -369,16 +373,6 @@ impl Bus<'_> {
                 io::Reg::Gp1 => {
                     let value = self.gpu.status.into_bits();
                     let bytes = value.as_bytes();
-
-                    if !SILENT {
-                        debug!(
-                            self.loggers.bus,
-                            "{} bytes read from {reg:?} ({})",
-                            size_of::<P>(),
-                            addr;
-                            value = self.gpu.status
-                        );
-                    }
 
                     P::read_from_buf(&bytes[offset..])
                 }
@@ -480,7 +474,7 @@ impl Bus<'_> {
                     value.write_to(&mut reg_bytes[offset..]);
                 }
                 io::Reg::Gp1 => {
-                    self.gpu.status.set_ready_to_send_vram(true);
+                    // self.gpu.status.set_ready_to_send_vram(true);
                 }
                 io::Reg::Post => {
                     default();

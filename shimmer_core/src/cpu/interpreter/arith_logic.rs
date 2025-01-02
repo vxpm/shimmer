@@ -221,7 +221,7 @@ mod tests {
                 lui(rt, imm)
             };
 
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rt = interpreter.bus.cpu.regs.read(rt);
             prop_assert_eq!((rt & 0xFFFF_0000) >> 16, u32::from(imm));
@@ -236,7 +236,7 @@ mod tests {
             };
 
             let rs = interpreter.bus.cpu.regs.read(rs);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rt = interpreter.bus.cpu.regs.read(rt);
             prop_assert_eq!(rt, rs | u32::from(imm));
@@ -250,7 +250,7 @@ mod tests {
             };
 
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, rt.unbounded_shl(u32::from(imm.value())));
@@ -264,7 +264,7 @@ mod tests {
             };
 
             let rs = interpreter.bus.cpu.regs.read(rs);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rt = interpreter.bus.cpu.regs.read(rt);
             prop_assert_eq!(rt, rs.wrapping_add_signed(i32::from(imm)));
@@ -279,7 +279,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, rs | rt);
@@ -293,7 +293,7 @@ mod tests {
             };
 
             let rs = interpreter.bus.cpu.regs.read(rs) as i32;
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rt = interpreter.bus.cpu.regs.read(rt);
             prop_assert_eq!(rt, rs.wrapping_add(i32::from(imm)) as u32);
@@ -308,7 +308,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, u32::from(rs < rt));
@@ -323,7 +323,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, rs.wrapping_add(rt));
@@ -337,7 +337,7 @@ mod tests {
             };
 
             let rs = interpreter.bus.cpu.regs.read(rs);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rt = interpreter.bus.cpu.regs.read(rt);
             prop_assert_eq!(rt, rs & u32::from(imm));
@@ -351,7 +351,7 @@ mod tests {
             };
 
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, rt.unbounded_shr(u32::from(imm.value())));
@@ -366,7 +366,7 @@ mod tests {
 
             let rs = interpreter.bus.cpu.regs.read(rs);
             let rt = interpreter.bus.cpu.regs.read(rt);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
             prop_assert_eq!(rd, rs & rt);
@@ -382,7 +382,7 @@ mod tests {
             let rs = interpreter.bus.cpu.regs.read(rs) as i32;
             let rt = interpreter.bus.cpu.regs.read(rt) as i32;
             let rd_old = interpreter.bus.cpu.regs.read(rd);
-            interpreter.cycle_n(2);
+            interpreter.cycle_for(2);
 
             let rd = interpreter.bus.cpu.regs.read(rd);
 

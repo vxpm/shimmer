@@ -28,32 +28,22 @@ pub fn run(state: Arc<State>, parker: Parker) {
 
         let mut cycles_left = full_cycles_to_run;
         while cycles_left > 0 {
-            let taken = 2048.min(cycles_left);
+            let taken = 4096.min(cycles_left);
             cycles_left -= taken;
 
-            for _ in 0..taken {
-                exclusive.psx.cycle_for(1);
+            exclusive.psx.cycle_for(taken);
 
-                if exclusive.psx.cpu.to_exec().1 == 0xB0 {
-                    let call = exclusive.psx.cpu.regs().read(Reg::R9);
-                    if call == 0x3D {
-                        let char = exclusive.psx.cpu.regs().read(Reg::A0);
-                        if let Ok(char) = char::try_from(char) {
-                            exclusive.terminal_output.push(char);
-                        }
-                    }
-                }
-
-                if exclusive
-                    .controls
-                    .breakpoints
-                    .contains(&exclusive.psx.cpu.to_exec().1.value())
-                {
-                    exclusive.controls.running = false;
-                    state.shared.should_advance.store(false, Ordering::Relaxed);
-                    break;
-                }
-            }
+            // for _ in 0..taken {
+            //     // if exclusive
+            //     //     .controls
+            //     //     .breakpoints
+            //     //     .contains(&exclusive.psx.cpu.to_exec().1.value())
+            //     // {
+            //     //     exclusive.controls.running = false;
+            //     //     state.shared.should_advance.store(false, Ordering::Relaxed);
+            //     //     break;
+            //     // }
+            // }
 
             let should_advance = state.shared.should_advance.load(Ordering::Relaxed);
             if !should_advance {

@@ -134,9 +134,7 @@ impl PSX {
             {
                 let bus = self.bus();
                 let mut interpreter = cpu::Interpreter::new(bus);
-                for _ in 0..cycles_left {
-                    interpreter.cycle();
-                }
+                interpreter.cycle_for(cycles_left);
 
                 self.scheduler.advance(cycles_left);
                 break;
@@ -145,9 +143,7 @@ impl PSX {
             let next_event = self.scheduler.pop().unwrap();
             let bus = self.bus();
             let mut interpreter = cpu::Interpreter::new(bus);
-            for _ in 0..next_event.happens_in {
-                interpreter.cycle();
-            }
+            interpreter.cycle_for(next_event.happens_in);
 
             cycles_left -= next_event.happens_in;
             self.scheduler.advance(next_event.happens_in);

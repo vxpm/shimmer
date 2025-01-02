@@ -78,7 +78,6 @@ impl<'ctx> Interpreter<'ctx> {
             Address(exception_ocurred_at),
             Address(next_would_be);
             in_branch_delay = in_branch_delay,
-            sr = self.bus.cop0.regs.system_status().clone(),
         );
 
         // flush pipeline
@@ -238,7 +237,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    fn log_kernel_calls(&self) {
+    fn log_kernel_calls(&mut self) {
         let code = self.bus.cpu.regs.read(Reg::R9) as u8;
         let func = match self.current_addr.value() {
             0xA0 => kernel::Function::a0(code),
@@ -248,6 +247,15 @@ impl<'ctx> Interpreter<'ctx> {
         };
 
         if let Some(func) = func {
+            if func == kernel::Function::PutChar {
+                let char = self.bus.cpu.regs().read(Reg::A0);
+                if let Ok(char) = char::try_from(char) {
+                    self.bus.memory.kernel_stdout.push(char);
+                }
+
+                return;
+            }
+
             let args = match func.args() {
                 0 => vec![],
                 1 => vec![self.bus.cpu.regs.read(Reg::A0)],
@@ -284,7 +292,6 @@ impl<'ctx> Interpreter<'ctx> {
                 self.bus.loggers.kernel,
                 "executed kernel function {func:?}({args})"
             );
-            if func != kernel::Function::PutChar {}
         } else {
             warn!(
                 self.bus.loggers.kernel,
@@ -322,7 +329,7 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     #[inline(always)]
-    pub fn cycle_n(&mut self, count: u64) {
+    pub fn cycle_for(&mut self, count: u64) {
         for _ in 0..count {
             self.cycle();
         }
