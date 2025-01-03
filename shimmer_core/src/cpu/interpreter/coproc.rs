@@ -29,7 +29,7 @@ impl Interpreter<'_> {
                 }
             };
 
-            self.bus.cpu.regs.write(instr.rt(), rd);
+            self.bus.cpu.to_load = Some((instr.rt(), rd));
         } else {
             error!(self.bus.loggers.cpu, "mfc to unknown cop");
         }

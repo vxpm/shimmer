@@ -356,6 +356,17 @@ impl Bus<'_> {
         };
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
+            if !SILENT {
+                debug!(
+                    self.loggers.bus,
+                    "{} bytes read from {reg:?}[{}..{}] ({})",
+                    size_of::<P>(),
+                    offset,
+                    offset + size_of::<P>(),
+                    addr,
+                )
+            }
+
             let read = match reg {
                 io::Reg::InterruptStatus => {
                     let value = self.cop0.interrupt_status.into_bits();
@@ -476,7 +487,7 @@ impl Bus<'_> {
                     value.write_to(&mut reg_bytes[offset..]);
                 }
                 io::Reg::Gp1 => {
-                    // self.gpu.status.set_ready_to_send_vram(true);
+                    self.gpu.status.set_ready_to_send_vram(true);
                 }
                 _ => default(),
             };

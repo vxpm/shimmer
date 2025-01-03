@@ -3,7 +3,6 @@ use crate::{
     cpu::{cop0::Exception, instr::Instruction},
     mem::Address,
 };
-use tinylog::error;
 use zerocopy::IntoBytes;
 
 impl Interpreter<'_> {
@@ -18,7 +17,8 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if self.bus.write::<u32, false>(addr, rt).is_err() {
-            error!(self.bus.loggers.cpu, "sw failed on a misaligned address: {addr}"; address = addr);
+            self.trigger_exception(Exception::AddressErrorStore);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -26,9 +26,13 @@ impl Interpreter<'_> {
     pub fn lw(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
-        let value = self.bus.read::<u32, false>(addr).expect("aligned");
 
-        self.bus.cpu.to_load = Some((instr.rt(), value));
+        if let Ok(value) = self.bus.read::<u32, false>(addr) {
+            self.bus.cpu.to_load = Some((instr.rt(), value));
+        } else {
+            self.trigger_exception(Exception::AddressErrorLoad);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
+        }
     }
 
     /// `(half)[rs + signed_imm16] = rt`
@@ -43,6 +47,7 @@ impl Interpreter<'_> {
 
         if self.bus.write::<u16, false>(addr, rt as u16).is_err() {
             self.trigger_exception(Exception::AddressErrorStore);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -58,6 +63,7 @@ impl Interpreter<'_> {
 
         if self.bus.write::<u8, false>(addr, rt as u8).is_err() {
             self.trigger_exception(Exception::AddressErrorStore);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -70,6 +76,7 @@ impl Interpreter<'_> {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -82,6 +89,7 @@ impl Interpreter<'_> {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -94,6 +102,7 @@ impl Interpreter<'_> {
             self.bus.cpu.to_load = Some((instr.rt(), u32::from(value)));
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -106,6 +115,7 @@ impl Interpreter<'_> {
             self.bus.cpu.to_load = Some((instr.rt(), i32::from(value) as u32));
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 

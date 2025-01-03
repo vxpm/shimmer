@@ -59,7 +59,6 @@ impl<'ctx> Interpreter<'ctx> {
     fn trigger_exception(&mut self, exception: Exception) {
         let exception_ocurred_at = self.bus.cpu.to_exec().1.value();
         let next_would_be = self.bus.cpu.regs.pc;
-
         let in_branch_delay = (next_would_be.wrapping_sub(exception_ocurred_at)) != 4;
 
         self.bus.cop0.regs.write(
@@ -176,6 +175,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::LWR => self.lwr(instr),
                 Opcode::SWL => self.swl(instr),
                 Opcode::SWR => self.swr(instr),
+                Opcode::XORI => self.xori(instr),
                 Opcode::COP0 | Opcode::COP2 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
@@ -222,6 +222,8 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::SRLV => self.srlv(instr),
                             SpecialOpcode::MULTU => self.multu(instr),
                             SpecialOpcode::XOR => self.xor(instr),
+                            SpecialOpcode::MULT => self.mult(instr),
+                            SpecialOpcode::SUB => self.sub(instr),
                             _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
                         }
                     } else {
@@ -301,8 +303,15 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     pub fn cycle(&mut self) {
+        if self.bus.cpu.to_exec().1.value() == 0x8003_0000 {
+            self.sideload();
+        }
+
         let pc_addr = Address(self.bus.cpu.regs.pc);
-        let fetched = self.bus.read::<_, true>(pc_addr).expect("pc is aligned");
+        let Ok(fetched) = self.bus.read::<_, true>(pc_addr) else {
+            self.trigger_exception(Exception::AddressErrorLoad);
+            return;
+        };
 
         let (instr, instr_addr) = std::mem::replace(
             &mut self.bus.cpu.to_exec,
@@ -311,10 +320,6 @@ impl<'ctx> Interpreter<'ctx> {
         self.current_addr = instr_addr;
 
         self.log_kernel_calls();
-
-        if instr_addr.value() == 0x8003_0000 {
-            self.sideload();
-        }
 
         let to_load = self.bus.cpu.to_load.take();
 

@@ -13,8 +13,8 @@ use parking_lot::Mutex;
 use shimmer_core::PSX;
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     time::Duration,
 };
@@ -67,11 +67,11 @@ impl ExclusiveState {
 
         let psx = PSX::with_bios(bios, root_logger);
 
-        // let mut psx = psx;
-        // use shimmer_core::binrw::BinReaderExt;
-        // let exe = std::fs::read("psxtest_cpu.exe").unwrap();
-        // let exe: shimmer_core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
-        // psx.memory.sideload = Some(exe);
+        let mut psx = psx;
+        use shimmer_core::binrw::BinReaderExt;
+        let exe = std::fs::read("psxtest_cpu.exe").unwrap();
+        let exe: shimmer_core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
+        psx.memory.sideload = Some(exe);
 
         Self {
             psx,

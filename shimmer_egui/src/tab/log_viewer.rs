@@ -4,7 +4,7 @@ use egui_table::TableDelegate;
 use std::collections::BTreeMap;
 use tinylog::{Level, logger::Context as LoggerContext, record::RecordWithCtx};
 
-const ROW_SIZE: f32 = 35.0;
+const ROW_SIZE: f32 = 30.0;
 
 struct LogTableDelegate<'a> {
     ctx: Context<'a>,

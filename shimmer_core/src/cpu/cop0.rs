@@ -120,8 +120,6 @@ pub enum Exception {
     ArithmeticOverflow = 0x0C,
 }
 
-// TODO: cause needs a write mask - it's read only!! (except bits 8 and 9)
-
 /// Represents the value of the CAUSE register. It describes the most recently recognised
 /// exception, and is also used to request interrupts.
 #[bitos(32)]

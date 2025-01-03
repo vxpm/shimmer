@@ -45,6 +45,7 @@ impl Interpreter<'_> {
             self.bus.cpu.regs.write(instr.rt(), value as u32);
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -93,6 +94,7 @@ impl Interpreter<'_> {
             self.bus.cpu.regs.write(instr.rd(), value as u32);
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -121,10 +123,15 @@ impl Interpreter<'_> {
     pub fn div(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
         let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
-        let (div, rem) = (
-            rs.checked_div(rt).unwrap_or_default(),
-            rs.checked_rem(rt).unwrap_or_default(),
-        );
+        let (div, rem) = match (rs, rt) {
+            (0.., 0) => (-1, rs),
+            (..0, 0) => (1, rs),
+            (i32::MIN, -1) => (i32::MIN, 0),
+            (rs, rt) => (
+                rs.checked_div(rt).unwrap_or_default(),
+                rs.checked_rem(rt).unwrap_or_default(),
+            ),
+        };
 
         self.bus.cpu.regs.lo = div as u32;
         self.bus.cpu.regs.hi = rem as u32;
@@ -149,19 +156,19 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
         let (div, rem) = (
-            rs.checked_div(rt).unwrap_or_default(),
-            rs.checked_rem(rt).unwrap_or_default(),
+            rs.checked_div(rt).unwrap_or(!0),
+            rs.checked_rem(rt).unwrap_or(rs),
         );
 
         self.bus.cpu.regs.lo = div;
         self.bus.cpu.regs.hi = rem;
     }
 
-    /// `rd = rt << rs`
+    /// `rd = rt << (rs & 0x1F)`
     pub fn sllv(&mut self, instr: Instruction) {
         let rt = self.bus.cpu.regs.read(instr.rt());
         let rs = self.bus.cpu.regs.read(instr.rs());
-        let result = rt.unbounded_shl(rs);
+        let result = rt.unbounded_shl(rs & 0x1F);
         self.bus.cpu.regs.write(instr.rd(), result);
     }
 
@@ -172,19 +179,19 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.write(instr.rd(), !(rs | rt));
     }
 
-    /// `rd = rt (signed)>> rs`
+    /// `rd = rt (signed)>> (rs & 0x1F)`
     pub fn srav(&mut self, instr: Instruction) {
         let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
         let rs = self.bus.cpu.regs.read(instr.rs());
-        let result = rt.unbounded_shr(rs);
+        let result = rt.unbounded_shr(rs & 0x1F);
         self.bus.cpu.regs.write(instr.rd(), result as u32);
     }
 
-    /// `rd = rt >> rs`
+    /// `rd = rt >> (rs & 0x1F)`
     pub fn srlv(&mut self, instr: Instruction) {
         let rt = self.bus.cpu.regs.read(instr.rt());
         let rs = self.bus.cpu.regs.read(instr.rs());
-        let result = rt.unbounded_shr(rs);
+        let result = rt.unbounded_shr(rs & 0x1F);
         self.bus.cpu.regs.write(instr.rd(), result);
     }
 
@@ -204,6 +211,38 @@ impl Interpreter<'_> {
         let rs = self.bus.cpu.regs.read(instr.rs());
         let rt = self.bus.cpu.regs.read(instr.rt());
         self.bus.cpu.regs.write(instr.rd(), rs ^ rt);
+    }
+
+    /// `rt = rs ^ imm16`
+    pub fn xori(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs());
+        let result = rs ^ u32::from(instr.imm16());
+        self.bus.cpu.regs.write(instr.rt(), result);
+    }
+
+    pub fn mult(&mut self, instr: Instruction) {
+        let rs = i64::from(self.bus.cpu.regs.read(instr.rs()) as i32);
+        let rt = i64::from(self.bus.cpu.regs.read(instr.rt()) as i32);
+        let result = zerocopy::byteorder::little_endian::I64::new(rs.wrapping_mul(rt));
+        let [low, high]: [zerocopy::byteorder::little_endian::U32; 2] =
+            zerocopy::transmute!(result);
+
+        self.bus.cpu.regs.lo = low.get();
+        self.bus.cpu.regs.hi = high.get();
+    }
+
+    /// `rd = rs - rt`
+    pub fn sub(&mut self, instr: Instruction) {
+        let rs = self.bus.cpu.regs.read(instr.rs()) as i32;
+        let rt = self.bus.cpu.regs.read(instr.rt()) as i32;
+
+        let result = rs.checked_sub(rt);
+        if let Some(value) = result {
+            self.bus.cpu.regs.write(instr.rd(), value as u32);
+        } else {
+            self.trigger_exception(Exception::ArithmeticOverflow);
+            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
+        }
     }
 }
 
