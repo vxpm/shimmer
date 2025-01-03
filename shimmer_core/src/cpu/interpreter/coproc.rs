@@ -8,7 +8,7 @@ impl Interpreter<'_> {
         if let Some(cop) = instr.cop() {
             let rt = self.bus.cpu.regs.read(instr.rt());
             match cop {
-                COP::COP0 => self.bus.cop0.regs.write(instr.rd(), rt),
+                COP::COP0 => self.bus.cop0.to_load = Some((instr.rd(), rt)),
                 // TODO: remove stub
                 COP::COP2 => warn!(self.bus.loggers.cpu, "mtc to cop2 stubbed"),
             }
@@ -29,7 +29,7 @@ impl Interpreter<'_> {
                 }
             };
 
-            self.bus.cpu.to_load = Some((instr.rt(), rd));
+            self.bus.cpu.load_delay_slot = Some((instr.rt(), rd));
         } else {
             error!(self.bus.loggers.cpu, "mfc to unknown cop");
         }

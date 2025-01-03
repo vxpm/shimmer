@@ -386,6 +386,9 @@ impl Bus<'_> {
 
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::Dma6Control | io::Reg::Dma2Control => {
+                    P::read_from_buf(0x10000002u32.as_bytes())
+                }
                 _ => default(),
             };
 

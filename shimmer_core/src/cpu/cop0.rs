@@ -285,4 +285,5 @@ pub struct State {
     pub regs: Registers,
     pub interrupt_status: InterruptStatus,
     pub interrupt_mask: InterruptMask,
+    pub to_load: Option<(Reg, u32)>,
 }

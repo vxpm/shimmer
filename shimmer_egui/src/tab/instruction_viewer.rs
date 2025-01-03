@@ -255,7 +255,7 @@ impl Tab for InstructionViewer {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
-        let next = ctx.exclusive.psx.cpu.to_exec().1;
+        let next = ctx.exclusive.psx.cpu.instr_delay_slot().1;
         if self.follow_next && next != self.old_next {
             self.target = next.value();
             self.target_view = next.value();

@@ -45,7 +45,6 @@ impl Interpreter<'_> {
             self.bus.cpu.regs.write(instr.rt(), value as u32);
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
-            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -94,7 +93,6 @@ impl Interpreter<'_> {
             self.bus.cpu.regs.write(instr.rd(), value as u32);
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
-            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 
@@ -241,7 +239,6 @@ impl Interpreter<'_> {
             self.bus.cpu.regs.write(instr.rd(), value as u32);
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
-            self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_sub(4);
         }
     }
 }

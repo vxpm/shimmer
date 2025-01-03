@@ -276,13 +276,13 @@ impl Registers {
 pub struct State {
     regs: Registers,
     cache_control: u32,
-    to_load: Option<(Reg, u32)>,
-    to_exec: (Instruction, Address),
+    load_delay_slot: Option<(Reg, u32)>,
+    instr_delay_slot: (Instruction, Address),
 }
 
 impl State {
-    pub fn to_exec(&self) -> (Instruction, Address) {
-        self.to_exec
+    pub fn instr_delay_slot(&self) -> (Instruction, Address) {
+        self.instr_delay_slot
     }
 
     pub fn regs(&self) -> &Registers {

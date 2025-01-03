@@ -5,7 +5,7 @@ use crate::{
     util::character_dimensions,
 };
 use eframe::{
-    egui::{self, style::ScrollStyle, RichText, Ui},
+    egui::{self, RichText, Ui, style::ScrollStyle},
     epaint::Color32,
 };
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};

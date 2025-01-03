@@ -4,6 +4,8 @@ mod exception;
 mod jump_branch;
 mod load_store;
 
+use std::io::Write;
+
 use super::{
     Reg,
     cop0::Exception,
@@ -36,6 +38,7 @@ impl<'ctx> Interpreter<'ctx> {
 
     fn sideload(&mut self) {
         if let Some(exe) = &self.bus.memory.sideload {
+            self.bus.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
             self.bus.cpu.regs.pc = exe.header.initial_pc.value();
             self.bus.cpu.regs.write(Reg::GP, exe.header.initial_gp);
 
@@ -57,10 +60,12 @@ impl<'ctx> Interpreter<'ctx> {
 
     /// Trigger an exception.
     fn trigger_exception(&mut self, exception: Exception) {
-        let exception_ocurred_at = self.bus.cpu.to_exec().1.value();
-        let next_would_be = self.bus.cpu.regs.pc;
-        let in_branch_delay = (next_would_be.wrapping_sub(exception_ocurred_at)) != 4;
+        let (exception_ocurred_at, next_would_be) = (
+            self.current_addr.value(),
+            self.bus.cpu.instr_delay_slot().1.value(),
+        );
 
+        let in_branch_delay = exception_ocurred_at.wrapping_add(4) != next_would_be;
         self.bus.cop0.regs.write(
             Reg::COP0_EPC,
             if in_branch_delay {
@@ -80,7 +85,7 @@ impl<'ctx> Interpreter<'ctx> {
         );
 
         // flush pipeline
-        self.bus.cpu.to_exec = (Instruction::NOP, self.current_addr);
+        self.bus.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
 
         // update sr
         self.bus.cop0.regs.system_status_mut().start_exception();
@@ -111,7 +116,7 @@ impl<'ctx> Interpreter<'ctx> {
         self.bus.cpu.regs.pc = exception_handler.value();
     }
 
-    pub fn check_interrupts(&mut self) {
+    pub fn check_interrupts(&mut self) -> bool {
         // (I_STAT & I_MASK)
         let masked_interrupt_status = self
             .bus
@@ -133,16 +138,20 @@ impl<'ctx> Interpreter<'ctx> {
             // must have SR.BIT10 == 1
             let system_status = self.bus.cop0.regs.system_status();
             if !system_status.interrupts_enabled() {
-                return;
+                return false;
             }
 
             info!(
                 self.bus.loggers.cpu,
                 "triggered interrupt {:?} at {}",
-                requested_interrupt, self.bus.cpu.to_exec().1;
+                requested_interrupt, self.bus.cpu.instr_delay_slot().1;
             );
 
             self.trigger_exception(Exception::Interrupt);
+
+            true
+        } else {
+            false
         }
     }
 
@@ -224,7 +233,7 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::XOR => self.xor(instr),
                             SpecialOpcode::MULT => self.mult(instr),
                             SpecialOpcode::SUB => self.sub(instr),
-                            _ => error!(self.bus.loggers.cpu, "can't execute special op {op:?}"),
+                            SpecialOpcode::BREAK => self.breakpoint(instr),
                         }
                     } else {
                         error!(self.bus.loggers.cpu, "illegal special op");
@@ -252,7 +261,14 @@ impl<'ctx> Interpreter<'ctx> {
             if func == kernel::Function::PutChar {
                 let char = self.bus.cpu.regs().read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
-                    self.bus.memory.kernel_stdout.push(char);
+                    print!("{char}");
+                    std::io::stdout().flush();
+
+                    if char == '\r' {
+                        self.bus.memory.kernel_stdout.push('\n');
+                    } else {
+                        self.bus.memory.kernel_stdout.push(char);
+                    }
                 }
 
                 return;
@@ -303,34 +319,41 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     pub fn cycle(&mut self) {
-        if self.bus.cpu.to_exec().1.value() == 0x8003_0000 {
+        if self.bus.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
             self.sideload();
         }
 
-        let pc_addr = Address(self.bus.cpu.regs.pc);
-        let Ok(fetched) = self.bus.read::<_, true>(pc_addr) else {
+        let pc = Address(self.bus.cpu.regs.pc);
+        let Ok(fetched) = self.bus.read::<_, true>(pc) else {
+            // TODO: loads?
             self.trigger_exception(Exception::AddressErrorLoad);
             return;
         };
 
-        let (instr, instr_addr) = std::mem::replace(
-            &mut self.bus.cpu.to_exec,
-            (Instruction::from_bits(fetched), pc_addr),
+        let (current_instr, current_addr) = std::mem::replace(
+            &mut self.bus.cpu.instr_delay_slot,
+            (Instruction::from_bits(fetched), pc),
         );
-        self.current_addr = instr_addr;
+
+        self.current_addr = current_addr;
+        self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
 
         self.log_kernel_calls();
 
-        let to_load = self.bus.cpu.to_load.take();
+        let to_load = self.bus.cpu.load_delay_slot.take();
+        let to_load_cop0 = self.bus.cop0.to_load.take();
 
-        self.exec(instr);
+        if !self.check_interrupts() {
+            self.exec(current_instr);
+        }
 
         if let Some((reg, value)) = to_load {
             self.bus.cpu.regs.write(reg, value);
         }
 
-        self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
-        self.check_interrupts();
+        if let Some((reg, value)) = to_load_cop0 {
+            self.bus.cop0.regs.write(reg, value);
+        }
     }
 
     #[inline(always)]

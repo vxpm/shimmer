@@ -119,8 +119,8 @@ impl State {
     #[inline]
     pub fn cycles_per_vblank(&self) -> u32 {
         match self.status.video_mode() {
-            VideoMode::NTSC => 566_100,
-            VideoMode::PAL => 680_700,
+            VideoMode::NTSC => (33_870_000 as f64 / 59.826) as u32,
+            VideoMode::PAL => (33_870_000 as f64 / 50.219) as u32,
         }
     }
 }

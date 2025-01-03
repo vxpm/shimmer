@@ -48,10 +48,10 @@ pub enum Opcode {
 #[bitos(5)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum BZKind {
-    BLTZ = 0x00,
-    BGEZ = 0x01,
-    BLTZAL = 0x10,
-    BGEZAL = 0x11,
+    BLTZ,
+    BGEZ,
+    BLTZAL,
+    BGEZAL,
 }
 
 /// The special opcode of a [`Instruction`] whose primary opcode is [`Opcode::Special`].
@@ -112,8 +112,11 @@ pub struct Instruction {
     #[bits(26..32)]
     pub op: Option<Opcode>,
 
-    #[bits(16..21)]
-    pub bz_kind: Option<BZKind>,
+    #[bits(20)]
+    pub bz_link: bool,
+
+    #[bits(16)]
+    pub bz_ge: bool,
 
     /// The operation executed by this instruction if it's primary opcode is [`Opcode::Special`].
     #[bits(0..6)]
@@ -368,13 +371,22 @@ impl Instruction {
         })
     }
 
+    pub fn bz_kind(&self) -> BZKind {
+        match (self.bz_ge(), self.bz_link()) {
+            (true, true) => BZKind::BGEZAL,
+            (true, false) => BZKind::BGEZ,
+            (false, true) => BZKind::BLTZAL,
+            (false, false) => BZKind::BLTZ,
+        }
+    }
+
     /// Returns the mnemonic of this instruction.
     pub fn mnemonic(&self) -> Option<String> {
         if self.op() == Some(Opcode::SPECIAL) {
             self.special_op()
                 .map(|s| <&'static str>::from(s).to_owned())
         } else if self.op() == Some(Opcode::BZ) {
-            self.bz_kind().map(|s| <&'static str>::from(s).to_owned())
+            Some(<&'static str>::from(self.bz_kind()).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
             let Some(cop) = self.cop().map(<&'static str>::from) else {
                 return None;

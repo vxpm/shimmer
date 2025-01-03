@@ -96,7 +96,9 @@ impl PSX {
             loggers: Loggers::new(logger),
         };
 
-        value.scheduler.schedule(Event::VSync, 0);
+        value
+            .scheduler
+            .schedule(Event::VSync, value.gpu.cycles_per_vblank() as u64);
         value
     }
 
