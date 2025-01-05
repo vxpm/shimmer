@@ -1,7 +1,7 @@
 use super::{COP, Reg};
 use bitos::{
     bitos,
-    integer::{u5, u20, u26},
+    integer::{u4, u5, u20, u26},
 };
 use strum::IntoStaticStr;
 
@@ -112,8 +112,8 @@ pub struct Instruction {
     #[bits(26..32)]
     pub op: Option<Opcode>,
 
-    #[bits(20)]
-    pub bz_link: bool,
+    #[bits(17..21)]
+    pub bz_link: u4,
 
     #[bits(16)]
     pub bz_ge: bool,
@@ -317,7 +317,7 @@ impl Instruction {
                 SpecialOpcode::SLT => args!(rd: CPU; rs: CPU; rt: CPU;),
                 SpecialOpcode::SLTU => args!(rd: CPU; rs: CPU; rt: CPU;),
             },
-            Opcode::BZ => args!(),
+            Opcode::BZ => args!(rs: CPU; I16;),
             Opcode::JMP => args!(U26;),
             Opcode::JAL => args!(U26;),
             Opcode::BEQ => args!(rs: CPU; rt: CPU; U16;),
@@ -372,7 +372,7 @@ impl Instruction {
     }
 
     pub fn bz_kind(&self) -> BZKind {
-        match (self.bz_ge(), self.bz_link()) {
+        match (self.bz_ge(), self.bz_link().value() == 0b1000) {
             (true, true) => BZKind::BGEZAL,
             (true, false) => BZKind::BGEZ,
             (false, true) => BZKind::BLTZAL,
@@ -637,4 +637,15 @@ macro_rules! mips {
             ),*
         ]
     };
+}
+
+#[test]
+fn test_disasm() {
+    println!("{}", Instruction(0x001F_D021));
+    println!("{}", Instruction(0x0410_0001));
+    println!("{}", Instruction(0));
+    println!("{}", Instruction(0x3C1B_8001));
+    println!("{}", Instruction(0x277B_3C3C));
+    println!("{}", Instruction(0x0360_0008));
+    println!("{}", Instruction(0));
 }

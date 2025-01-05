@@ -4,8 +4,6 @@ mod exception;
 mod jump_branch;
 mod load_store;
 
-use std::io::Write;
-
 use super::{
     Reg,
     cop0::Exception,
@@ -55,6 +53,8 @@ impl<'ctx> Interpreter<'ctx> {
                     .wrapping_add(exe.header.initial_sp_offset);
                 self.bus.cpu.regs.write(Reg::SP, initial_sp);
             }
+
+            info!(self.bus.loggers.cpu, "sideloaded!");
         }
     }
 
@@ -261,9 +261,6 @@ impl<'ctx> Interpreter<'ctx> {
             if func == kernel::Function::PutChar {
                 let char = self.bus.cpu.regs().read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
-                    print!("{char}");
-                    std::io::stdout().flush();
-
                     if char == '\r' {
                         self.bus.memory.kernel_stdout.push('\n');
                     } else {
