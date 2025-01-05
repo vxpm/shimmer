@@ -1,7 +1,0 @@
-# Seeds for failure cases proptest has generated in the past. It is
-# automatically read and these particular cases re-run before any
-# novel cases are generated.
-#
-# It is recommended to check this file in to source control so that
-# everyone who runs the test benefits from these saved cases.
-cc cbf65a5f5f7cc21abe50026a7a11dc8f57c23b3cbba3143e87b36f504fdf6922 # shrinks to state = (Registers { gp: {R14: 7224320, ..}, hi: 0, lo: 33293, pc: 0 }, Registers { gp: {R0: 3252647754, R1: 3474155306, R2: 2263974001, R3: 1601871993, R4: 4225829855, R5: 1759710966, R6: 2952108568, R7: 1171711487, R8: 2404933250, R9: 335983891, R10: 4065903212, R11: 842686795, R12: 3181186776, R13: 3543350298, R14: 2915470773, R15: 557672134, R16: 2197266112, R17: 1412447727, R18: 4178758796, R19: 3098399809, R20: 1568480786, R21: 2334399911, R22: 2545478543, R23: 508273949, R24: 435595312, R25: 1722849671, R26: 2415699492, R27: 650646521, R28: 3476985412, R29: 3433608744, R30: 698061020, R31: 3395794632, ..} }), cop = COP0, rd = R13, rt = R14

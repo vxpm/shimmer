@@ -5,8 +5,6 @@ pub mod interpreter;
 use crate::mem::{self, Address};
 use bitos::bitos;
 use instr::Instruction;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 
 pub use interpreter::Interpreter;
 use strum::{EnumMessage, IntoStaticStr, VariantArray};
@@ -31,7 +29,6 @@ impl COP {
 /// A general purpose register of the CPU.
 #[bitos(5)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray, EnumMessage)]
-#[cfg_attr(test, derive(Arbitrary))]
 pub enum Reg {
     /// `R0`, the only register with a constant value: it always evaluates to zero.
     R0,

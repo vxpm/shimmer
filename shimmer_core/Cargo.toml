@@ -7,9 +7,7 @@ edition = "2024"
 workspace = true
 
 [dev-dependencies]
-proptest = "1.6"
-proptest-derive = "0.5"
-bitos = { workspace = true, features = ["proptest"] }
+bitos = { workspace = true }
 
 [dependencies]
 bitos.workspace = true
