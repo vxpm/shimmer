@@ -75,52 +75,47 @@ impl Loggers {
 
 pub struct PSX {
     scheduler: Scheduler,
-
-    pub memory: mem::Memory,
-    pub cpu: cpu::State,
-    pub cop0: cop0::State,
-    pub gpu: gpu::State,
-
-    pub loggers: Loggers,
+    bus: mem::Bus,
 }
 
 impl PSX {
     /// Creates a new [`PSX`].
     pub fn with_bios(bios: Vec<u8>, logger: Logger) -> Self {
-        let mut value = Self {
+        let mut psx = Self {
             scheduler: Scheduler::default(),
-            memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
-            cpu: cpu::State::default(),
-            cop0: cop0::State::default(),
-            gpu: gpu::State::default(),
-            loggers: Loggers::new(logger),
+            bus: mem::Bus {
+                memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
+                cpu: cpu::State::default(),
+                cop0: cop0::State::default(),
+                gpu: gpu::State::default(),
+                loggers: Loggers::new(logger),
+            },
         };
 
-        value
-            .scheduler
-            .schedule(Event::VSync, value.gpu.cycles_per_vblank() as u64);
-        value
+        psx.scheduler
+            .schedule(Event::VSync, psx.bus.gpu.cycles_per_vblank() as u64);
+
+        psx
     }
 
     #[inline(always)]
-    pub fn bus(&mut self) -> mem::Bus {
-        mem::Bus {
-            memory: &mut self.memory,
-            cpu: &mut self.cpu,
-            cop0: &mut self.cop0,
-            gpu: &mut self.gpu,
-            loggers: &mut self.loggers,
-        }
+    pub fn bus(&mut self) -> &mem::Bus {
+        &self.bus
+    }
+
+    #[inline(always)]
+    pub fn bus_mut(&mut self) -> &mut mem::Bus {
+        &mut self.bus
     }
 
     fn handle_event(&mut self, event: Event) {
         match event {
             Event::VSync => {
-                let bus = self.bus();
+                let bus = self.bus_mut();
                 bus.cop0.interrupt_status.request(cop0::Interrupt::VBlank);
 
                 self.scheduler
-                    .schedule(Event::VSync, self.gpu.cycles_per_vblank() as u64);
+                    .schedule(Event::VSync, self.bus.gpu.cycles_per_vblank() as u64);
             }
         }
     }
@@ -134,8 +129,7 @@ impl PSX {
                 .map(|e| e.happens_in > cycles_left)
                 .unwrap_or(true)
             {
-                let bus = self.bus();
-                let mut interpreter = cpu::Interpreter::new(bus);
+                let mut interpreter = cpu::Interpreter::new(self.bus_mut());
                 interpreter.cycle_for(cycles_left);
 
                 self.scheduler.advance(cycles_left);
@@ -143,8 +137,7 @@ impl PSX {
             }
 
             let next_event = self.scheduler.pop().unwrap();
-            let bus = self.bus();
-            let mut interpreter = cpu::Interpreter::new(bus);
+            let mut interpreter = cpu::Interpreter::new(self.bus_mut());
             interpreter.cycle_for(next_event.happens_in);
 
             cycles_left -= next_event.happens_in;

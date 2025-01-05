@@ -53,11 +53,12 @@ impl Breakpoints {
             |ui, row_range| {
                 for &breakpoint in &ctx.exclusive.controls.breakpoints[row_range] {
                     ui.horizontal(|ui| {
-                        let color = if ctx.exclusive.psx.cpu.instr_delay_slot().1 == breakpoint {
-                            Color32::LIGHT_RED
-                        } else {
-                            Color32::LIGHT_BLUE
-                        };
+                        let color =
+                            if ctx.exclusive.psx.bus().cpu.instr_delay_slot().1 == breakpoint {
+                                Color32::LIGHT_RED
+                            } else {
+                                Color32::LIGHT_BLUE
+                            };
                         ui.label(
                             RichText::new(format!("0x{:08X}", breakpoint))
                                 .monospace()

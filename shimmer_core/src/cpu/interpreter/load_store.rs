@@ -1,6 +1,6 @@
 use super::Interpreter;
 use crate::{
-    cpu::{cop0::Exception, instr::Instruction},
+    cpu::{RegLoad, cop0::Exception, instr::Instruction},
     mem::Address,
 };
 
@@ -26,7 +26,14 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.bus.read::<u32, false>(addr) {
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), value));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value,
+            });
+
+            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+                self.pending_load = None;
+            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -68,7 +75,14 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.bus.read::<i8, false>(addr) {
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), i32::from(value) as u32));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value: i32::from(value) as u32,
+            });
+
+            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+                self.pending_load = None;
+            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -80,7 +94,14 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.bus.read::<u8, false>(addr) {
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), u32::from(value)));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value: u32::from(value),
+            });
+
+            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+                self.pending_load = None;
+            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -92,7 +113,14 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.bus.read::<u16, false>(addr) {
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), u32::from(value)));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value: u32::from(value),
+            });
+
+            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+                self.pending_load = None;
+            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -104,7 +132,14 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.bus.read::<i16, false>(addr) {
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), i32::from(value) as u32));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value: i32::from(value) as u32,
+            });
+
+            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+                self.pending_load = None;
+            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -132,36 +167,60 @@ impl Interpreter<'_> {
 
     pub fn lwl(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
+        let rt = if let Some(load) = self.pending_load
+            && load.reg == instr.rt()
+        {
+            load.value
+        } else {
+            self.bus.cpu.regs.read(instr.rt())
+        };
+
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
         let len = addr.value() % 4 + 1;
 
-        let mut result = self.bus.cpu.regs.read(instr.rt()).to_be_bytes();
+        let mut result = rt.to_be_bytes();
         for (i, byte) in (0..len).zip(result.iter_mut()) {
             let addr = addr - i;
             *byte = self.bus.read_unaligned::<u8, false>(addr);
         }
 
-        self.bus
-            .cpu
-            .regs
-            .write(instr.rt(), u32::from_be_bytes(result));
+        self.bus.cpu.load_delay_slot = Some(RegLoad {
+            reg: instr.rt(),
+            value: u32::from_be_bytes(result),
+        });
+
+        if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+            self.pending_load = None;
+        }
     }
 
     pub fn lwr(&mut self, instr: Instruction) {
         let rs = self.bus.cpu.regs.read(instr.rs());
+        let rt = if let Some(load) = self.pending_load
+            && load.reg == instr.rt()
+        {
+            load.value
+        } else {
+            self.bus.cpu.regs.read(instr.rt())
+        };
+
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
         let len = 4 - addr.value() % 4;
 
-        let mut result = self.bus.cpu.regs.read(instr.rt()).to_le_bytes();
+        let mut result = rt.to_le_bytes();
         for (i, byte) in (0..len).zip(result.iter_mut()) {
             let addr = addr + i;
             *byte = self.bus.read_unaligned::<u8, false>(addr);
         }
 
-        self.bus
-            .cpu
-            .regs
-            .write(instr.rt(), u32::from_le_bytes(result));
+        self.bus.cpu.load_delay_slot = Some(RegLoad {
+            reg: instr.rt(),
+            value: u32::from_le_bytes(result),
+        });
+
+        if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
+            self.pending_load = None;
+        }
     }
 
     pub fn swl(&mut self, instr: Instruction) {

@@ -5,7 +5,7 @@ mod jump_branch;
 mod load_store;
 
 use super::{
-    Reg,
+    Reg, RegLoad,
     cop0::Exception,
     instr::{Instruction, SpecialCoOpcode},
 };
@@ -17,9 +17,11 @@ use crate::{
 use tinylog::{debug, error, info, warn};
 
 pub struct Interpreter<'ctx> {
-    bus: mem::Bus<'ctx>,
+    bus: &'ctx mut mem::Bus,
     /// Address of the currently executing instruction.
     current_addr: Address,
+    /// Value going to be loaded into a register after execution.
+    pending_load: Option<RegLoad>,
 }
 
 // these are only the general exception vectors...
@@ -27,10 +29,11 @@ pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
 pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
 impl<'ctx> Interpreter<'ctx> {
-    pub fn new(bus: mem::Bus<'ctx>) -> Self {
+    pub fn new(bus: &'ctx mut mem::Bus) -> Self {
         Self {
             bus,
             current_addr: Default::default(),
+            pending_load: None,
         }
     }
 
@@ -337,18 +340,18 @@ impl<'ctx> Interpreter<'ctx> {
 
         self.log_kernel_calls();
 
-        let to_load = self.bus.cpu.load_delay_slot.take();
-        let to_load_cop0 = self.bus.cop0.to_load.take();
+        self.pending_load = self.bus.cpu.load_delay_slot.take();
+        let pending_load_cop0 = self.bus.cop0.to_load.take();
 
         if !self.check_interrupts() {
             self.exec(current_instr);
         }
 
-        if let Some((reg, value)) = to_load {
-            self.bus.cpu.regs.write(reg, value);
+        if let Some(load) = self.pending_load {
+            self.bus.cpu.regs.write(load.reg, load.value);
         }
 
-        if let Some((reg, value)) = to_load_cop0 {
+        if let Some((reg, value)) = pending_load_cop0 {
             self.bus.cop0.regs.write(reg, value);
         }
     }

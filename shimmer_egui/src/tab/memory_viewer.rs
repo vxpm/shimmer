@@ -146,43 +146,46 @@ impl MemoryViewer {
             Visualization::U8 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<u8, true>(addr)
                 .to_string(),
             Visualization::U16 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<u16, true>(addr)
                 .to_string(),
             Visualization::U32 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<u32, true>(addr)
                 .to_string(),
             Visualization::I8 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<i8, true>(addr)
                 .to_string(),
             Visualization::I16 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<i16, true>(addr)
                 .to_string(),
             Visualization::I32 => ctx
                 .exclusive
                 .psx
-                .bus()
+                .bus_mut()
                 .read_unaligned::<i32, true>(addr)
                 .to_string(),
-            Visualization::F32 => {
-                (f32::from_bits(ctx.exclusive.psx.bus().read_unaligned::<u32, true>(addr)))
-                    .to_string()
-            }
+            Visualization::F32 => (f32::from_bits(
+                ctx.exclusive
+                    .psx
+                    .bus_mut()
+                    .read_unaligned::<u32, true>(addr),
+            ))
+            .to_string(),
         };
 
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
@@ -299,7 +302,7 @@ impl MemoryViewer {
                     base.checked_add(offset as u32).map(|addr| {
                         ctx.exclusive
                             .psx
-                            .bus()
+                            .bus_mut()
                             .read_unaligned::<u8, true>(Address(addr))
                     })
                 }));

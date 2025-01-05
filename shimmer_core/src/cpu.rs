@@ -269,11 +269,17 @@ impl Registers {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct RegLoad {
+    reg: Reg,
+    value: u32,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct State {
     regs: Registers,
     cache_control: u32,
-    load_delay_slot: Option<(Reg, u32)>,
+    load_delay_slot: Option<RegLoad>,
     instr_delay_slot: (Instruction, Address),
 }
 

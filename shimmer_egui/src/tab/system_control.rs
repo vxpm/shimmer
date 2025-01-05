@@ -108,7 +108,7 @@ impl Tab for SystemControl {
                             Reg::VARIANTS[show_range.start * 2..show_range.end * 2].chunks(2)
                         {
                             for reg in chunk {
-                                let value = ctx.exclusive.psx.cpu.regs().read(*reg);
+                                let value = ctx.exclusive.psx.bus().cpu.regs().read(*reg);
                                 let name = if ctx.exclusive.controls.alternative_names {
                                     RichText::new(reg.alt_name())
                                 } else {

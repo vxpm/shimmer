@@ -337,15 +337,15 @@ pub struct MisalignedAddressErr {
 }
 
 /// The memory bus of the PSX.
-pub struct Bus<'ctx> {
-    pub memory: &'ctx mut Memory,
-    pub cpu: &'ctx mut cpu::State,
-    pub cop0: &'ctx mut cop0::State,
-    pub gpu: &'ctx mut gpu::State,
-    pub loggers: &'ctx mut Loggers,
+pub struct Bus {
+    pub memory: Memory,
+    pub cpu: cpu::State,
+    pub cop0: cop0::State,
+    pub gpu: gpu::State,
+    pub loggers: Loggers,
 }
 
-impl Bus<'_> {
+impl Bus {
     fn read_io_ports<P, const SILENT: bool>(&self, addr: Address) -> P
     where
         P: Primitive,

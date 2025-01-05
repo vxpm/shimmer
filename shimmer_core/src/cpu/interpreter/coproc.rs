@@ -1,5 +1,5 @@
 use super::Interpreter;
-use crate::cpu::{COP, instr::Instruction};
+use crate::cpu::{COP, RegLoad, instr::Instruction};
 use tinylog::{error, warn};
 
 impl Interpreter<'_> {
@@ -29,7 +29,10 @@ impl Interpreter<'_> {
                 }
             };
 
-            self.bus.cpu.load_delay_slot = Some((instr.rt(), rd));
+            self.bus.cpu.load_delay_slot = Some(RegLoad {
+                reg: instr.rt(),
+                value: rd,
+            });
         } else {
             error!(self.bus.loggers.cpu, "mfc to unknown cop");
         }

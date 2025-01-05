@@ -1,8 +1,7 @@
 use crate::State;
 use crossbeam::sync::Parker;
-use shimmer_core::cpu::Reg;
 use std::{
-    sync::{atomic::Ordering, Arc},
+    sync::{Arc, atomic::Ordering},
     time::Duration,
 };
 
