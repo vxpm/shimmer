@@ -1,6 +1,5 @@
 use crate::{
     colors::LIGHT_PURPLE,
-    emulation::CPU_FREQ,
     tab::{Context, Tab},
     util::character_dimensions,
 };
@@ -9,7 +8,7 @@ use eframe::{
     epaint::Color32,
 };
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
-use shimmer_core::cpu::Reg;
+use shimmer_core::cpu::{FREQUENCY, Reg};
 use strum::VariantArray;
 
 pub struct SystemControl {
@@ -40,6 +39,7 @@ impl Tab for SystemControl {
             ));
         });
 
+        let current = ctx.exclusive.timing.running_timer.scale();
         ui.horizontal(|ui| {
             let mut scale = ctx.exclusive.timing.running_timer.scale();
             ui.label("Scale:");
@@ -56,29 +56,28 @@ impl Tab for SystemControl {
                 ctx.exclusive.timing.running_timer.set_scale(scale);
             }
 
-            let current = ctx.exclusive.timing.running_timer.scale();
-            if ui.button("x0.1").clicked() {
+            if ui.button(".1").clicked() {
                 ctx.exclusive.timing.running_timer.set_scale(current * 0.1);
             }
 
-            if ui.button("x0.5").clicked() {
+            if ui.button(".5").clicked() {
                 ctx.exclusive.timing.running_timer.set_scale(current * 0.5);
             }
 
-            if ui.button("x2").clicked() {
+            if ui.button("2").clicked() {
                 ctx.exclusive.timing.running_timer.set_scale(current * 2.0);
             }
 
-            if ui.button("x10").clicked() {
+            if ui.button("10").clicked() {
                 ctx.exclusive.timing.running_timer.set_scale(current * 10.0);
             }
-
-            let cpu_freq: si_scale::value::Value = (CPU_FREQ as f64 * current).into();
-            ui.label(format!(
-                "(~ {}Hz)",
-                si_scale::format_value!(cpu_freq, "{:.3}")
-            ));
         });
+
+        let cpu_freq: si_scale::value::Value = (FREQUENCY as f64 * current).into();
+        ui.label(format!(
+            "(~ {}Hz)",
+            si_scale::format_value!(cpu_freq, "{:.3}")
+        ));
 
         ui.horizontal(|ui| {
             if ui

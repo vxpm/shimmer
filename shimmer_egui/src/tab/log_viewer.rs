@@ -1,7 +1,7 @@
 use crate::tab::{Context, Tab};
 use eframe::egui::{self, Color32, RichText, Ui, UiBuilder, Vec2, style::ScrollAnimation};
 use egui_table::TableDelegate;
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap};
 use tinylog::{Level, logger::Context as LoggerContext, record::RecordWithCtx};
 
 const ROW_SIZE: f32 = 30.0;
@@ -11,6 +11,7 @@ struct LogTableDelegate<'a> {
     logger_ctx: &'a LoggerContext,
     message_width: f32,
     row_heights: &'a mut BTreeMap<u64, f32>,
+    row_top_offsets: &'a mut RefCell<Vec<Option<f32>>>,
     prefetched: &'a mut BTreeMap<u64, RecordWithCtx>,
 }
 
@@ -31,18 +32,31 @@ impl TableDelegate for LogTableDelegate<'_> {
     }
 
     fn row_top_offset(&self, _ctx: &egui::Context, _table_id: egui::Id, row_nr: u64) -> f32 {
-        let mut known = 0;
-        let known_height = self
-            .row_heights
-            .range(0..row_nr)
-            .map(|r| {
-                known += 1;
-                *r.1
-            })
-            .sum::<f32>();
+        let mut row_top_offsets = self.row_top_offsets.borrow_mut();
+        if row_top_offsets.len() <= row_nr as usize {
+            row_top_offsets.resize(row_nr as usize + 1, None);
+        }
 
-        let missing = row_nr - known;
-        known_height + ROW_SIZE * missing as f32
+        match row_top_offsets[row_nr as usize] {
+            Some(offset) => offset,
+            None => {
+                let mut known = 0;
+                let known_height = self
+                    .row_heights
+                    .range(0..row_nr)
+                    .map(|r| {
+                        known += 1;
+                        *r.1
+                    })
+                    .sum::<f32>();
+
+                let missing = row_nr - known;
+                let top_offset = known_height + ROW_SIZE * missing as f32;
+                row_top_offsets[row_nr as usize] = Some(top_offset);
+
+                top_offset
+            }
+        }
     }
 
     fn default_row_height(&self) -> f32 {
@@ -145,8 +159,15 @@ impl TableDelegate for LogTableDelegate<'_> {
                             }
                         });
 
-                        let size = response.response.rect.size();
-                        self.row_heights.insert(cell.row_nr, 8.0 + size.y);
+                        let size = 8.0 + response.response.rect.size().y;
+                        let old = self.row_heights.insert(cell.row_nr, size);
+
+                        if old != Some(size) {
+                            let mut row_top_offsets = self.row_top_offsets.borrow_mut();
+                            row_top_offsets[cell.row_nr as usize..]
+                                .iter_mut()
+                                .for_each(|o| *o = None);
+                        }
                     });
                 }
                 _ => unreachable!(),
@@ -157,6 +178,7 @@ impl TableDelegate for LogTableDelegate<'_> {
 pub struct LogViewer {
     id: u64,
     row_heights: BTreeMap<u64, f32>,
+    row_top_offsets: RefCell<Vec<Option<f32>>>,
     prefetch_buffer: BTreeMap<u64, RecordWithCtx>,
 
     // user settings
@@ -240,6 +262,7 @@ impl LogViewer {
             logger_ctx: &self.logger_ctx,
             message_width,
             row_heights: &mut self.row_heights,
+            row_top_offsets: &mut self.row_top_offsets,
             prefetched: &mut self.prefetch_buffer,
         });
     }
@@ -253,6 +276,7 @@ impl Tab for LogViewer {
         Self {
             id,
             row_heights: BTreeMap::new(),
+            row_top_offsets: RefCell::new(Vec::new()),
             prefetch_buffer: BTreeMap::new(),
 
             logger_ctx: LoggerContext::new("psx"),

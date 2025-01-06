@@ -5,9 +5,11 @@ pub mod interpreter;
 use crate::mem::{self, Address};
 use bitos::bitos;
 use instr::Instruction;
+use strum::{EnumMessage, IntoStaticStr, VariantArray};
 
 pub use interpreter::Interpreter;
-use strum::{EnumMessage, IntoStaticStr, VariantArray};
+
+pub const FREQUENCY: u32 = 33_870_000;
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]

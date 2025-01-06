@@ -27,10 +27,12 @@ impl Timer {
         }
     }
 
+    #[inline(always)]
     pub fn scale(&self) -> f64 {
         self.scale
     }
 
+    #[inline(always)]
     pub fn set_scale(&mut self, value: f64) {
         if self.running {
             self.pause();
@@ -41,6 +43,7 @@ impl Timer {
         }
     }
 
+    #[inline(always)]
     pub fn resume(&mut self) {
         if !self.running {
             self.resumed_at = Instant::now();
@@ -48,6 +51,7 @@ impl Timer {
         }
     }
 
+    #[inline(always)]
     pub fn pause(&mut self) {
         if self.running {
             self.elapsed += self.resumed_at.elapsed().mul_f64(self.scale);
@@ -55,6 +59,7 @@ impl Timer {
         }
     }
 
+    #[inline(always)]
     pub fn elapsed(&self) -> Duration {
         if self.running {
             self.elapsed + self.resumed_at.elapsed().mul_f64(self.scale)
