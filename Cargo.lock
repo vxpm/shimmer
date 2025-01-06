@@ -248,6 +248,7 @@ dependencies = [
  "bitut",
  "num-traits",
  "seq-macro",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -620,6 +621,12 @@ name = "cursor-icon"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96a6ac251f4a2aca6b3f91340350eab87ae57c3f127ffeb585e92bd336717991"
+
+[[package]]
+name = "dary_heap"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04d2cd9c18b9f454ed67da600630b021a8a80bf33f8c95896ab33aaf1c26b728"
 
 [[package]]
 name = "dispatch"
@@ -2212,6 +2219,7 @@ dependencies = [
  "binrw",
  "bitos",
  "bytesize",
+ "dary_heap",
  "easyerr",
  "paste",
  "strum",

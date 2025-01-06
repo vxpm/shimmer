@@ -3,7 +3,7 @@ members = ["shimmer_core", "shimmer_egui"]
 resolver = "3"
 
 [workspace.dependencies]
-bitos = { path = "../bitos/bitos" }
+bitos = { path = "../bitos/bitos", features = ["zerocopy"] }
 easyerr = { path = "../easyerr/easyerr" }
 tinylog = { path = "../tinylog/tinylog" }
 

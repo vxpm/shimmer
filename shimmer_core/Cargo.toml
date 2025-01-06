@@ -17,4 +17,6 @@ paste.workspace = true
 strum.workspace = true
 tinylog.workspace = true
 zerocopy.workspace = true
+
 binrw = "0.14"
+dary_heap = "0.3"

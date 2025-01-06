@@ -1,5 +1,4 @@
 use bitos::{bitos, integer::u2};
-use zerocopy::{FromBytes, IntoBytes};
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +31,7 @@ pub enum IrqToggleMode {
 }
 
 #[bitos(32)]
-#[derive(Debug, Clone, Copy, Default, FromBytes, IntoBytes)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TimerMode {
     /// Whether synchronization is enabled or not.
     #[bits(0)]

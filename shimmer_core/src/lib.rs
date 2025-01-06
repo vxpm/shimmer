@@ -9,88 +9,22 @@ pub mod gpu;
 pub mod kernel;
 pub mod mem;
 pub mod timers;
+
+mod scheduler;
 mod util;
 
 use cpu::cop0;
-use std::collections::BinaryHeap;
+use scheduler::{Event, Scheduler};
 use tinylog::Logger;
 
 pub use binrw;
-
-#[derive(Debug, PartialEq, Eq)]
-enum Event {
-    Cpu,
-    VSync,
-    Timer2,
-}
-
-#[derive(Debug)]
-struct ScheduledEvent {
-    happens_at: u64,
-    event: Event,
-}
-
-impl PartialEq for ScheduledEvent {
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.happens_at == other.happens_at
-    }
-}
-
-impl Eq for ScheduledEvent {}
-
-impl PartialOrd for ScheduledEvent {
-    #[inline(always)]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        std::cmp::Reverse(self.happens_at).partial_cmp(&std::cmp::Reverse(other.happens_at))
-    }
-}
-impl Ord for ScheduledEvent {
-    #[inline(always)]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        std::cmp::Reverse(self.happens_at).cmp(&std::cmp::Reverse(other.happens_at))
-    }
-}
-
-#[derive(Default)]
-struct Scheduler {
-    elapsed: u64,
-    scheduled: BinaryHeap<ScheduledEvent>,
-}
-
-impl Scheduler {
-    pub fn schedule(&mut self, event: Event, after: u64) {
-        let cycle = self.elapsed + after;
-        self.scheduled.push(ScheduledEvent {
-            happens_at: cycle,
-            event,
-        });
-    }
-
-    #[inline(always)]
-    pub fn advance(&mut self, cycles: u64) {
-        self.elapsed += cycles;
-    }
-
-    #[inline(always)]
-    pub fn pop(&mut self) -> Option<ScheduledEvent> {
-        if self
-            .scheduled
-            .peek()
-            .is_some_and(|e| e.happens_at.saturating_sub(self.elapsed) == 0)
-        {
-            self.scheduled.pop()
-        } else {
-            None
-        }
-    }
-}
 
 pub struct Loggers {
     pub root: Logger,
     pub bus: Logger,
     pub cpu: Logger,
     pub kernel: Logger,
+    pub gpu: Logger,
 }
 
 impl Loggers {
@@ -99,6 +33,7 @@ impl Loggers {
             bus: logger.child("bus", tinylog::Level::Trace),
             cpu: logger.child("cpu", tinylog::Level::Trace),
             kernel: logger.child("kernel", tinylog::Level::Trace),
+            gpu: logger.child("gpu", tinylog::Level::Trace),
             root: logger,
         }
     }
@@ -107,6 +42,8 @@ impl Loggers {
 pub struct PSX {
     scheduler: Scheduler,
     bus: mem::Bus,
+
+    renderer: gpu::software::Renderer,
 }
 
 impl PSX {
@@ -122,6 +59,8 @@ impl PSX {
                 gpu: gpu::State::default(),
                 loggers: Loggers::new(logger),
             },
+
+            renderer: gpu::software::Renderer {},
         };
 
         psx.scheduler.schedule(Event::Cpu, 0);
@@ -145,7 +84,7 @@ impl PSX {
     pub fn cycle(&mut self) {
         self.scheduler.advance(1);
         while let Some(e) = self.scheduler.pop() {
-            match e.event {
+            match e {
                 Event::Cpu => {
                     let mut interpreter = cpu::Interpreter::new(self.bus_mut());
                     let _cycles = interpreter.cycle();

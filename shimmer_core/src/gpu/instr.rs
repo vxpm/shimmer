@@ -110,7 +110,7 @@ impl std::fmt::Debug for DisplayInstruction {
 
 /// A GPU instruction. Received through GP0.
 #[bitos(32)]
-pub struct GpuInstruction {
+pub struct RenderingInstruction {
     #[bits(29..32)]
     pub opcode: GpuOpcode,
     #[bits(24..26)]
@@ -139,7 +139,7 @@ pub struct GpuInstruction {
     pub mask_bit_settings_instr: MaskBitSettingsInstr,
 }
 
-impl std::fmt::Debug for GpuInstruction {
+impl std::fmt::Debug for RenderingInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.opcode() {
             GpuOpcode::Misc => match self.misc_opcode() {

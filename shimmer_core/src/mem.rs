@@ -384,9 +384,7 @@ impl Bus {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Gp1 => {
-                    let value = self.gpu.status.into_bits();
-                    let bytes = value.as_bytes();
-
+                    let bytes = self.gpu.status.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Dma6Control | io::Reg::Dma2Control => {

@@ -3,7 +3,6 @@ use crate::cpu::Reg;
 use bitos::BitUtils;
 use bitos::bitos;
 use strum::FromRepr;
-use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromRepr)]
 pub enum Interrupt {
@@ -21,7 +20,7 @@ pub enum Interrupt {
 }
 
 #[bitos(32)]
-#[derive(Clone, Copy, Default, FromBytes, IntoBytes)]
+#[derive(Clone, Copy, Default)]
 pub struct InterruptStatus {
     #[bits(0..10)]
     status: [bool; 10],
@@ -79,7 +78,7 @@ impl InterruptStatus {
 }
 
 #[bitos(32)]
-#[derive(Clone, Copy, Default, FromBytes, IntoBytes)]
+#[derive(Clone, Copy, Default)]
 pub struct InterruptMask {
     #[bits(0..10)]
     enabled: [bool; 10],
@@ -124,7 +123,7 @@ pub enum Exception {
 /// Represents the value of the CAUSE register. It describes the most recently recognised
 /// exception, and is also used to request interrupts.
 #[bitos(32)]
-#[derive(Debug, Clone, FromBytes, IntoBytes, Immutable)]
+#[derive(Debug, Clone)]
 pub struct Cause {
     /// Contains the exception that ocurred.
     #[bits(2..7)]
@@ -167,7 +166,7 @@ pub struct CpuState {
 
 /// Represents the value of the System Status register
 #[bitos(32)]
-#[derive(Debug, Clone, FromBytes, IntoBytes, Immutable)]
+#[derive(Debug, Clone)]
 pub struct SystemStatus {
     #[bits(0..6)]
     pub cpu_state_stack: [CpuState; 3],

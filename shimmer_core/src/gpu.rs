@@ -1,12 +1,15 @@
 pub mod instr;
+pub mod software;
 
+use crate::cpu;
 use bitos::{
     bitos,
     integer::{u1, u4},
 };
-use instr::environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth};
-
-use crate::cpu;
+use instr::{
+    DisplayInstruction, RenderingInstruction,
+    environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
+};
 
 #[bitos(2)]
 #[derive(Debug)]
@@ -115,6 +118,8 @@ impl Default for GpuStatus {
 #[derive(Default)]
 pub struct State {
     pub status: GpuStatus,
+    pub queue: Vec<RenderingInstruction>,
+    pub display_queue: Vec<DisplayInstruction>,
 }
 
 impl State {
