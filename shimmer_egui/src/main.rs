@@ -1,8 +1,11 @@
+mod cli;
 mod colors;
 mod emulation;
 mod tab;
 mod util;
 
+use clap::Parser;
+use cli::Cli;
 use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, menu},
@@ -50,9 +53,7 @@ struct ExclusiveState {
 }
 
 impl ExclusiveState {
-    fn new() -> Self {
-        let bios = std::fs::read("BIOS.BIN").expect("bios in directory");
-
+    fn new(bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -65,14 +66,12 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let psx = PSX::with_bios(bios, root_logger);
-
-        let mut psx = psx;
-        use shimmer_core::binrw::BinReaderExt;
-        let exe = std::fs::read("psxtest_cpu.exe").unwrap();
-        // let exe = std::fs::read("VBLANK.exe").unwrap();
-        let exe: shimmer_core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
-        psx.bus_mut().memory.sideload = Some(exe);
+        let mut psx = PSX::with_bios(bios, root_logger);
+        if let Some(rom) = sideload_rom {
+            use shimmer_core::binrw::BinReaderExt;
+            let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
+            psx.bus_mut().memory.sideload = Some(exe);
+        }
 
         Self {
             psx,
@@ -100,14 +99,16 @@ struct SharedState {
 
 /// State shared between the GUI and emulation threads.
 struct State {
+    bios: Vec<u8>,
     exclusive: Mutex<ExclusiveState>,
     shared: SharedState,
 }
 
-impl Default for State {
-    fn default() -> Self {
+impl State {
+    fn new(bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         Self {
-            exclusive: Mutex::new(ExclusiveState::new()),
+            bios: bios.clone(),
+            exclusive: Mutex::new(ExclusiveState::new(bios, sideload_rom)),
             shared: Default::default(),
         }
     }
@@ -121,8 +122,15 @@ struct App {
 }
 
 impl App {
-    fn new(_ctx: &eframe::CreationContext<'_>) -> Self {
-        let state = Arc::new(State::default());
+    fn new(_ctx: &eframe::CreationContext<'_>, cli: Cli) -> Self {
+        let bios_path = cli.args.bios.clone().unwrap_or("BIOS.BIN".into());
+        let bios = std::fs::read(bios_path).expect("bios file exists");
+
+        let rom_path = cli.args.input.clone();
+        let rom = rom_path.map(|path| std::fs::read(path).expect("rom file exists"));
+
+        let state = Arc::new(State::new(bios, rom));
+
         let parker = Parker::new();
         let unparker = parker.unparker().clone();
         std::thread::spawn({
@@ -277,7 +285,10 @@ impl eframe::App for App {
         let mut exclusive = self.state.exclusive.lock();
 
         if reset {
-            let old = std::mem::replace(&mut *exclusive, ExclusiveState::new());
+            let old = std::mem::replace(
+                &mut *exclusive,
+                ExclusiveState::new(self.state.bios.clone(), None),
+            );
             exclusive.controls.breakpoints = old.controls.breakpoints;
         }
 
@@ -324,6 +335,8 @@ impl eframe::App for App {
 }
 
 fn main() {
+    let cli = Cli::parse();
+
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.inner_size = Some(egui::Vec2::new(1333.0, 1000.0));
@@ -332,7 +345,7 @@ fn main() {
     let result = eframe::run_native(
         "shimmer - psx",
         native_options,
-        Box::new(|cc| Ok(Box::new(App::new(cc)))),
+        Box::new(|cc| Ok(Box::new(App::new(cc, cli)))),
     );
 
     if let Err(e) = result {
