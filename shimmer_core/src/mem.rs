@@ -5,7 +5,9 @@ use crate::{
     Loggers,
     cpu::{self, cop0},
     exe::Executable,
-    gpu, util,
+    gpu,
+    timers::Timers,
+    util,
 };
 use binrw::BinRead;
 use easyerr::Error;
@@ -339,6 +341,7 @@ pub struct MisalignedAddressErr {
 /// The memory bus of the PSX.
 pub struct Bus {
     pub memory: Memory,
+    pub timers: Timers,
     pub cpu: cpu::State,
     pub cop0: cop0::State,
     pub gpu: gpu::State,
@@ -388,6 +391,20 @@ impl Bus {
                 }
                 io::Reg::Dma6Control | io::Reg::Dma2Control => {
                     P::read_from_buf(0x10000002u32.as_bytes())
+                }
+                io::Reg::Timer2Value => {
+                    let bytes = self.timers.timer2.value.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::Timer2Mode => {
+                    let value = self.timers.timer2.mode.into_bits();
+                    let bytes = value.as_bytes();
+
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::Timer2Target => {
+                    let bytes = self.timers.timer2.target.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
                 }
                 _ => default(),
             };
@@ -491,6 +508,20 @@ impl Bus {
                 }
                 io::Reg::Gp1 => {
                     self.gpu.status.set_ready_to_send_vram(true);
+                }
+                io::Reg::Timer2Value => {
+                    let bytes = self.timers.timer2.value.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::Timer2Mode => {
+                    self.timers.timer2.value = 0;
+
+                    let bytes = self.timers.timer2.mode.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::Timer2Target => {
+                    let bytes = self.timers.timer2.value.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
                 }
                 _ => default(),
             };

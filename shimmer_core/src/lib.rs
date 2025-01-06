@@ -8,6 +8,7 @@ pub mod exe;
 pub mod gpu;
 pub mod kernel;
 pub mod mem;
+pub mod timers;
 mod util;
 
 use cpu::cop0;
@@ -20,6 +21,7 @@ pub use binrw;
 enum Event {
     Cpu,
     VSync,
+    Timer2,
 }
 
 #[derive(Debug)]
@@ -114,6 +116,7 @@ impl PSX {
             scheduler: Scheduler::default(),
             bus: mem::Bus {
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
+                timers: timers::Timers::default(),
                 cpu: cpu::State::default(),
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),
@@ -124,6 +127,7 @@ impl PSX {
         psx.scheduler.schedule(Event::Cpu, 0);
         psx.scheduler
             .schedule(Event::VSync, psx.bus.gpu.cycles_per_vblank() as u64);
+        psx.scheduler.schedule(Event::Timer2, 0);
 
         psx
     }
@@ -155,6 +159,10 @@ impl PSX {
                     self.scheduler
                         .schedule(Event::VSync, self.bus.gpu.cycles_per_vblank() as u64);
                 }
+                Event::Timer2 => {
+                    let cycles = self.bus.timers.timer2.tick();
+                    self.scheduler.schedule(Event::Timer2, cycles);
+                }
             }
         }
     }
@@ -165,27 +173,4 @@ impl PSX {
             self.cycle();
         }
     }
-
-    // pub fn cycle_for(&mut self, cycles: u64) {
-    // let mut cycles_left = cycles;
-    // while cycles_left != 0 {
-    //     let cycles_until_next = self
-    //         .scheduler
-    //         .cycles_until_next()
-    //         .unwrap_or(cycles_left)
-    //         .min(cycles_left);
-    //
-    //     // cycles_left -= cycles;
-    //     // self.scheduler.advance(cycles);
-    //
-    //     let mut interpreter = cpu::Interpreter::new(self.bus_mut());
-    //     for _ in 0..cycles {
-    //         self.inner_cycle();
-    //     }
-    //
-    //     if let Some(e) = self.scheduler.pop() {
-    //         self.handle_event(e.event);
-    //     }
-    // }
-    // }
 }
