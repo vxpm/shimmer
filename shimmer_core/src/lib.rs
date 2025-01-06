@@ -2,6 +2,7 @@
 #![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
+#![feature(select_unpredictable)]
 
 pub mod cpu;
 pub mod exe;

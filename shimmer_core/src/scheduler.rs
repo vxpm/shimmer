@@ -1,52 +1,39 @@
-use dary_heap::BinaryHeap;
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
     Cpu,
     VSync,
     Timer2,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct ScheduledEvent {
     happens_at: u64,
     event: Event,
 }
 
-impl PartialEq for ScheduledEvent {
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.happens_at == other.happens_at
-    }
-}
-
-impl Eq for ScheduledEvent {}
-
-impl PartialOrd for ScheduledEvent {
-    #[inline(always)]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        std::cmp::Reverse(self.happens_at).partial_cmp(&std::cmp::Reverse(other.happens_at))
-    }
-}
-impl Ord for ScheduledEvent {
-    #[inline(always)]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        std::cmp::Reverse(self.happens_at).cmp(&std::cmp::Reverse(other.happens_at))
-    }
-}
-
 #[derive(Default)]
 pub struct Scheduler {
     elapsed: u64,
-    scheduled: BinaryHeap<ScheduledEvent>,
+    scheduled: Vec<ScheduledEvent>,
 }
 
 impl Scheduler {
+    #[inline(always)]
     pub fn schedule(&mut self, event: Event, after: u64) {
         let cycle = self.elapsed + after;
-        self.scheduled.push(ScheduledEvent {
-            happens_at: cycle,
+
+        let mut pos = self.scheduled.len();
+        for i in 0..pos {
+            let elem = unsafe { self.scheduled.get_unchecked(i) };
+            if elem.happens_at <= cycle {
+                pos = i;
+                break;
+            }
+        }
+
+        self.scheduled.insert(pos, ScheduledEvent {
             event,
+            happens_at: cycle,
         });
     }
 
@@ -59,7 +46,7 @@ impl Scheduler {
     pub fn pop(&mut self) -> Option<Event> {
         if self
             .scheduled
-            .peek()
+            .last()
             .is_some_and(|e| e.happens_at.saturating_sub(self.elapsed) == 0)
         {
             self.scheduled.pop().map(|e| e.event)
