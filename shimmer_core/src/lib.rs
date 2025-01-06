@@ -68,6 +68,7 @@ impl PSX {
         psx.scheduler
             .schedule(Event::VSync, psx.bus.gpu.cycles_per_vblank() as u64);
         psx.scheduler.schedule(Event::Timer2, 0);
+        psx.scheduler.schedule(Event::Gpu, 0);
 
         psx
     }
@@ -102,6 +103,14 @@ impl PSX {
                 Event::Timer2 => {
                     let cycles = self.bus.timers.timer2.tick();
                     self.scheduler.schedule(Event::Timer2, cycles);
+                }
+                Event::Gpu => {
+                    while !self.bus.gpu.queue.is_empty() {
+                        let instr = self.bus.gpu.queue.pop_front().unwrap();
+                        self.renderer.exec(&mut self.bus, instr);
+                    }
+
+                    self.scheduler.schedule(Event::Gpu, 2);
                 }
             }
         }

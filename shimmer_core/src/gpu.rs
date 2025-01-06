@@ -1,13 +1,15 @@
 pub mod instr;
 pub mod software;
 
+use std::collections::VecDeque;
+
 use crate::cpu;
 use bitos::{
     bitos,
     integer::{u1, u4},
 };
 use instr::{
-    DisplayInstruction, RenderingInstruction,
+    Instruction,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
 };
 
@@ -115,11 +117,15 @@ impl Default for GpuStatus {
     }
 }
 
+#[bitos(32)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GpuResponse {}
+
 #[derive(Default)]
 pub struct State {
     pub status: GpuStatus,
-    pub queue: Vec<RenderingInstruction>,
-    pub display_queue: Vec<DisplayInstruction>,
+    pub response: GpuResponse,
+    pub queue: VecDeque<Instruction>,
 }
 
 impl State {

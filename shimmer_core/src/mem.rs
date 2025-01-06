@@ -5,7 +5,10 @@ use crate::{
     Loggers,
     cpu::{self, cop0},
     exe::Executable,
-    gpu,
+    gpu::{
+        self,
+        instr::{DisplayInstruction, RenderingInstruction},
+    },
     timers::Timers,
     util,
 };
@@ -383,13 +386,17 @@ impl Bus {
 
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::Gp0 => {
+                    let bytes = self.gpu.response.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
                 io::Reg::Gp1 => {
                     let bytes = self.gpu.status.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
-                io::Reg::Dma6Control | io::Reg::Dma2Control => {
-                    P::read_from_buf(0x10000002u32.as_bytes())
-                }
+                // io::Reg::Dma6Control | io::Reg::Dma2Control => {
+                //     P::read_from_buf(0x10000002u32.as_bytes())
+                // }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -504,8 +511,21 @@ impl Bus {
                     let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();
                     value.write_to(&mut reg_bytes[offset..]);
                 }
+                io::Reg::Gp0 => {
+                    let mut raw = 0u32;
+                    value.write_to(&mut raw.as_mut_bytes()[offset..]);
+
+                    self.gpu.queue.push_back(gpu::instr::Instruction::Rendering(
+                        RenderingInstruction::from_bits(raw),
+                    ));
+                }
                 io::Reg::Gp1 => {
-                    self.gpu.status.set_ready_to_send_vram(true);
+                    let mut raw = 0u32;
+                    value.write_to(&mut raw.as_mut_bytes()[offset..]);
+
+                    self.gpu.queue.push_back(gpu::instr::Instruction::Display(
+                        DisplayInstruction::from_bits(raw),
+                    ));
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();
