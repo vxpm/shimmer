@@ -41,7 +41,7 @@ pub enum TransferMode {
 
 /// Contains the base memory address where the DMA of channel `N` will start writing to/reading from.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChannelBase {
     #[bits(0..24)]
     addr: u24,
@@ -50,7 +50,7 @@ pub struct ChannelBase {
 /// Used for configuring the blocks transferred in the DMA of channel `N`.
 #[allow(clippy::len_without_is_empty)]
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChannelBlockControl {
     /// The size of a single block in words.
     #[bits(0..16)]
@@ -62,7 +62,7 @@ pub struct ChannelBlockControl {
 
 /// Used for configuring the blocks transferred in the DMA of channel `N`.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChannelControl {
     /// Direction of the DMA transfer.
     #[bits(0..1)]
@@ -91,6 +91,13 @@ pub struct ChannelControl {
     pub force_transfer: bool, // NOTE: DREQ refers to the hardware signal
 }
 
+#[derive(Debug, Default)]
+pub struct Channel {
+    pub base: ChannelBase,
+    pub block_control: ChannelBlockControl,
+    pub control: ChannelControl,
+}
+
 #[bitos(4)]
 #[derive(Debug)]
 pub struct ChannelStatus {
@@ -107,10 +114,10 @@ pub struct ChannelStatus {
 pub struct Control {
     /// The status of each channel.
     #[bits(0..28)]
-    channel_status: [ChannelStatus; 7],
+    pub channel_status: [ChannelStatus; 7],
     /// The priority of the CPU for memory accesses.
     #[bits(28..31)]
-    cpu_priority: u3,
+    pub cpu_priority: u3,
 }
 
 impl Control {
@@ -234,6 +241,8 @@ impl DmaInterruptControl {
 pub struct State {
     pub control: Control,
     pub interrupt_control: DmaInterruptControl,
+
+    pub channels: [Channel; 7],
 }
 
 impl State {

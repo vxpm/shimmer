@@ -1,3 +1,5 @@
+use crate::dma::DmaChannel;
+
 use super::Address;
 use strum::VariantArray;
 
@@ -526,6 +528,19 @@ impl Reg {
 
     pub fn is_spu_voice(&self) -> bool {
         (Reg::Voice0Volume.address()..=Reg::Voice23Repeat.address()).contains(&self.address())
+    }
+
+    pub fn dma_channel(&self) -> Option<DmaChannel> {
+        Some(match self {
+            Reg::Dma0Base | Reg::Dma0BlockControl | Reg::Dma0Control => DmaChannel::MdecIn,
+            Reg::Dma1Base | Reg::Dma1BlockControl | Reg::Dma1Control => DmaChannel::MdecOut,
+            Reg::Dma2Base | Reg::Dma2BlockControl | Reg::Dma2Control => DmaChannel::GPU,
+            Reg::Dma3Base | Reg::Dma3BlockControl | Reg::Dma3Control => DmaChannel::CDROM,
+            Reg::Dma4Base | Reg::Dma4BlockControl | Reg::Dma4Control => DmaChannel::SPU,
+            Reg::Dma5Base | Reg::Dma5BlockControl | Reg::Dma5Control => DmaChannel::PIO,
+            Reg::Dma6Base | Reg::Dma6BlockControl | Reg::Dma6Control => DmaChannel::OTC,
+            _ => return None,
+        })
     }
 
     pub fn reg_and_offset(addr: Address) -> Option<(Reg, usize)> {

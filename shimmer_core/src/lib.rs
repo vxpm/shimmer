@@ -24,6 +24,7 @@ pub use binrw;
 pub struct Loggers {
     pub root: Logger,
     pub bus: Logger,
+    pub dma: Logger,
     pub cpu: Logger,
     pub kernel: Logger,
     pub gpu: Logger,
@@ -33,6 +34,7 @@ impl Loggers {
     pub fn new(logger: Logger) -> Self {
         Self {
             bus: logger.child("bus", tinylog::Level::Trace),
+            dma: logger.child("dma", tinylog::Level::Trace),
             cpu: logger.child("cpu", tinylog::Level::Trace),
             kernel: logger.child("kernel", tinylog::Level::Trace),
             gpu: logger.child("gpu", tinylog::Level::Trace),
@@ -56,6 +58,7 @@ impl PSX {
             bus: mem::Bus {
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
                 timers: timers::Timers::default(),
+                dma: dma::State::default(),
                 cpu: cpu::State::default(),
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),

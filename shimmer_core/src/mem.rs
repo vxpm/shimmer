@@ -4,6 +4,7 @@ pub mod primitive;
 use crate::{
     Loggers,
     cpu::{self, cop0},
+    dma,
     exe::Executable,
     gpu::{
         self,
@@ -345,6 +346,7 @@ pub struct MisalignedAddressErr {
 pub struct Bus {
     pub memory: Memory,
     pub timers: Timers,
+    pub dma: dma::State,
     pub cpu: cpu::State,
     pub cop0: cop0::State,
     pub gpu: gpu::State,
@@ -386,6 +388,39 @@ impl Bus {
 
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::Dma0Base
+                | io::Reg::Dma1Base
+                | io::Reg::Dma2Base
+                | io::Reg::Dma3Base
+                | io::Reg::Dma4Base
+                | io::Reg::Dma5Base
+                | io::Reg::Dma6Base => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize].base.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::Dma0BlockControl
+                | io::Reg::Dma1BlockControl
+                | io::Reg::Dma2BlockControl
+                | io::Reg::Dma3BlockControl
+                | io::Reg::Dma4BlockControl
+                | io::Reg::Dma5BlockControl
+                | io::Reg::Dma6BlockControl => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize].block_control.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::Dma0Control
+                | io::Reg::Dma1Control
+                | io::Reg::Dma2Control
+                | io::Reg::Dma3Control
+                | io::Reg::Dma4Control
+                | io::Reg::Dma5Control
+                | io::Reg::Dma6Control => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize].control.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
                 io::Reg::Gp0 => {
                     let bytes = self.gpu.response.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -394,9 +429,6 @@ impl Bus {
                     let bytes = self.gpu.status.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
-                // io::Reg::Dma6Control | io::Reg::Dma2Control => {
-                //     P::read_from_buf(0x10000002u32.as_bytes())
-                // }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -510,6 +542,41 @@ impl Bus {
                 io::Reg::InterruptMask => {
                     let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();
                     value.write_to(&mut reg_bytes[offset..]);
+                }
+                io::Reg::Dma0Base
+                | io::Reg::Dma1Base
+                | io::Reg::Dma2Base
+                | io::Reg::Dma3Base
+                | io::Reg::Dma4Base
+                | io::Reg::Dma5Base
+                | io::Reg::Dma6Base => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize].base.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..])
+                }
+                io::Reg::Dma0BlockControl
+                | io::Reg::Dma1BlockControl
+                | io::Reg::Dma2BlockControl
+                | io::Reg::Dma3BlockControl
+                | io::Reg::Dma4BlockControl
+                | io::Reg::Dma5BlockControl
+                | io::Reg::Dma6BlockControl => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize]
+                        .block_control
+                        .as_mut_bytes();
+                    value.write_to(&mut bytes[offset..])
+                }
+                io::Reg::Dma0Control
+                | io::Reg::Dma1Control
+                | io::Reg::Dma2Control
+                | io::Reg::Dma3Control
+                | io::Reg::Dma4Control
+                | io::Reg::Dma5Control
+                | io::Reg::Dma6Control => {
+                    let channel = reg.dma_channel().unwrap();
+                    let bytes = self.dma.channels[channel as usize].control.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..])
                 }
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;
