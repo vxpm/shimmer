@@ -123,7 +123,7 @@ struct App {
 
 impl App {
     fn new(_ctx: &eframe::CreationContext<'_>, cli: Cli) -> Self {
-        let bios_path = cli.args.bios.clone().unwrap_or("BIOS.BIN".into());
+        let bios_path = cli.args.bios.clone().unwrap_or("resources/BIOS.BIN".into());
         let bios = std::fs::read(bios_path).expect("bios file exists");
 
         let rom_path = cli.args.input.clone();
