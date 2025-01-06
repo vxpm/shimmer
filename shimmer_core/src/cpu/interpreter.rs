@@ -340,7 +340,13 @@ impl<'ctx> Interpreter<'ctx> {
 
         let pc = Address(self.bus.cpu.regs.pc);
         let Ok(fetched) = self.bus.read::<_, true>(pc) else {
-            // TODO: finish loads?
+            if let Some(load) = self.bus.cpu.load_delay_slot.take() {
+                self.bus.cpu.regs.write(load.reg, load.value);
+            }
+            if let Some((reg, value)) = self.bus.cop0.to_load.take() {
+                self.bus.cop0.regs.write(reg, value);
+            }
+
             self.trigger_exception(Exception::AddressErrorLoad);
             return;
         };

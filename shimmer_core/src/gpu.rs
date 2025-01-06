@@ -6,6 +6,8 @@ use bitos::{
 };
 use instr::environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth};
 
+use crate::cpu;
+
 #[bitos(2)]
 #[derive(Debug)]
 pub enum HorizontalResolution {
@@ -119,8 +121,8 @@ impl State {
     #[inline]
     pub fn cycles_per_vblank(&self) -> u32 {
         match self.status.video_mode() {
-            VideoMode::NTSC => (33_870_000 as f64 / 59.826) as u32,
-            VideoMode::PAL => (33_870_000 as f64 / 50.219) as u32,
+            VideoMode::NTSC => (cpu::FREQUENCY as f64 / 59.826) as u32,
+            VideoMode::PAL => (cpu::FREQUENCY as f64 / 50.219) as u32,
         }
     }
 }
