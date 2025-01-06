@@ -11,47 +11,76 @@ pub mod mem;
 mod util;
 
 use cpu::cop0;
+use std::collections::BinaryHeap;
 use tinylog::Logger;
 
 pub use binrw;
 
+#[derive(Debug, PartialEq, Eq)]
 enum Event {
+    Cpu,
     VSync,
 }
 
+#[derive(Debug)]
 struct ScheduledEvent {
+    happens_at: u64,
     event: Event,
-    happens_in: u64,
+}
+
+impl PartialEq for ScheduledEvent {
+    #[inline(always)]
+    fn eq(&self, other: &Self) -> bool {
+        self.happens_at == other.happens_at
+    }
+}
+
+impl Eq for ScheduledEvent {}
+
+impl PartialOrd for ScheduledEvent {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        std::cmp::Reverse(self.happens_at).partial_cmp(&std::cmp::Reverse(other.happens_at))
+    }
+}
+impl Ord for ScheduledEvent {
+    #[inline(always)]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        std::cmp::Reverse(self.happens_at).cmp(&std::cmp::Reverse(other.happens_at))
+    }
 }
 
 #[derive(Default)]
 struct Scheduler {
-    scheduled: Vec<ScheduledEvent>,
+    elapsed: u64,
+    scheduled: BinaryHeap<ScheduledEvent>,
 }
 
 impl Scheduler {
     pub fn schedule(&mut self, event: Event, after: u64) {
+        let cycle = self.elapsed + after;
         self.scheduled.push(ScheduledEvent {
+            happens_at: cycle,
             event,
-            happens_in: after,
         });
-
-        self.scheduled
-            .sort_unstable_by_key(|e| std::cmp::Reverse(e.happens_in));
     }
 
+    #[inline(always)]
     pub fn advance(&mut self, cycles: u64) {
-        self.scheduled
-            .iter_mut()
-            .for_each(|e| e.happens_in = e.happens_in.saturating_sub(cycles));
+        self.elapsed += cycles;
     }
 
-    pub fn peek(&self) -> Option<&ScheduledEvent> {
-        self.scheduled.last()
-    }
-
+    #[inline(always)]
     pub fn pop(&mut self) -> Option<ScheduledEvent> {
-        self.scheduled.pop()
+        if self
+            .scheduled
+            .peek()
+            .is_some_and(|e| e.happens_at.saturating_sub(self.elapsed) == 0)
+        {
+            self.scheduled.pop()
+        } else {
+            None
+        }
     }
 }
 
@@ -92,6 +121,7 @@ impl PSX {
             },
         };
 
+        psx.scheduler.schedule(Event::Cpu, 0);
         psx.scheduler
             .schedule(Event::VSync, psx.bus.gpu.cycles_per_vblank() as u64);
 
@@ -108,41 +138,54 @@ impl PSX {
         &mut self.bus
     }
 
-    fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::VSync => {
-                let bus = self.bus_mut();
-                bus.cop0.interrupt_status.request(cop0::Interrupt::VBlank);
+    pub fn cycle(&mut self) {
+        self.scheduler.advance(1);
+        while let Some(e) = self.scheduler.pop() {
+            match e.event {
+                Event::Cpu => {
+                    let mut interpreter = cpu::Interpreter::new(self.bus_mut());
+                    let _cycles = interpreter.cycle();
 
-                self.scheduler
-                    .schedule(Event::VSync, self.bus.gpu.cycles_per_vblank() as u64);
+                    self.scheduler.schedule(Event::Cpu, 2);
+                }
+                Event::VSync => {
+                    let bus = self.bus_mut();
+                    bus.cop0.interrupt_status.request(cop0::Interrupt::VBlank);
+
+                    self.scheduler
+                        .schedule(Event::VSync, self.bus.gpu.cycles_per_vblank() as u64);
+                }
             }
         }
     }
 
+    #[inline(always)]
     pub fn cycle_for(&mut self, cycles: u64) {
-        let mut cycles_left = cycles;
-        loop {
-            if self
-                .scheduler
-                .peek()
-                .map(|e| e.happens_in > cycles_left)
-                .unwrap_or(true)
-            {
-                let mut interpreter = cpu::Interpreter::new(self.bus_mut());
-                interpreter.cycle_for(cycles_left);
-
-                self.scheduler.advance(cycles_left);
-                break;
-            }
-
-            let next_event = self.scheduler.pop().unwrap();
-            let mut interpreter = cpu::Interpreter::new(self.bus_mut());
-            interpreter.cycle_for(next_event.happens_in);
-
-            cycles_left -= next_event.happens_in;
-            self.scheduler.advance(next_event.happens_in);
-            self.handle_event(next_event.event);
+        for _ in 0..cycles {
+            self.cycle();
         }
     }
+
+    // pub fn cycle_for(&mut self, cycles: u64) {
+    // let mut cycles_left = cycles;
+    // while cycles_left != 0 {
+    //     let cycles_until_next = self
+    //         .scheduler
+    //         .cycles_until_next()
+    //         .unwrap_or(cycles_left)
+    //         .min(cycles_left);
+    //
+    //     // cycles_left -= cycles;
+    //     // self.scheduler.advance(cycles);
+    //
+    //     let mut interpreter = cpu::Interpreter::new(self.bus_mut());
+    //     for _ in 0..cycles {
+    //         self.inner_cycle();
+    //     }
+    //
+    //     if let Some(e) = self.scheduler.pop() {
+    //         self.handle_event(e.event);
+    //     }
+    // }
+    // }
 }

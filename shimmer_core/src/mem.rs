@@ -204,7 +204,7 @@ impl std::fmt::Debug for Address {
 
 impl Address {
     /// Returns the value of this address. Equivalent to `self.0`.
-    #[inline]
+    #[inline(always)]
     pub const fn value(self) -> u32 {
         self.0
     }

@@ -9,3 +9,7 @@ where
         .ok()
         .expect("boxed slice should have exactly LEN elements")
 }
+
+#[cold]
+#[inline(always)]
+pub fn cold_path() {}

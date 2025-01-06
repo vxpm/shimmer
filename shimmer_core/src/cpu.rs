@@ -259,10 +259,12 @@ impl Default for Registers {
 }
 
 impl Registers {
+    #[inline(always)]
     pub fn read(&self, reg: Reg) -> u32 {
         self.gp[reg as usize]
     }
 
+    #[inline(always)]
     pub fn write(&mut self, reg: Reg, value: u32) {
         self.gp[reg as usize] = value;
         self.gp[0] = 0;

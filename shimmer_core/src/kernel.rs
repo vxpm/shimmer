@@ -32,6 +32,7 @@ pub enum Function {
     SetJmp,
     Strcmp,
     Strlen,
+    Strncat,
     SysDeqIntRP,
     SysInitMemory,
     Write,
@@ -42,6 +43,7 @@ impl Function {
         Some(match code {
             0x03 => Self::Write,
             0x13 => Self::SetJmp,
+            0x16 => Self::Strncat,
             0x17 => Self::Strcmp,
             0x1B => Self::Strlen,
             0x25 => Self::CharToUpper,
@@ -117,6 +119,7 @@ impl Function {
             Self::SetJmp => 1,
             Self::Strcmp => 2,
             Self::Strlen => 1,
+            Self::Strncat => 3,
             Self::SysDeqIntRP => 2,
             Self::SysInitMemory => 2,
             Self::Write => 3,

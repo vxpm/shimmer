@@ -59,6 +59,7 @@ impl InterruptStatus {
 
     #[inline]
     pub fn requested(&self) -> Option<Interrupt> {
+        // TODO: improve this
         let trailing = self.0.trailing_zeros();
         (trailing < 10).then(|| match trailing {
             0x00 => Interrupt::VBlank,

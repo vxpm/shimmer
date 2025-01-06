@@ -12,7 +12,8 @@ impl Interpreter<'_> {
         self.bus.cpu.regs.pc = high | low;
     }
 
-    pub fn branch(&mut self, offset: i16) {
+    #[inline(always)]
+    fn branch(&mut self, offset: i16) {
         let addr = self
             .bus
             .cpu

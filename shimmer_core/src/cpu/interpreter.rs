@@ -13,6 +13,7 @@ use crate::{
     cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
     kernel,
     mem::{self, Address, Region},
+    util::cold_path,
 };
 use tinylog::{debug, error, info, warn};
 
@@ -37,6 +38,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
+    #[inline(never)]
     fn sideload(&mut self) {
         if let Some(exe) = &self.bus.memory.sideload {
             self.bus.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
@@ -252,11 +254,22 @@ impl<'ctx> Interpreter<'ctx> {
     }
 
     fn log_kernel_calls(&mut self) {
-        let code = self.bus.cpu.regs.read(Reg::R9) as u8;
         let func = match self.current_addr.value() {
-            0xA0 => kernel::Function::a0(code),
-            0xB0 => kernel::Function::b0(code),
-            0xC0 => kernel::Function::c0(code),
+            0xA0 => {
+                cold_path();
+                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                kernel::Function::a0(code)
+            }
+            0xB0 => {
+                cold_path();
+                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                kernel::Function::b0(code)
+            }
+            0xC0 => {
+                cold_path();
+                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                kernel::Function::c0(code)
+            }
             _ => return,
         };
 
@@ -311,6 +324,7 @@ impl<'ctx> Interpreter<'ctx> {
                 "executed kernel function {func:?}({args})"
             );
         } else {
+            let code = self.bus.cpu.regs.read(Reg::R9) as u8;
             warn!(
                 self.bus.loggers.kernel,
                 "executed unknown kernel function 0x{:02X} at {}", code, self.current_addr
@@ -320,12 +334,13 @@ impl<'ctx> Interpreter<'ctx> {
 
     pub fn cycle(&mut self) {
         if self.bus.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
+            cold_path();
             self.sideload();
         }
 
         let pc = Address(self.bus.cpu.regs.pc);
         let Ok(fetched) = self.bus.read::<_, true>(pc) else {
-            // TODO: loads?
+            // TODO: finish loads?
             self.trigger_exception(Exception::AddressErrorLoad);
             return;
         };
@@ -353,13 +368,6 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some((reg, value)) = pending_load_cop0 {
             self.bus.cop0.regs.write(reg, value);
-        }
-    }
-
-    #[inline(always)]
-    pub fn cycle_for(&mut self, count: u64) {
-        for _ in 0..count {
-            self.cycle();
         }
     }
 }
