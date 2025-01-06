@@ -5,6 +5,7 @@
 #![feature(select_unpredictable)]
 
 pub mod cpu;
+pub mod dma;
 pub mod exe;
 pub mod gpu;
 pub mod kernel;

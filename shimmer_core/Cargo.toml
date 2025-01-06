@@ -18,4 +18,5 @@ strum.workspace = true
 tinylog.workspace = true
 zerocopy.workspace = true
 
+arrayvec = "0.7"
 binrw = "0.14"

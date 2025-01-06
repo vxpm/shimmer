@@ -2210,6 +2210,7 @@ dependencies = [
 name = "shimmer_core"
 version = "0.1.0"
 dependencies = [
+ "arrayvec",
  "binrw",
  "bitos",
  "bytesize",
