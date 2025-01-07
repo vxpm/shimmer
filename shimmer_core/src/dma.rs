@@ -1,8 +1,10 @@
-use crate::{PSX, cpu::cop0::Interrupt, gpu, mem::Address};
+pub mod executor;
+
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
 use integer::{u3, u7, u24};
-use tinylog::{debug, info};
+
+pub use executor::Executor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -250,133 +252,4 @@ pub struct State {
     pub interrupt_control: InterruptControl,
 
     pub channels: [ChannelState; 7],
-}
-
-fn transfer_burst(psx: &mut PSX, channel: Channel) {
-    let channel_base = &psx.dma.channels[channel as usize].base;
-    let channel_block_control = &psx.dma.channels[channel as usize].block_control;
-
-    match channel {
-        Channel::OTC => {
-            let base = channel_base.addr().value() & !0b11;
-            let entries = if channel_block_control.len() == 0 {
-                0x10000
-            } else {
-                u32::from(channel_block_control.len())
-            };
-
-            debug!(
-                psx.loggers.dma,
-                "base = {}, entries = {entries}",
-                Address(base)
-            );
-
-            let mut addr = base;
-            for _ in 1..entries {
-                let prev = addr.wrapping_sub(4) & 0x00FF_FFFF;
-                psx.write::<_, true>(Address(addr), prev).unwrap();
-
-                let region = Address(addr).physical().and_then(|p| p.region());
-                debug!(
-                    psx.loggers.dma,
-                    "[{}] = {} ({region:?})",
-                    Address(addr),
-                    Address(prev)
-                );
-
-                addr = prev;
-            }
-
-            psx.write::<_, true>(Address(addr), 0x00FF_FFFF).unwrap();
-            debug!(psx.loggers.dma, "[{}] = 0x00FF_FFFF", Address(addr));
-            debug!(
-                psx.loggers.dma,
-                "FINISHED - addr: {}",
-                psx.cpu.instr_delay_slot().1
-            );
-        }
-        _ => todo!(),
-    }
-}
-
-fn transfer_slice(psx: &mut PSX, channel: Channel) {
-    match channel {
-        Channel::OTC => transfer_burst(psx, channel),
-        _ => todo!(),
-    }
-}
-
-fn transfer_linked(psx: &mut PSX, channel: Channel) {
-    let channel_base = &psx.dma.channels[channel as usize].base;
-
-    match channel {
-        Channel::OTC => transfer_burst(psx, channel),
-        Channel::GPU => {
-            let mut current = channel_base.addr().value() & !0b11;
-            loop {
-                let node = psx.read::<u32, true>(Address(current)).unwrap();
-                let next = node.bits(0, 24);
-                let words = node.bits(24, 32);
-
-                if next == 0x00FF_FFFF {
-                    break;
-                }
-
-                for i in 0..words {
-                    let addr = current + (i + 1) * 4;
-                    let word = psx.read::<u32, true>(Address(addr)).unwrap();
-                    psx.gpu.queue.push_back(gpu::instr::Instruction::Rendering(
-                        gpu::instr::RenderingInstruction::from_bits(word),
-                    ));
-                }
-
-                current = next & !0b11;
-            }
-        }
-        _ => todo!(),
-    }
-}
-
-pub fn check_transfers(psx: &mut PSX) {
-    let mut enabled_channels = psx.dma.control.enabled_channels();
-    enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
-
-    for (channel, _) in enabled_channels {
-        let channel_control = &psx.dma.channels[channel as usize].control;
-        if channel_control.transfer_ongoing() {
-            info!(psx.loggers.dma, "{channel:?} ongoing"; control = channel_control.clone());
-
-            match channel_control
-                .transfer_mode()
-                .unwrap_or(TransferMode::Burst)
-            {
-                TransferMode::Burst => transfer_burst(psx, channel),
-                TransferMode::Slice => transfer_slice(psx, channel),
-                TransferMode::LinkedList => transfer_linked(psx, channel),
-            }
-
-            let channel_control = &mut psx.dma.channels[channel as usize].control;
-            channel_control.set_transfer_ongoing(false);
-            channel_control.set_force_transfer(false);
-
-            let interrupt_control = &mut psx.dma.interrupt_control;
-            if interrupt_control
-                .channel_interrupt_mask_at(channel as usize)
-                .unwrap()
-            {
-                interrupt_control.set_channel_interrupt_flags_at(channel as usize, true);
-            }
-
-            let old_master_interrupt = interrupt_control.master_interrupt_flag();
-            let new_master_interrupt = interrupt_control.bus_error()
-                || (interrupt_control.master_channel_interrupt_enable()
-                    && interrupt_control.channel_interrupt_flags_raw().value() != 0);
-
-            interrupt_control.set_master_interrupt_flag(new_master_interrupt);
-
-            if !old_master_interrupt && new_master_interrupt {
-                psx.cop0.interrupt_status.request(Interrupt::DMA);
-            }
-        }
-    }
 }

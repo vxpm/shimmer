@@ -79,7 +79,6 @@ impl Emulator {
         e.psx.scheduler.schedule(Event::Cpu, 0);
         e.psx.scheduler.schedule(Event::VSync, 0);
         e.psx.scheduler.schedule(Event::Timer2, 0);
-        e.psx.scheduler.schedule(Event::Dma, 0);
 
         e
     }
@@ -121,8 +120,8 @@ impl Emulator {
                     interpreter.exec_queued();
                 }
                 Event::Dma => {
-                    dma::check_transfers(&mut self.psx);
-                    self.psx.scheduler.schedule(Event::Dma, 16);
+                    let mut executor = dma::Executor::new(self.psx_mut());
+                    executor.progress_transfers();
                 }
             }
         }

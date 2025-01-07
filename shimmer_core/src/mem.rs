@@ -549,7 +549,9 @@ impl PSX {
                 | io::Reg::Dma6Base => {
                     let channel = reg.dma_channel().unwrap();
                     let bytes = self.dma.channels[channel as usize].base.as_mut_bytes();
-                    value.write_to(&mut bytes[offset..])
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::Dma0BlockControl
                 | io::Reg::Dma1BlockControl
@@ -562,7 +564,9 @@ impl PSX {
                     let bytes = self.dma.channels[channel as usize]
                         .block_control
                         .as_mut_bytes();
-                    value.write_to(&mut bytes[offset..])
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::Dma0Control
                 | io::Reg::Dma1Control
@@ -573,11 +577,15 @@ impl PSX {
                 | io::Reg::Dma6Control => {
                     let channel = reg.dma_channel().unwrap();
                     let bytes = self.dma.channels[channel as usize].control.as_mut_bytes();
-                    value.write_to(&mut bytes[offset..])
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::DmaControl => {
                     let bytes = self.dma.control.as_mut_bytes();
-                    value.write_to(&mut bytes[offset..])
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::DmaInterrupt => {
                     let mut dummy = self.dma.interrupt_control.clone();
@@ -615,7 +623,7 @@ impl PSX {
                         .interrupt_control
                         .set_channel_interrupt_flags_raw(u7::new(reset));
 
-                    debug!(self.loggers.dma, "{:?}", self.dma.interrupt_control.clone());
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;
