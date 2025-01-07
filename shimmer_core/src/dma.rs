@@ -5,6 +5,7 @@ use integer::{u3, u7, u24};
 use tinylog::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum DmaChannel {
     MdecIn = 0,
     MdecOut = 1,
@@ -131,9 +132,12 @@ impl Control {
             .into_iter()
             .enumerate()
             .filter_map(|(i, channel)| {
-                channel
-                    .enabled()
-                    .then_some(unsafe { (std::mem::transmute(i as u8), channel.priority()) })
+                channel.enabled().then_some(unsafe {
+                    (
+                        std::mem::transmute::<u8, DmaChannel>(i as u8),
+                        channel.priority(),
+                    )
+                })
             });
 
         for channel in iter {

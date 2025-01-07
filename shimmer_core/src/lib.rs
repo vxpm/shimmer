@@ -104,7 +104,7 @@ impl Emulator {
             match e {
                 Event::Cpu => {
                     let mut interpreter = cpu::Interpreter::new(self.psx_mut());
-                    let cycles = interpreter.next();
+                    let cycles = interpreter.exec_next();
 
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }

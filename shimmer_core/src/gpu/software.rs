@@ -3,7 +3,7 @@ use tinylog::debug;
 use super::instr::Instruction;
 use crate::PSX;
 
-pub struct Renderer {}
+pub struct Renderer;
 
 impl Renderer {
     pub fn exec(&mut self, bus: &mut PSX, instr: Instruction) {

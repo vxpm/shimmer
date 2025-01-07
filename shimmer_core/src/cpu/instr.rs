@@ -388,9 +388,7 @@ impl Instruction {
         } else if self.op() == Some(Opcode::BZ) {
             Some(<&'static str>::from(self.bz_kind()).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
-            let Some(cop) = self.cop().map(<&'static str>::from) else {
-                return None;
-            };
+            let cop = self.cop().map(<&'static str>::from)?;
             if self.cop_op() == Some(CoOpcode::SPECIAL) {
                 self.cop_special_op()
                     .map(|op| format!("{cop}_{}", <&'static str>::from(op)))
@@ -404,6 +402,7 @@ impl Instruction {
     }
 
     pub fn is_illegal(&self) -> bool {
+        #[expect(clippy::match_like_matches_macro, reason = "more readable as a match")]
         match (self.op(), self.special_op(), self.cop_op()) {
             (None, _, _) => true,
             (Some(Opcode::SPECIAL), None, _) => true,
