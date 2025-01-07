@@ -11,6 +11,7 @@ use crate::{
     util,
 };
 use binrw::BinRead;
+use bitos::integer::u7;
 use easyerr::Error;
 
 pub use primitive::{Primitive, PrimitiveRw};
@@ -527,11 +528,11 @@ impl PSX {
 
             match reg {
                 io::Reg::InterruptStatus => {
-                    let reg_bytes = &mut self.cop0.interrupt_status.as_mut_bytes()[offset..];
+                    let stat_bytes = &mut self.cop0.interrupt_status.as_mut_bytes()[offset..];
                     let value_bytes = value.as_bytes();
 
-                    for (value_byte, reg_byte) in value_bytes.iter().zip(reg_bytes) {
-                        *reg_byte &= value_byte;
+                    for (value_byte, stat_byte) in value_bytes.iter().zip(stat_bytes) {
+                        *stat_byte &= value_byte;
                     }
                 }
                 io::Reg::InterruptMask => {
@@ -578,8 +579,42 @@ impl PSX {
                     value.write_to(&mut bytes[offset..])
                 }
                 io::Reg::DmaInterrupt => {
-                    let bytes = self.dma.interrupt_control.as_mut_bytes();
-                    value.write_to(&mut bytes[offset..])
+                    let mut dummy = self.dma.interrupt_control.clone();
+                    let bytes = dummy.as_mut_bytes();
+
+                    0u32.write_to(&mut bytes[offset..]);
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.dma
+                        .interrupt_control
+                        .set_channel_interrupt_mode(dummy.channel_interrupt_mode());
+                    self.dma.interrupt_control.set_bus_error(dummy.bus_error());
+                    self.dma
+                        .interrupt_control
+                        .set_channel_interrupt_mask_raw(dummy.channel_interrupt_mask_raw());
+                    self.dma
+                        .interrupt_control
+                        .set_master_channel_interrupt_enable(
+                            dummy.master_channel_interrupt_enable(),
+                        );
+
+                    // C W
+                    // 0 0 -> 0
+                    // 0 1 -> 0
+                    // 1 0 -> 1
+                    // 1 1 -> 0
+                    let reset = self
+                        .dma
+                        .interrupt_control
+                        .channel_interrupt_flags_raw()
+                        .value()
+                        & !dummy.channel_interrupt_flags_raw().value();
+
+                    self.dma
+                        .interrupt_control
+                        .set_channel_interrupt_flags_raw(u7::new(reset));
+
+                    debug!(self.loggers.dma, "{:?}", self.dma.interrupt_control.clone());
                 }
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;

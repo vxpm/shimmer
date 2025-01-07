@@ -9,13 +9,13 @@ use bitos::{
     integer::{u1, u4},
 };
 use instr::{
-    Instruction, RenderingOpcode,
+    DisplayOpcode, EnvironmentOpcode, Instruction, MiscOpcode, RenderingOpcode,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
 };
 use tinylog::debug;
 
 #[bitos(2)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HorizontalResolution {
     R256 = 0,
     R320 = 1,
@@ -24,14 +24,14 @@ pub enum HorizontalResolution {
 }
 
 #[bitos(1)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalResolution {
     R240 = 0,
     R480 = 1,
 }
 
 #[bitos(1)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VideoMode {
     /// 60Hz
     NTSC = 0,
@@ -40,7 +40,7 @@ pub enum VideoMode {
 }
 
 #[bitos(1)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayDepth {
     /// 15 Bit
     Limited = 0,
@@ -49,7 +49,7 @@ pub enum DisplayDepth {
 }
 
 #[bitos(2)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmaDirection {
     Off = 0,
     Fifo = 1,
@@ -117,6 +117,7 @@ pub struct GpuStatus {
 impl Default for GpuStatus {
     fn default() -> Self {
         Self::from_bits(0x1480_2000)
+        // .with_ready_to_send_vram(true)
     }
 }
 
@@ -150,51 +151,40 @@ pub fn exec(psx: &mut PSX, instr: Instruction) {
     match instr {
         Instruction::Rendering(instr) => match instr.opcode() {
             RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
-                instr::MiscOpcode::NOP => (),
-                instr::MiscOpcode::ClearCache => todo!(),
-                instr::MiscOpcode::QuickRectangleFill => todo!(),
+                MiscOpcode::NOP => (),
+                _ => debug!(psx.loggers.gpu, "unimplemented"),
             },
-            RenderingOpcode::Polygon => todo!(),
-            RenderingOpcode::Line => todo!(),
-            RenderingOpcode::Rectangle => todo!(),
-            RenderingOpcode::VramToVramBlit => todo!(),
-            RenderingOpcode::CpuToVramBlit => todo!(),
-            RenderingOpcode::VramToCpuBlit => todo!(),
-            RenderingOpcode::Environment => match instr.environment_opcode().unwrap() {
-                instr::EnvironmentOpcode::DrawingSettings => {
-                    let settings = instr.drawing_settings_instr();
-                    let stat = &mut psx.gpu.status;
+            RenderingOpcode::Environment => {
+                let Some(opcode) = instr.environment_opcode() else {
+                    return;
+                };
 
-                    stat.set_texpage_x_base(settings.texpage_x_base());
-                    stat.set_texpage_y_base(settings.texpage_y_base());
-                    stat.set_semi_transparency_mode(settings.semi_transparency_mode());
-                    stat.set_texpage_depth(settings.texpage_depth());
-                    stat.set_compression_mode(settings.compression_mode());
-                    stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
-                    stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+                match opcode {
+                    EnvironmentOpcode::DrawingSettings => {
+                        let settings = instr.drawing_settings_instr();
+                        let stat = &mut psx.gpu.status;
 
-                    psx.gpu.textured_rect_flip_x = settings.textured_rect_flip_x();
-                    psx.gpu.textured_rect_flip_y = settings.textured_rect_flip_y();
+                        stat.set_texpage_x_base(settings.texpage_x_base());
+                        stat.set_texpage_y_base(settings.texpage_y_base());
+                        stat.set_semi_transparency_mode(settings.semi_transparency_mode());
+                        stat.set_texpage_depth(settings.texpage_depth());
+                        stat.set_compression_mode(settings.compression_mode());
+                        stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
+                        stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+
+                        psx.gpu.textured_rect_flip_x = settings.textured_rect_flip_x();
+                        psx.gpu.textured_rect_flip_y = settings.textured_rect_flip_y();
+                    }
+                    _ => debug!(psx.loggers.gpu, "unimplemented"),
                 }
-                instr::EnvironmentOpcode::TexWindowSettings => todo!(),
-                instr::EnvironmentOpcode::DrawingAreaTopLeft => todo!(),
-                instr::EnvironmentOpcode::DrawingAreaBottomRight => todo!(),
-                instr::EnvironmentOpcode::DrawingOffset => todo!(),
-                instr::EnvironmentOpcode::MaskBit => todo!(),
-            },
+            }
+            _ => debug!(psx.loggers.gpu, "unimplemented"),
         },
         Instruction::Display(instr) => match instr.opcode().unwrap() {
-            instr::DisplayOpcode::ResetGpu => {
+            DisplayOpcode::ResetGpu => {
                 psx.gpu.status = GpuStatus::default();
             }
-            instr::DisplayOpcode::ResetCommandBuffer => todo!(),
-            instr::DisplayOpcode::AcknowledgeGpuInterrupt => todo!(),
-            instr::DisplayOpcode::DisplayEnabled => todo!(),
-            instr::DisplayOpcode::DmaDirection => (),
-            instr::DisplayOpcode::DisplayArea => (),
-            instr::DisplayOpcode::HorizontalDisplayRange => (),
-            instr::DisplayOpcode::VerticalDisplayRange => (),
-            instr::DisplayOpcode::DisplayMode => {
+            DisplayOpcode::DisplayMode => {
                 let settings = instr.display_mode_instr();
                 let stat = &mut psx.gpu.status;
 
@@ -206,8 +196,26 @@ pub fn exec(psx: &mut PSX, instr: Instruction) {
                 stat.set_force_horizontal_368(settings.force_horizontal_368());
                 stat.set_flip_screen_x(settings.flip_screen_x());
             }
-            instr::DisplayOpcode::ReadGpuRegister => todo!(),
-            instr::DisplayOpcode::VramSize => todo!(),
+            DisplayOpcode::DmaDirection => {
+                let instr = instr.dma_direction_instr();
+                let dir = instr.direction();
+                psx.gpu.status.set_dma_direction(dir);
+
+                match dir {
+                    DmaDirection::Off => psx.gpu.status.set_dma_request(false),
+                    // TODO: fifo state
+                    DmaDirection::Fifo => psx.gpu.status.set_dma_request(true),
+                    DmaDirection::CpuToGp0 => psx
+                        .gpu
+                        .status
+                        .set_dma_request(psx.gpu.status.ready_to_receive_block()),
+                    DmaDirection::GpuToCpu => psx
+                        .gpu
+                        .status
+                        .set_dma_request(psx.gpu.status.ready_to_send_vram()),
+                };
+            }
+            _ => debug!(psx.loggers.gpu, "unimplemented"),
         },
     }
 }

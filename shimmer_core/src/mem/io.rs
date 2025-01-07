@@ -1,6 +1,5 @@
-use crate::dma::DmaChannel;
-
 use super::Address;
+use crate::dma::Channel;
 use strum::VariantArray;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray)]
@@ -530,15 +529,15 @@ impl Reg {
         (Reg::Voice0Volume.address()..=Reg::Voice23Repeat.address()).contains(&self.address())
     }
 
-    pub fn dma_channel(&self) -> Option<DmaChannel> {
+    pub fn dma_channel(&self) -> Option<Channel> {
         Some(match self {
-            Reg::Dma0Base | Reg::Dma0BlockControl | Reg::Dma0Control => DmaChannel::MdecIn,
-            Reg::Dma1Base | Reg::Dma1BlockControl | Reg::Dma1Control => DmaChannel::MdecOut,
-            Reg::Dma2Base | Reg::Dma2BlockControl | Reg::Dma2Control => DmaChannel::GPU,
-            Reg::Dma3Base | Reg::Dma3BlockControl | Reg::Dma3Control => DmaChannel::CDROM,
-            Reg::Dma4Base | Reg::Dma4BlockControl | Reg::Dma4Control => DmaChannel::SPU,
-            Reg::Dma5Base | Reg::Dma5BlockControl | Reg::Dma5Control => DmaChannel::PIO,
-            Reg::Dma6Base | Reg::Dma6BlockControl | Reg::Dma6Control => DmaChannel::OTC,
+            Reg::Dma0Base | Reg::Dma0BlockControl | Reg::Dma0Control => Channel::MdecIn,
+            Reg::Dma1Base | Reg::Dma1BlockControl | Reg::Dma1Control => Channel::MdecOut,
+            Reg::Dma2Base | Reg::Dma2BlockControl | Reg::Dma2Control => Channel::GPU,
+            Reg::Dma3Base | Reg::Dma3BlockControl | Reg::Dma3Control => Channel::CDROM,
+            Reg::Dma4Base | Reg::Dma4BlockControl | Reg::Dma4Control => Channel::SPU,
+            Reg::Dma5Base | Reg::Dma5BlockControl | Reg::Dma5Control => Channel::PIO,
+            Reg::Dma6Base | Reg::Dma6BlockControl | Reg::Dma6Control => Channel::OTC,
             _ => return None,
         })
     }
