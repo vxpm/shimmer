@@ -1,18 +1,19 @@
 pub mod instr;
-pub mod software;
+pub mod interpreter;
 
 use std::collections::VecDeque;
 
-use crate::{PSX, cpu};
+pub use interpreter::Interpreter;
+
+use crate::cpu;
 use bitos::{
     bitos,
     integer::{u1, u4},
 };
 use instr::{
-    DisplayOpcode, EnvironmentOpcode, Instruction, MiscOpcode, RenderingOpcode,
+    Instruction,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
 };
-use tinylog::debug;
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -142,80 +143,5 @@ impl State {
             VideoMode::NTSC => (f64::from(cpu::FREQUENCY) / 59.826) as u32,
             VideoMode::PAL => (f64::from(cpu::FREQUENCY) / 50.219) as u32,
         }
-    }
-}
-
-pub fn exec(psx: &mut PSX, instr: Instruction) {
-    debug!(psx.loggers.gpu, "received instr: {instr:?}");
-
-    match instr {
-        Instruction::Rendering(instr) => match instr.opcode() {
-            RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
-                MiscOpcode::NOP => (),
-                _ => debug!(psx.loggers.gpu, "unimplemented"),
-            },
-            RenderingOpcode::Environment => {
-                let Some(opcode) = instr.environment_opcode() else {
-                    return;
-                };
-
-                match opcode {
-                    EnvironmentOpcode::DrawingSettings => {
-                        let settings = instr.drawing_settings_instr();
-                        let stat = &mut psx.gpu.status;
-
-                        stat.set_texpage_x_base(settings.texpage_x_base());
-                        stat.set_texpage_y_base(settings.texpage_y_base());
-                        stat.set_semi_transparency_mode(settings.semi_transparency_mode());
-                        stat.set_texpage_depth(settings.texpage_depth());
-                        stat.set_compression_mode(settings.compression_mode());
-                        stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
-                        stat.set_texpage_y_base_2(settings.texpage_y_base_2());
-
-                        psx.gpu.textured_rect_flip_x = settings.textured_rect_flip_x();
-                        psx.gpu.textured_rect_flip_y = settings.textured_rect_flip_y();
-                    }
-                    _ => debug!(psx.loggers.gpu, "unimplemented"),
-                }
-            }
-            _ => debug!(psx.loggers.gpu, "unimplemented"),
-        },
-        Instruction::Display(instr) => match instr.opcode().unwrap() {
-            DisplayOpcode::ResetGpu => {
-                psx.gpu.status = GpuStatus::default();
-            }
-            DisplayOpcode::DisplayMode => {
-                let settings = instr.display_mode_instr();
-                let stat = &mut psx.gpu.status;
-
-                stat.set_horizontal_resolution(settings.horizontal_resolution());
-                stat.set_vertical_resolution(settings.vertical_resolution());
-                stat.set_video_mode(settings.video_mode());
-                stat.set_display_depth(settings.display_depth());
-                stat.set_vertical_interlace(settings.vertical_interlace());
-                stat.set_force_horizontal_368(settings.force_horizontal_368());
-                stat.set_flip_screen_x(settings.flip_screen_x());
-            }
-            DisplayOpcode::DmaDirection => {
-                let instr = instr.dma_direction_instr();
-                let dir = instr.direction();
-                psx.gpu.status.set_dma_direction(dir);
-
-                match dir {
-                    DmaDirection::Off => psx.gpu.status.set_dma_request(false),
-                    // TODO: fifo state
-                    DmaDirection::Fifo => psx.gpu.status.set_dma_request(true),
-                    DmaDirection::CpuToGp0 => psx
-                        .gpu
-                        .status
-                        .set_dma_request(psx.gpu.status.ready_to_receive_block()),
-                    DmaDirection::GpuToCpu => psx
-                        .gpu
-                        .status
-                        .set_dma_request(psx.gpu.status.ready_to_send_vram()),
-                };
-            }
-            _ => debug!(psx.loggers.gpu, "unimplemented"),
-        },
     }
 }

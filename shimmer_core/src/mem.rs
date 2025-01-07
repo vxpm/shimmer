@@ -8,6 +8,7 @@ use crate::{
         self,
         instr::{DisplayInstruction, RenderingInstruction},
     },
+    scheduler::Event,
     util,
 };
 use binrw::BinRead;
@@ -623,6 +624,8 @@ impl PSX {
                     self.gpu.queue.push_back(gpu::instr::Instruction::Rendering(
                         RenderingInstruction::from_bits(raw),
                     ));
+
+                    self.scheduler.schedule(Event::Gpu, 0);
                 }
                 io::Reg::Gp1 => {
                     let mut raw = 0u32;
@@ -631,6 +634,8 @@ impl PSX {
                     self.gpu.queue.push_back(gpu::instr::Instruction::Display(
                         DisplayInstruction::from_bits(raw),
                     ));
+
+                    self.scheduler.schedule(Event::Gpu, 0);
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();

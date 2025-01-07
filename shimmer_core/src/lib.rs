@@ -57,7 +57,6 @@ pub struct PSX {
 
 pub struct Emulator {
     psx: PSX,
-    renderer: gpu::software::Renderer,
 }
 
 impl Emulator {
@@ -75,14 +74,11 @@ impl Emulator {
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),
             },
-
-            renderer: gpu::software::Renderer {},
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
         e.psx.scheduler.schedule(Event::VSync, 0);
         e.psx.scheduler.schedule(Event::Timer2, 0);
-        e.psx.scheduler.schedule(Event::Gpu, 0);
         e.psx.scheduler.schedule(Event::Dma, 0);
 
         e
@@ -121,12 +117,8 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Timer2, cycles);
                 }
                 Event::Gpu => {
-                    while !self.psx.gpu.queue.is_empty() {
-                        let instr = self.psx.gpu.queue.pop_front().unwrap();
-                        gpu::exec(&mut self.psx, instr);
-                    }
-
-                    self.psx.scheduler.schedule(Event::Gpu, 2);
+                    let mut interpreter = gpu::Interpreter::new(self.psx_mut());
+                    interpreter.exec_queued();
                 }
                 Event::Dma => {
                     dma::check_transfers(&mut self.psx);

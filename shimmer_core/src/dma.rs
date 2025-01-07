@@ -308,7 +308,6 @@ fn transfer_slice(psx: &mut PSX, channel: Channel) {
 
 fn transfer_linked(psx: &mut PSX, channel: Channel) {
     let channel_base = &psx.dma.channels[channel as usize].base;
-    let channel_block_control = &psx.dma.channels[channel as usize].block_control;
 
     match channel {
         Channel::OTC => transfer_burst(psx, channel),
