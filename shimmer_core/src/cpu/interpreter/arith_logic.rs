@@ -240,8 +240,8 @@ impl Interpreter<'_> {
     }
 
     pub fn multu(&mut self, instr: Instruction) -> u64 {
-        let rs = self.psx.cpu.regs.read(instr.rs()) as u64;
-        let rt = self.psx.cpu.regs.read(instr.rt()) as u64;
+        let rs = u64::from(self.psx.cpu.regs.read(instr.rs()));
+        let rt = u64::from(self.psx.cpu.regs.read(instr.rt()));
         let result = zerocopy::byteorder::little_endian::U64::new(rs * rt);
         let [low, high]: [zerocopy::byteorder::little_endian::U32; 2] =
             zerocopy::transmute!(result);

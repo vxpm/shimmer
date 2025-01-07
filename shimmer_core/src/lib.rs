@@ -114,7 +114,7 @@ impl Emulator {
 
                     self.psx
                         .scheduler
-                        .schedule(Event::VSync, self.psx.gpu.cycles_per_vblank() as u64);
+                        .schedule(Event::VSync, u64::from(self.psx.gpu.cycles_per_vblank()));
                 }
                 Event::Timer2 => {
                     let cycles = self.psx.timers.timer2.tick();
