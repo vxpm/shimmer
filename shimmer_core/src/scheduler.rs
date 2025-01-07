@@ -4,6 +4,7 @@ pub enum Event {
     VSync,
     Timer2,
     Gpu,
+    Dma,
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -2,7 +2,6 @@
 #![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
-#![feature(select_unpredictable)]
 
 pub mod cpu;
 pub mod dma;
@@ -69,10 +68,10 @@ impl PSX {
         };
 
         psx.scheduler.schedule(Event::Cpu, 0);
-        psx.scheduler
-            .schedule(Event::VSync, psx.bus.gpu.cycles_per_vblank() as u64);
+        psx.scheduler.schedule(Event::VSync, 0);
         psx.scheduler.schedule(Event::Timer2, 0);
         psx.scheduler.schedule(Event::Gpu, 0);
+        psx.scheduler.schedule(Event::Dma, 0);
 
         psx
     }
@@ -93,9 +92,9 @@ impl PSX {
             match e {
                 Event::Cpu => {
                     let mut interpreter = cpu::Interpreter::new(self.bus_mut());
-                    let _cycles = interpreter.cycle();
+                    let cycles = interpreter.next();
 
-                    self.scheduler.schedule(Event::Cpu, 2);
+                    self.scheduler.schedule(Event::Cpu, cycles);
                 }
                 Event::VSync => {
                     let bus = self.bus_mut();
@@ -115,6 +114,10 @@ impl PSX {
                     }
 
                     self.scheduler.schedule(Event::Gpu, 2);
+                }
+                Event::Dma => {
+                    dma::check_transfers(&mut self.bus);
+                    self.scheduler.schedule(Event::Dma, 16);
                 }
             }
         }

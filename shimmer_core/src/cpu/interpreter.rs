@@ -29,6 +29,8 @@ pub struct Interpreter<'ctx> {
 pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
 pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
+const DEFAULT_CYCLE_COUNT: u64 = 2;
+
 impl<'ctx> Interpreter<'ctx> {
     pub fn new(bus: &'ctx mut mem::Bus) -> Self {
         Self {
@@ -160,7 +162,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    fn exec(&mut self, instr: Instruction) {
+    fn exec(&mut self, instr: Instruction) -> u64 {
         if let Some(op) = instr.op() {
             match op {
                 Opcode::LUI => self.lui(instr),
@@ -203,9 +205,13 @@ impl<'ctx> Interpreter<'ctx> {
                                     match op {
                                         SpecialCoOpcode::RFE => self.rfe(instr),
                                     }
+                                } else {
+                                    DEFAULT_CYCLE_COUNT
                                 }
                             }
                         }
+                    } else {
+                        DEFAULT_CYCLE_COUNT
                     }
                 }
                 Opcode::SPECIAL => {
@@ -242,14 +248,17 @@ impl<'ctx> Interpreter<'ctx> {
                         }
                     } else {
                         error!(self.bus.loggers.cpu, "illegal special op");
+                        DEFAULT_CYCLE_COUNT
                     }
                 }
                 _ => {
-                    error!(self.bus.loggers.cpu, "can't execute op {op:?}")
+                    error!(self.bus.loggers.cpu, "can't execute op {op:?}");
+                    DEFAULT_CYCLE_COUNT
                 }
             }
         } else {
             error!(self.bus.loggers.cpu, "illegal op");
+            DEFAULT_CYCLE_COUNT
         }
     }
 
@@ -332,7 +341,8 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    pub fn cycle(&mut self) {
+    /// Executes the next instruction and returns how many cycles it takes to complete.
+    pub fn next(&mut self) -> u64 {
         if self.bus.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
             cold_path();
             self.sideload();
@@ -348,7 +358,7 @@ impl<'ctx> Interpreter<'ctx> {
             }
 
             self.trigger_exception(Exception::AddressErrorLoad);
-            return;
+            return 2;
         };
 
         let (current_instr, current_addr) = std::mem::replace(
@@ -364,9 +374,11 @@ impl<'ctx> Interpreter<'ctx> {
         self.pending_load = self.bus.cpu.load_delay_slot.take();
         let pending_load_cop0 = self.bus.cop0.to_load.take();
 
-        if !self.check_interrupts() {
-            self.exec(current_instr);
-        }
+        let cycles = if !self.check_interrupts() {
+            self.exec(current_instr)
+        } else {
+            2
+        };
 
         if let Some(load) = self.pending_load {
             self.bus.cpu.regs.write(load.reg, load.value);
@@ -375,5 +387,7 @@ impl<'ctx> Interpreter<'ctx> {
         if let Some((reg, value)) = pending_load_cop0 {
             self.bus.cop0.regs.write(reg, value);
         }
+
+        cycles
     }
 }

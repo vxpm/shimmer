@@ -1,6 +1,9 @@
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
 use integer::{u3, u7, u24};
+use tinylog::info;
+
+use crate::mem::Bus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmaChannel {
@@ -122,16 +125,23 @@ pub struct Control {
 
 impl Control {
     #[inline]
-    pub fn enabled_channels(self) -> ArrayVec<(DmaChannel, u3), 7> {
-        self.channel_status()
+    pub fn enabled_channels(&self) -> ArrayVec<(DmaChannel, u3), 7> {
+        let mut result = ArrayVec::new_const();
+        let iter = self
+            .channel_status()
             .into_iter()
             .enumerate()
             .filter_map(|(i, channel)| {
                 channel
                     .enabled()
                     .then_some(unsafe { (std::mem::transmute(i as u8), channel.priority()) })
-            })
-            .collect()
+            });
+
+        for channel in iter {
+            unsafe { result.push_unchecked(channel) };
+        }
+
+        result
     }
 }
 
@@ -189,12 +199,6 @@ impl DmaInterruptControl {
         let trailing = requested.trailing_zeros();
         (trailing != 8).then_some(trailing as u8)
     }
-
-    /// Marks the transfer of a channel as complete according to it's [`ChannelInterruptMode`].
-    #[inline]
-    pub fn with_completed(self, channel: u8) -> Self {
-        self.with_channel_interrupt_flags_at(channel as usize, true)
-    }
 }
 
 // DMA Controller Behaviour
@@ -245,22 +249,14 @@ pub struct State {
     pub channels: [Channel; 7],
 }
 
-impl State {
-    // fn check_transfers(&mut self, bus: &mut Bus) {
-    //     let dma_control = ctx.memory.read_reg::<DmaControl>();
-    //
-    //     let mut enabled_channels = dma_control.enabled_channels();
-    //     enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
-    //
-    //     for (channel, _) in enabled_channels {
-    //         let channel_control = read_dma_channel_control(ctx.memory, channel);
-    //         if channel_control.transfer_ongoing() {
-    //             println!("{channel:?} ongoing")
-    //         }
-    //     }
-    // }
-    //
-    // pub fn cycle(&mut self, ctx: &mut Ctx) {
-    //     self.check_transfers(ctx);
-    // }
+pub fn check_transfers(bus: &mut Bus) {
+    let mut enabled_channels = bus.dma.control.enabled_channels();
+    enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
+
+    for (channel, _) in enabled_channels {
+        let channel_control = &bus.dma.channels[channel as usize].control;
+        if channel_control.transfer_ongoing() {
+            info!(bus.loggers.dma, "{channel:?} ongoing")
+        }
+    }
 }
