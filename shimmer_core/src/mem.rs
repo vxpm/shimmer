@@ -14,7 +14,7 @@ use binrw::BinRead;
 use easyerr::Error;
 
 pub use primitive::{Primitive, PrimitiveRw};
-use tinylog::{debug, warn};
+use tinylog::{debug, trace, warn};
 use zerocopy::IntoBytes;
 
 /// A memory segment refers to a specific range of memory addresses, each with it's own purpose and
@@ -351,7 +351,7 @@ impl PSX {
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                debug!(
+                trace!(
                     self.loggers.bus,
                     "{} bytes read from {reg:?}[{}..{}] ({})",
                     size_of::<P>(),
@@ -405,6 +405,14 @@ impl PSX {
                 | io::Reg::Dma6Control => {
                     let channel = reg.dma_channel().unwrap();
                     let bytes = self.dma.channels[channel as usize].control.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::DmaControl => {
+                    let bytes = self.dma.control.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::DmaInterrupt => {
+                    let bytes = self.dma.interrupt_control.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Gp0 => {
@@ -563,6 +571,14 @@ impl PSX {
                 | io::Reg::Dma6Control => {
                     let channel = reg.dma_channel().unwrap();
                     let bytes = self.dma.channels[channel as usize].control.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..])
+                }
+                io::Reg::DmaControl => {
+                    let bytes = self.dma.control.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..])
+                }
+                io::Reg::DmaInterrupt => {
+                    let bytes = self.dma.interrupt_control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..])
                 }
                 io::Reg::Gp0 => {

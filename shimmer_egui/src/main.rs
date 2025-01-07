@@ -213,6 +213,7 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let mut reset = false;
+        let mut dump = false;
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -266,6 +267,10 @@ impl eframe::App for App {
 
                 ui.separator();
 
+                if ui.button("Dump Ram").clicked() {
+                    dump = true;
+                }
+
                 if ui.button("Hard Reset").clicked() {
                     reset = true;
                 }
@@ -283,6 +288,10 @@ impl eframe::App for App {
             .should_advance
             .store(false, Ordering::Relaxed);
         let mut exclusive = self.state.exclusive.lock();
+
+        if dump {
+            std::fs::write("dump.bin", exclusive.psx.psx().memory.ram.as_slice()).unwrap();
+        }
 
         if reset {
             let old = std::mem::replace(

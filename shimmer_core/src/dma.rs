@@ -1,8 +1,8 @@
-use crate::PSX;
+use crate::{PSX, mem::Address};
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
 use integer::{u3, u7, u24};
-use tinylog::info;
+use tinylog::{debug, info};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -17,14 +17,14 @@ pub enum DmaChannel {
 }
 
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferDirection {
     DeviceToRam = 0x0,
     RamToDevice = 0x1,
 }
 
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataDirection {
     /// The address of the data to be transferred increases.
     Forward = 0x0,
@@ -33,7 +33,7 @@ pub enum DataDirection {
 }
 
 #[bitos(2)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferMode {
     /// Data is transferred all at once.
     Burst = 0x0,
@@ -44,7 +44,7 @@ pub enum TransferMode {
 
 /// Contains the base memory address where the DMA of channel `N` will start writing to/reading from.
 #[bitos(32)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ChannelBase {
     #[bits(0..24)]
     addr: u24,
@@ -53,7 +53,7 @@ pub struct ChannelBase {
 /// Used for configuring the blocks transferred in the DMA of channel `N`.
 #[allow(clippy::len_without_is_empty)]
 #[bitos(32)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ChannelBlockControl {
     /// The size of a single block in words.
     #[bits(0..16)]
@@ -65,7 +65,7 @@ pub struct ChannelBlockControl {
 
 /// Used for configuring the blocks transferred in the DMA of channel `N`.
 #[bitos(32)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ChannelControl {
     /// Direction of the DMA transfer.
     #[bits(0..1)]
@@ -94,7 +94,7 @@ pub struct ChannelControl {
     pub force_transfer: bool, // NOTE: DREQ refers to the hardware signal
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Channel {
     pub base: ChannelBase,
     pub block_control: ChannelBlockControl,
@@ -102,7 +102,7 @@ pub struct Channel {
 }
 
 #[bitos(4)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChannelStatus {
     /// The priority of this channel.
     #[bits(0..3)]
@@ -113,7 +113,7 @@ pub struct ChannelStatus {
 }
 
 #[bitos(32)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Control {
     /// The status of each channel.
     #[bits(0..28)]
@@ -149,7 +149,7 @@ impl Control {
 }
 
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelInterruptMode {
     /// The interrupt occurs only when the entire transfer completes.
     OnCompletion = 0x0,
@@ -160,7 +160,7 @@ pub enum ChannelInterruptMode {
 /// Register that controls how DMA channels raise interrupts and which channels are actually
 /// allowed to raise one.
 #[bitos(32)]
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DmaInterruptControl {
     /// The channel interrupt mode of each channel.
     #[bits(0..7)]
@@ -259,7 +259,63 @@ pub fn check_transfers(psx: &mut PSX) {
     for (channel, _) in enabled_channels {
         let channel_control = &psx.dma.channels[channel as usize].control;
         if channel_control.transfer_ongoing() {
-            info!(psx.loggers.dma, "{channel:?} ongoing")
+            info!(psx.loggers.dma, "{channel:?} ongoing"; control = channel_control.clone());
+
+            let channel_base = &psx.dma.channels[channel as usize].base;
+            let channel_block_control = &psx.dma.channels[channel as usize].block_control;
+
+            match channel_control
+                .transfer_mode()
+                .expect("known transfer mode")
+            {
+                TransferMode::Burst => match channel {
+                    DmaChannel::OTC => {
+                        let base = channel_base.addr().value() & !0b11;
+                        let entries = if channel_block_control.count() == 0 {
+                            0x10000
+                        } else {
+                            u32::from(channel_block_control.count())
+                        };
+
+                        debug!(
+                            psx.loggers.dma,
+                            "base = {}, entries = {entries}",
+                            Address(base)
+                        );
+
+                        let mut addr = base;
+                        for _ in 1..entries {
+                            let prev = addr.wrapping_sub(4) & 0x00FF_FFFF;
+                            psx.write::<_, true>(Address(addr), prev).unwrap();
+
+                            let region = Address(addr).physical().and_then(|p| p.region());
+                            debug!(
+                                psx.loggers.dma,
+                                "[{}] = {} ({region:?})",
+                                Address(addr),
+                                Address(prev)
+                            );
+
+                            addr = prev;
+                        }
+
+                        psx.write::<_, true>(Address(addr), 0x00FF_FFFF).unwrap();
+                        debug!(psx.loggers.dma, "[{}] = 0x00FF_FFFF", Address(addr));
+                        debug!(
+                            psx.loggers.dma,
+                            "FINISHED - addr: {}",
+                            psx.cpu.instr_delay_slot().1
+                        );
+                    }
+                    _ => todo!(),
+                },
+                TransferMode::Slice => todo!(),
+                TransferMode::LinkedList => todo!(),
+            }
+
+            let channel_control = &mut psx.dma.channels[channel as usize].control;
+            channel_control.set_transfer_ongoing(false);
+            channel_control.set_force_transfer(false);
         }
     }
 }

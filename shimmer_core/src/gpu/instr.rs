@@ -67,7 +67,7 @@ pub enum DisplayOpcode {
 
 /// A Display instruction. Received through GP1.
 #[bitos(32)]
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct DisplayInstruction {
     #[bits(24..30)]
     pub opcode: Option<DisplayOpcode>,
@@ -111,7 +111,7 @@ impl std::fmt::Debug for DisplayInstruction {
 
 /// A GPU instruction. Received through GP0.
 #[bitos(32)]
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct RenderingInstruction {
     #[bits(29..32)]
     pub opcode: RenderingOpcode,
@@ -179,7 +179,7 @@ impl std::fmt::Debug for RenderingInstruction {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Instruction {
     Rendering(RenderingInstruction),
     Display(DisplayInstruction),

@@ -123,7 +123,7 @@ impl Emulator {
                 Event::Gpu => {
                     while !self.psx.gpu.queue.is_empty() {
                         let instr = self.psx.gpu.queue.pop_front().unwrap();
-                        self.renderer.exec(&mut self.psx, instr);
+                        gpu::exec(&mut self.psx, instr);
                     }
 
                     self.psx.scheduler.schedule(Event::Gpu, 2);

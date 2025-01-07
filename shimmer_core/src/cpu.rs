@@ -224,10 +224,10 @@ impl Reg {
 
 #[derive(Clone)]
 pub struct Registers {
-    gp: [u32; 32],
-    hi: u32,
-    lo: u32,
-    pc: u32,
+    pub gp: [u32; 32],
+    pub hi: u32,
+    pub lo: u32,
+    pub pc: u32,
 }
 
 impl std::fmt::Debug for Registers {

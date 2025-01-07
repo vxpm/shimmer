@@ -25,6 +25,7 @@ pub enum TexturePageDepth {
     Byte = 1,
     /// 15 Bit
     Full = 2,
+    Reserved = 3,
 }
 
 /// The compression mode of colors.
@@ -42,21 +43,23 @@ pub enum CompressionMode {
 #[derive(Debug)]
 pub struct DrawingSettingsInstr {
     #[bits(0..4)]
-    texpage_x_base: u4,
+    pub texpage_x_base: u4,
     #[bits(4)]
-    texpage_y_base: u1,
+    pub texpage_y_base: u1,
     #[bits(5..7)]
-    semi_transparency_mode: SemiTransparencyMode,
+    pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
-    texpage_depth: Option<TexturePageDepth>,
+    pub texpage_depth: TexturePageDepth,
     #[bits(9)]
-    compression_mode: CompressionMode,
+    pub compression_mode: CompressionMode,
     #[bits(10)]
-    enable_drawing_to_display: bool,
+    pub enable_drawing_to_display: bool,
+    #[bits(11)]
+    pub texpage_y_base_2: u1,
     #[bits(12)]
-    textured_rect_flip_x: bool,
+    pub textured_rect_flip_x: bool,
     #[bits(13)]
-    textured_rect_flip_y: bool,
+    pub textured_rect_flip_y: bool,
 }
 
 /// A texture window settings instruction.
