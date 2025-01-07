@@ -11,6 +11,10 @@ pub use interpreter::Interpreter;
 
 pub const FREQUENCY: u32 = 33_870_000;
 
+// these are only the general exception vectors...
+pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
+pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
+
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum COP {

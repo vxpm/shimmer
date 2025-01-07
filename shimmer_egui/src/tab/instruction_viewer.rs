@@ -185,17 +185,17 @@ impl InstructionViewer {
                     let prev_instr = ctx
                         .exclusive
                         .psx
-                        .bus_mut()
+                        .psx_mut()
                         .read_unaligned::<u32, true>(Address(addr.saturating_sub(4)));
                     let instr = ctx
                         .exclusive
                         .psx
-                        .bus_mut()
+                        .psx_mut()
                         .read_unaligned::<u32, true>(Address(addr));
                     let next_instr = ctx
                         .exclusive
                         .psx
-                        .bus_mut()
+                        .psx_mut()
                         .read_unaligned::<u32, true>(Address(addr.saturating_add(4)));
 
                     // heuristic to determine if it is likely to be a real instruction or not
@@ -255,7 +255,7 @@ impl Tab for InstructionViewer {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, mut ctx: Context) {
-        let next = ctx.exclusive.psx.bus().cpu.instr_delay_slot().1;
+        let next = ctx.exclusive.psx.psx().cpu.instr_delay_slot().1;
         if self.follow_next && next != self.old_next {
             self.target = next.value();
             self.target_view = next.value();

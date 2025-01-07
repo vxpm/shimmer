@@ -36,7 +36,7 @@ impl Tab for Terminal {
             .stick_to_bottom(true)
             .auto_shrink(Vec2b::new(false, false))
             .show(&mut ui, |ui| {
-                for line in ctx.exclusive.psx.bus().memory.kernel_stdout.lines() {
+                for line in ctx.exclusive.psx.psx().memory.kernel_stdout.lines() {
                     ui.label(RichText::new(line).monospace().color(Color32::LIGHT_GRAY));
                 }
             });

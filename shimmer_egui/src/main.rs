@@ -13,7 +13,7 @@ use eframe::{
 };
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
-use shimmer_core::PSX;
+use shimmer_core::Emulator;
 use std::{
     sync::{
         Arc,
@@ -44,7 +44,7 @@ struct Controls {
 
 /// State shared between the GUI and emulation threads that is locked behind a mutex.
 struct ExclusiveState {
-    psx: PSX,
+    psx: Emulator,
     timing: Timing,
     controls: Controls,
 
@@ -66,11 +66,11 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let mut psx = PSX::with_bios(bios, root_logger);
+        let mut psx = Emulator::with_bios(bios, root_logger);
         if let Some(rom) = sideload_rom {
             use shimmer_core::binrw::BinReaderExt;
             let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
-            psx.bus_mut().memory.sideload = Some(exe);
+            psx.psx_mut().memory.sideload = Some(exe);
         }
 
         Self {

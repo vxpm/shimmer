@@ -1,9 +1,8 @@
+use crate::PSX;
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
 use integer::{u3, u7, u24};
 use tinylog::info;
-
-use crate::mem::Bus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmaChannel {
@@ -249,14 +248,14 @@ pub struct State {
     pub channels: [Channel; 7],
 }
 
-pub fn check_transfers(bus: &mut Bus) {
-    let mut enabled_channels = bus.dma.control.enabled_channels();
+pub fn check_transfers(psx: &mut PSX) {
+    let mut enabled_channels = psx.dma.control.enabled_channels();
     enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
 
     for (channel, _) in enabled_channels {
-        let channel_control = &bus.dma.channels[channel as usize].control;
+        let channel_control = &psx.dma.channels[channel as usize].control;
         if channel_control.transfer_ongoing() {
-            info!(bus.loggers.dma, "{channel:?} ongoing")
+            info!(psx.loggers.dma, "{channel:?} ongoing")
         }
     }
 }

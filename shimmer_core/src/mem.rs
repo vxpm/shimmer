@@ -2,15 +2,12 @@ pub mod io;
 pub mod primitive;
 
 use crate::{
-    Loggers,
-    cpu::{self, cop0},
-    dma,
+    PSX,
     exe::Executable,
     gpu::{
         self,
         instr::{DisplayInstruction, RenderingInstruction},
     },
-    timers::Timers,
     util,
 };
 use binrw::BinRead;
@@ -342,18 +339,7 @@ pub struct MisalignedAddressErr {
     pub alignment: u32,
 }
 
-/// The memory bus of the PSX.
-pub struct Bus {
-    pub memory: Memory,
-    pub timers: Timers,
-    pub dma: dma::State,
-    pub cpu: cpu::State,
-    pub cop0: cop0::State,
-    pub gpu: gpu::State,
-    pub loggers: Loggers,
-}
-
-impl Bus {
+impl PSX {
     fn read_io_ports<P, const SILENT: bool>(&self, addr: Address) -> P
     where
         P: Primitive,
@@ -493,6 +479,7 @@ impl Bus {
         }
     }
 
+    #[inline(always)]
     pub fn read<P, const SILENT: bool>(&self, addr: Address) -> Result<P, MisalignedAddressErr>
     where
         P: Primitive,
@@ -659,6 +646,7 @@ impl Bus {
         }
     }
 
+    #[inline(always)]
     pub fn write<P, const SILENT: bool>(
         &mut self,
         addr: Address,

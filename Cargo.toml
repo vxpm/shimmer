@@ -16,7 +16,6 @@ zerocopy = { version = "0.8", features = ["derive"] }
 nonstandard_style = "warn"
 
 [workspace.lints.clippy]
-allow_attributes = "warn"
 assigning_clones = "warn"
 bool_to_int_with_if = "warn"
 borrow_as_ptr = "warn"

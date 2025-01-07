@@ -42,82 +42,95 @@ impl Loggers {
     }
 }
 
+/// The state of the PSX.
 pub struct PSX {
-    scheduler: Scheduler,
-    bus: mem::Bus,
+    pub scheduler: Scheduler,
+    pub loggers: Loggers,
 
+    pub memory: mem::Memory,
+    pub timers: timers::State,
+    pub dma: dma::State,
+    pub cpu: cpu::State,
+    pub cop0: cop0::State,
+    pub gpu: gpu::State,
+}
+
+pub struct Emulator {
+    psx: PSX,
     renderer: gpu::software::Renderer,
 }
 
-impl PSX {
+impl Emulator {
     /// Creates a new [`PSX`].
     pub fn with_bios(bios: Vec<u8>, logger: Logger) -> Self {
-        let mut psx = Self {
-            scheduler: Scheduler::default(),
-            bus: mem::Bus {
+        let mut e = Self {
+            psx: PSX {
+                scheduler: Scheduler::default(),
+                loggers: Loggers::new(logger),
+
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
-                timers: timers::Timers::default(),
+                timers: timers::State::default(),
                 dma: dma::State::default(),
                 cpu: cpu::State::default(),
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),
-                loggers: Loggers::new(logger),
             },
 
             renderer: gpu::software::Renderer {},
         };
 
-        psx.scheduler.schedule(Event::Cpu, 0);
-        psx.scheduler.schedule(Event::VSync, 0);
-        psx.scheduler.schedule(Event::Timer2, 0);
-        psx.scheduler.schedule(Event::Gpu, 0);
-        psx.scheduler.schedule(Event::Dma, 0);
+        e.psx.scheduler.schedule(Event::Cpu, 0);
+        e.psx.scheduler.schedule(Event::VSync, 0);
+        e.psx.scheduler.schedule(Event::Timer2, 0);
+        e.psx.scheduler.schedule(Event::Gpu, 0);
+        e.psx.scheduler.schedule(Event::Dma, 0);
 
-        psx
+        e
     }
 
     #[inline(always)]
-    pub fn bus(&mut self) -> &mem::Bus {
-        &self.bus
+    pub fn psx(&mut self) -> &PSX {
+        &self.psx
     }
 
     #[inline(always)]
-    pub fn bus_mut(&mut self) -> &mut mem::Bus {
-        &mut self.bus
+    pub fn psx_mut(&mut self) -> &mut PSX {
+        &mut self.psx
     }
 
     pub fn cycle(&mut self) {
-        self.scheduler.advance(1);
-        while let Some(e) = self.scheduler.pop() {
+        self.psx.scheduler.advance(1);
+        while let Some(e) = self.psx.scheduler.pop() {
             match e {
                 Event::Cpu => {
-                    let mut interpreter = cpu::Interpreter::new(self.bus_mut());
+                    let mut interpreter = cpu::Interpreter::new(self.psx_mut());
                     let cycles = interpreter.next();
 
-                    self.scheduler.schedule(Event::Cpu, cycles);
+                    self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }
                 Event::VSync => {
-                    let bus = self.bus_mut();
+                    let bus = self.psx_mut();
                     bus.cop0.interrupt_status.request(cop0::Interrupt::VBlank);
 
-                    self.scheduler
-                        .schedule(Event::VSync, self.bus.gpu.cycles_per_vblank() as u64);
+                    self.psx
+                        .scheduler
+                        .schedule(Event::VSync, self.psx.gpu.cycles_per_vblank() as u64);
                 }
                 Event::Timer2 => {
-                    let cycles = self.bus.timers.timer2.tick();
-                    self.scheduler.schedule(Event::Timer2, cycles);
+                    let cycles = self.psx.timers.timer2.tick();
+                    self.psx.scheduler.schedule(Event::Timer2, cycles);
                 }
                 Event::Gpu => {
-                    while !self.bus.gpu.queue.is_empty() {
-                        let instr = self.bus.gpu.queue.pop_front().unwrap();
-                        self.renderer.exec(&mut self.bus, instr);
+                    while !self.psx.gpu.queue.is_empty() {
+                        let instr = self.psx.gpu.queue.pop_front().unwrap();
+                        self.renderer.exec(&mut self.psx, instr);
                     }
 
-                    self.scheduler.schedule(Event::Gpu, 2);
+                    self.psx.scheduler.schedule(Event::Gpu, 2);
                 }
                 Event::Dma => {
-                    dma::check_transfers(&mut self.bus);
-                    self.scheduler.schedule(Event::Dma, 16);
+                    dma::check_transfers(&mut self.psx);
+                    self.psx.scheduler.schedule(Event::Dma, 16);
                 }
             }
         }

@@ -93,6 +93,6 @@ impl Timer2 {
 }
 
 #[derive(Default)]
-pub struct Timers {
+pub struct State {
     pub timer2: Timer2,
 }

@@ -54,7 +54,7 @@ pub enum BZKind {
     BGEZAL,
 }
 
-/// The special opcode of a [`Instruction`] whose primary opcode is [`Opcode::Special`].
+/// The special opcode of a [`Instruction`] whose primary opcode is [`Opcode::SPECIAL`].
 #[bitos(6)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum SpecialOpcode {
@@ -118,7 +118,7 @@ pub struct Instruction {
     #[bits(16)]
     pub bz_ge: bool,
 
-    /// The operation executed by this instruction if it's primary opcode is [`Opcode::Special`].
+    /// The operation executed by this instruction if it's primary opcode is [`Opcode::SPECIAL`].
     #[bits(0..6)]
     pub special_op: Option<SpecialOpcode>,
 
@@ -626,26 +626,4 @@ impl Default for Instruction {
     fn default() -> Self {
         Self::NOP
     }
-}
-
-#[macro_export]
-macro_rules! mips {
-    ( $( $op:ident ($($args:tt)*) )* ) => {
-        [
-            $(
-                $crate::cpu::instr::Instruction::$op( $($args)* )
-            ),*
-        ]
-    };
-}
-
-#[test]
-fn test_disasm() {
-    println!("{}", Instruction(0x001F_D021));
-    println!("{}", Instruction(0x0410_0001));
-    println!("{}", Instruction(0));
-    println!("{}", Instruction(0x3C1B_8001));
-    println!("{}", Instruction(0x277B_3C3C));
-    println!("{}", Instruction(0x0360_0008));
-    println!("{}", Instruction(0));
 }

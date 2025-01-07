@@ -5,10 +5,10 @@ pub mod rendering;
 use self::{display::*, environment::*, rendering::*};
 use bitos::{bitos, integer::u2};
 
-/// The primary opcode of a [`GpuInstruction`].
+/// The primary opcode of a [`RenderingInstruction`].
 #[bitos(3)]
 #[derive(Debug, PartialEq, Eq)]
-pub enum GpuOpcode {
+pub enum RenderingOpcode {
     Misc = 0,
     Polygon = 1,
     Line = 2,
@@ -19,7 +19,7 @@ pub enum GpuOpcode {
     Environment = 7,
 }
 
-/// The misc opcode of a [`GpuInstruction`].
+/// The misc opcode of a [`RenderingInstruction`].
 #[bitos(2)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum MiscOpcode {
@@ -31,7 +31,7 @@ pub enum MiscOpcode {
     QuickRectangleFill = 2,
 }
 
-/// The environment opcode of a [`GpuInstruction`].
+/// The environment opcode of a [`RenderingInstruction`].
 #[bitos(3)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum EnvironmentOpcode {
@@ -114,7 +114,7 @@ impl std::fmt::Debug for DisplayInstruction {
 #[derive(Clone)]
 pub struct RenderingInstruction {
     #[bits(29..32)]
-    pub opcode: GpuOpcode,
+    pub opcode: RenderingOpcode,
     #[bits(24..26)]
     pub misc_opcode: Option<MiscOpcode>,
     #[bits(24..26)]
@@ -144,7 +144,7 @@ pub struct RenderingInstruction {
 impl std::fmt::Debug for RenderingInstruction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.opcode() {
-            GpuOpcode::Misc => match self.misc_opcode() {
+            RenderingOpcode::Misc => match self.misc_opcode() {
                 Some(misc_opcode) => match misc_opcode {
                     MiscOpcode::NOP => write!(f, "NOP"),
                     MiscOpcode::ClearCache => write!(f, "ClearCache"),
@@ -152,13 +152,13 @@ impl std::fmt::Debug for RenderingInstruction {
                 },
                 None => write!(f, "unknown misc opcode"),
             },
-            GpuOpcode::Polygon => self.polygon_instr().fmt(f),
-            GpuOpcode::Line => self.line_instr().fmt(f),
-            GpuOpcode::Rectangle => self.rectangle_instr().fmt(f),
-            GpuOpcode::VramToVramBlit => write!(f, "VramToVramBlit"),
-            GpuOpcode::CpuToVramBlit => write!(f, "CpuToVramBlit"),
-            GpuOpcode::VramToCpuBlit => write!(f, "VramToCpuBlit"),
-            GpuOpcode::Environment => match self.environment_opcode() {
+            RenderingOpcode::Polygon => self.polygon_instr().fmt(f),
+            RenderingOpcode::Line => self.line_instr().fmt(f),
+            RenderingOpcode::Rectangle => self.rectangle_instr().fmt(f),
+            RenderingOpcode::VramToVramBlit => write!(f, "VramToVramBlit"),
+            RenderingOpcode::CpuToVramBlit => write!(f, "CpuToVramBlit"),
+            RenderingOpcode::VramToCpuBlit => write!(f, "VramToCpuBlit"),
+            RenderingOpcode::Environment => match self.environment_opcode() {
                 Some(env_opcode) => match env_opcode {
                     EnvironmentOpcode::DrawingSettings => self.drawing_settings_instr().fmt(f),
                     EnvironmentOpcode::TexWindowSettings => {

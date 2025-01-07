@@ -32,7 +32,7 @@ pub fn run(state: Arc<State>, parker: Parker) {
                 exclusive.psx.cycle();
                 cycles_left -= 1;
 
-                let addr = exclusive.psx.bus().cpu.instr_delay_slot().1.value();
+                let addr = exclusive.psx.psx().cpu.instr_delay_slot().1.value();
                 if exclusive.controls.breakpoints.contains(&addr) {
                     exclusive.controls.running = false;
                     exclusive.timing.running_timer.pause();

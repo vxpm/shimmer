@@ -10,31 +10,31 @@ use super::{
     instr::{Instruction, SpecialCoOpcode},
 };
 use crate::{
-    cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
+    PSX,
+    cpu::{
+        EXCEPTION_VECTOR_KSEG0, EXCEPTION_VECTOR_KSEG1,
+        instr::{CoOpcode, Opcode, SpecialOpcode},
+    },
     kernel,
-    mem::{self, Address, Region},
+    mem::{Address, Region},
     util::cold_path,
 };
 use tinylog::{debug, error, info, warn};
 
 pub struct Interpreter<'ctx> {
-    bus: &'ctx mut mem::Bus,
+    psx: &'ctx mut PSX,
     /// Address of the currently executing instruction.
     current_addr: Address,
     /// Value going to be loaded into a register after execution.
     pending_load: Option<RegLoad>,
 }
 
-// these are only the general exception vectors...
-pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
-pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
-
 const DEFAULT_CYCLE_COUNT: u64 = 2;
 
 impl<'ctx> Interpreter<'ctx> {
-    pub fn new(bus: &'ctx mut mem::Bus) -> Self {
+    pub fn new(psx: &'ctx mut PSX) -> Self {
         Self {
-            bus,
+            psx,
             current_addr: Default::default(),
             pending_load: None,
         }
@@ -42,15 +42,15 @@ impl<'ctx> Interpreter<'ctx> {
 
     #[inline(never)]
     fn sideload(&mut self) {
-        if let Some(exe) = &self.bus.memory.sideload {
-            self.bus.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
-            self.bus.cpu.regs.pc = exe.header.initial_pc.value();
-            self.bus.cpu.regs.write(Reg::GP, exe.header.initial_gp);
+        if let Some(exe) = &self.psx.memory.sideload {
+            self.psx.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
+            self.psx.cpu.regs.pc = exe.header.initial_pc.value();
+            self.psx.cpu.regs.write(Reg::GP, exe.header.initial_gp);
 
             let destination_ram =
                 exe.header.destination.physical().unwrap().value() - Region::Ram.start().value();
 
-            self.bus.memory.ram[destination_ram as usize..][..exe.header.length as usize]
+            self.psx.memory.ram[destination_ram as usize..][..exe.header.length as usize]
                 .copy_from_slice(&exe.program);
 
             if exe.header.initial_sp_base != 0 {
@@ -58,10 +58,10 @@ impl<'ctx> Interpreter<'ctx> {
                     .header
                     .initial_sp_base
                     .wrapping_add(exe.header.initial_sp_offset);
-                self.bus.cpu.regs.write(Reg::SP, initial_sp);
+                self.psx.cpu.regs.write(Reg::SP, initial_sp);
             }
 
-            info!(self.bus.loggers.cpu, "sideloaded!");
+            info!(self.psx.loggers.cpu, "sideloaded!");
         }
     }
 
@@ -69,11 +69,11 @@ impl<'ctx> Interpreter<'ctx> {
     fn trigger_exception(&mut self, exception: Exception) {
         let (exception_ocurred_at, next_would_be) = (
             self.current_addr.value(),
-            self.bus.cpu.instr_delay_slot().1.value(),
+            self.psx.cpu.instr_delay_slot().1.value(),
         );
 
         let in_branch_delay = exception_ocurred_at.wrapping_add(4) != next_would_be;
-        self.bus.cop0.regs.write(
+        self.psx.cop0.regs.write(
             Reg::COP0_EPC,
             if in_branch_delay {
                 exception_ocurred_at.wrapping_sub(4)
@@ -83,7 +83,7 @@ impl<'ctx> Interpreter<'ctx> {
         );
 
         info!(
-            self.bus.loggers.cpu,
+            self.psx.loggers.cpu,
             "triggered exception {:?} at {} (next would be: {})",
             exception,
             Address(exception_ocurred_at),
@@ -92,13 +92,13 @@ impl<'ctx> Interpreter<'ctx> {
         );
 
         // flush pipeline
-        self.bus.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
+        self.psx.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
 
         // update sr
-        self.bus.cop0.regs.system_status_mut().start_exception();
+        self.psx.cop0.regs.system_status_mut().start_exception();
 
         // describe exception in cause
-        self.bus
+        self.psx
             .cop0
             .regs
             .cause_mut()
@@ -109,7 +109,7 @@ impl<'ctx> Interpreter<'ctx> {
         // TODO: this always jumps to the general exception handler... although others are very
         // unlikely to be used
         let exception_handler = if self
-            .bus
+            .psx
             .cop0
             .regs
             .system_status()
@@ -120,22 +120,22 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        self.bus.cpu.regs.pc = exception_handler.value();
+        self.psx.cpu.regs.pc = exception_handler.value();
     }
 
     pub fn check_interrupts(&mut self) -> bool {
         // (I_STAT & I_MASK)
         let masked_interrupt_status = self
-            .bus
+            .psx
             .cop0
             .interrupt_status
-            .mask(&self.bus.cop0.interrupt_mask);
+            .mask(&self.psx.cop0.interrupt_mask);
 
         // get interrupt if != 0
         let requested_interrupt = masked_interrupt_status.requested();
 
         // update CAUSE
-        self.bus
+        self.psx
             .cop0
             .regs
             .cause_mut()
@@ -143,15 +143,15 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some(requested_interrupt) = requested_interrupt {
             // must have SR.BIT10 == 1
-            let system_status = self.bus.cop0.regs.system_status();
+            let system_status = self.psx.cop0.regs.system_status();
             if !system_status.interrupts_enabled() {
                 return false;
             }
 
             info!(
-                self.bus.loggers.cpu,
+                self.psx.loggers.cpu,
                 "triggered interrupt {:?} at {}",
-                requested_interrupt, self.bus.cpu.instr_delay_slot().1;
+                requested_interrupt, self.psx.cpu.instr_delay_slot().1;
             );
 
             self.trigger_exception(Exception::Interrupt);
@@ -247,17 +247,17 @@ impl<'ctx> Interpreter<'ctx> {
                             SpecialOpcode::BREAK => self.breakpoint(instr),
                         }
                     } else {
-                        error!(self.bus.loggers.cpu, "illegal special op");
+                        error!(self.psx.loggers.cpu, "illegal special op");
                         DEFAULT_CYCLE_COUNT
                     }
                 }
                 _ => {
-                    error!(self.bus.loggers.cpu, "can't execute op {op:?}");
+                    error!(self.psx.loggers.cpu, "can't execute op {op:?}");
                     DEFAULT_CYCLE_COUNT
                 }
             }
         } else {
-            error!(self.bus.loggers.cpu, "illegal op");
+            error!(self.psx.loggers.cpu, "illegal op");
             DEFAULT_CYCLE_COUNT
         }
     }
@@ -266,17 +266,17 @@ impl<'ctx> Interpreter<'ctx> {
         let func = match self.current_addr.value() {
             0xA0 => {
                 cold_path();
-                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::a0(code)
             }
             0xB0 => {
                 cold_path();
-                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::b0(code)
             }
             0xC0 => {
                 cold_path();
-                let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::c0(code)
             }
             _ => return,
@@ -284,12 +284,12 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some(func) = func {
             if func == kernel::Function::PutChar {
-                let char = self.bus.cpu.regs().read(Reg::A0);
+                let char = self.psx.cpu.regs().read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
                     if char == '\r' {
-                        self.bus.memory.kernel_stdout.push('\n');
+                        self.psx.memory.kernel_stdout.push('\n');
                     } else {
-                        self.bus.memory.kernel_stdout.push(char);
+                        self.psx.memory.kernel_stdout.push(char);
                     }
                 }
 
@@ -298,27 +298,21 @@ impl<'ctx> Interpreter<'ctx> {
 
             let args = match func.args() {
                 0 => vec![],
-                1 => vec![self.bus.cpu.regs.read(Reg::A0)],
+                1 => vec![self.psx.cpu.regs.read(Reg::A0)],
                 2 => vec![
-                    self.bus.cpu.regs.read(Reg::A0),
-                    self.bus.cpu.regs.read(Reg::A1),
+                    self.psx.cpu.regs.read(Reg::A0),
+                    self.psx.cpu.regs.read(Reg::A1),
                 ],
                 3 => vec![
-                    self.bus.cpu.regs.read(Reg::A0),
-                    self.bus.cpu.regs.read(Reg::A1),
-                    self.bus.cpu.regs.read(Reg::A2),
-                ],
-                4 => vec![
-                    self.bus.cpu.regs.read(Reg::A0),
-                    self.bus.cpu.regs.read(Reg::A1),
-                    self.bus.cpu.regs.read(Reg::A2),
-                    self.bus.cpu.regs.read(Reg::A3),
+                    self.psx.cpu.regs.read(Reg::A0),
+                    self.psx.cpu.regs.read(Reg::A1),
+                    self.psx.cpu.regs.read(Reg::A2),
                 ],
                 _ => vec![
-                    self.bus.cpu.regs.read(Reg::A0),
-                    self.bus.cpu.regs.read(Reg::A1),
-                    self.bus.cpu.regs.read(Reg::A2),
-                    self.bus.cpu.regs.read(Reg::A3),
+                    self.psx.cpu.regs.read(Reg::A0),
+                    self.psx.cpu.regs.read(Reg::A1),
+                    self.psx.cpu.regs.read(Reg::A2),
+                    self.psx.cpu.regs.read(Reg::A3),
                 ],
             };
 
@@ -329,13 +323,13 @@ impl<'ctx> Interpreter<'ctx> {
                 .join(", ");
 
             debug!(
-                self.bus.loggers.kernel,
+                self.psx.loggers.kernel,
                 "executed kernel function {func:?}({args})"
             );
         } else {
-            let code = self.bus.cpu.regs.read(Reg::R9) as u8;
+            let code = self.psx.cpu.regs.read(Reg::R9) as u8;
             warn!(
-                self.bus.loggers.kernel,
+                self.psx.loggers.kernel,
                 "executed unknown kernel function 0x{:02X} at {}", code, self.current_addr
             );
         }
@@ -343,18 +337,18 @@ impl<'ctx> Interpreter<'ctx> {
 
     /// Executes the next instruction and returns how many cycles it takes to complete.
     pub fn next(&mut self) -> u64 {
-        if self.bus.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
+        if self.psx.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
             cold_path();
             self.sideload();
         }
 
-        let pc = Address(self.bus.cpu.regs.pc);
-        let Ok(fetched) = self.bus.read::<_, true>(pc) else {
-            if let Some(load) = self.bus.cpu.load_delay_slot.take() {
-                self.bus.cpu.regs.write(load.reg, load.value);
+        let pc = Address(self.psx.cpu.regs.pc);
+        let Ok(fetched) = self.psx.read::<_, true>(pc) else {
+            if let Some(load) = self.psx.cpu.load_delay_slot.take() {
+                self.psx.cpu.regs.write(load.reg, load.value);
             }
-            if let Some((reg, value)) = self.bus.cop0.to_load.take() {
-                self.bus.cop0.regs.write(reg, value);
+            if let Some((reg, value)) = self.psx.cop0.to_load.take() {
+                self.psx.cop0.regs.write(reg, value);
             }
 
             self.trigger_exception(Exception::AddressErrorLoad);
@@ -362,17 +356,17 @@ impl<'ctx> Interpreter<'ctx> {
         };
 
         let (current_instr, current_addr) = std::mem::replace(
-            &mut self.bus.cpu.instr_delay_slot,
+            &mut self.psx.cpu.instr_delay_slot,
             (Instruction::from_bits(fetched), pc),
         );
 
         self.current_addr = current_addr;
-        self.bus.cpu.regs.pc = self.bus.cpu.regs.pc.wrapping_add(4);
+        self.psx.cpu.regs.pc = self.psx.cpu.regs.pc.wrapping_add(4);
 
         self.log_kernel_calls();
 
-        self.pending_load = self.bus.cpu.load_delay_slot.take();
-        let pending_load_cop0 = self.bus.cop0.to_load.take();
+        self.pending_load = self.psx.cpu.load_delay_slot.take();
+        let pending_load_cop0 = self.psx.cop0.to_load.take();
 
         let cycles = if !self.check_interrupts() {
             self.exec(current_instr)
@@ -381,11 +375,11 @@ impl<'ctx> Interpreter<'ctx> {
         };
 
         if let Some(load) = self.pending_load {
-            self.bus.cpu.regs.write(load.reg, load.value);
+            self.psx.cpu.regs.write(load.reg, load.value);
         }
 
         if let Some((reg, value)) = pending_load_cop0 {
-            self.bus.cop0.regs.write(reg, value);
+            self.psx.cop0.regs.write(reg, value);
         }
 
         cycles
