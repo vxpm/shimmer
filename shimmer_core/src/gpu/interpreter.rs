@@ -1,3 +1,4 @@
+use super::instr::{DisplayInstruction, Packet, RenderingInstruction};
 use crate::{
     PSX,
     gpu::{
@@ -9,8 +10,6 @@ use crate::{
     },
 };
 use tinylog::debug;
-
-use super::instr::{DisplayInstruction, Packet, RenderingInstruction};
 
 pub struct Interpreter<'psx> {
     pub psx: &'psx mut PSX,
@@ -160,6 +159,8 @@ impl<'psx> Interpreter<'psx> {
                         self.exec_display(DisplayInstruction::from_bits(packet))
                     }
                 }
+            } else {
+                break;
             }
         }
     }
