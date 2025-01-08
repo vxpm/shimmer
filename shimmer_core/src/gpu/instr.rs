@@ -179,8 +179,41 @@ impl std::fmt::Debug for RenderingInstruction {
     }
 }
 
+impl RenderingInstruction {
+    /// How many arguments this instruction requires. If `None` is returned, the argument count is
+    /// dynamic and depends on an end marker.
+    pub fn args(&self) -> Option<usize> {
+        Some(match self.opcode() {
+            RenderingOpcode::Misc => match self.misc_opcode() {
+                Some(MiscOpcode::QuickRectangleFill) => 3,
+                _ => 0,
+            },
+            RenderingOpcode::Polygon => match self.polygon_instr().polygon_mode() {
+                PolygonMode::Triangle => 3,
+                PolygonMode::Rectangle => 4,
+            },
+            RenderingOpcode::Line => match self.line_instr().line_mode() {
+                LineMode::Single => 2,
+                LineMode::Poly => return None,
+            },
+            RenderingOpcode::Rectangle => 4,
+            RenderingOpcode::VramToVramBlit => 4,
+            RenderingOpcode::CpuToVramBlit | RenderingOpcode::VramToCpuBlit => return None,
+            RenderingOpcode::Environment => 0,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub enum Instruction {
-    Rendering(RenderingInstruction),
-    Display(DisplayInstruction),
+pub enum Packet {
+    Rendering(u32),
+    Display(u32),
+}
+
+impl Packet {
+    pub fn value(&self) -> u32 {
+        match self {
+            Packet::Rendering(packet) | Packet::Display(packet) => *packet,
+        }
+    }
 }

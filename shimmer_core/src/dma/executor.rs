@@ -1,8 +1,8 @@
 use crate::{
     PSX,
     cpu::cop0::Interrupt,
-    dma::{Channel, TransferMode},
-    gpu,
+    dma::{Channel, DataDirection, TransferMode},
+    gpu::{self},
     mem::Address,
 };
 use bitos::BitUtils;
@@ -32,35 +32,21 @@ impl<'psx> Executor<'psx> {
 
                 debug!(
                     self.psx.loggers.dma,
-                    "base = {}, entries = {entries}",
+                    "OTC base = {}, entries = {entries}",
                     Address(base)
                 );
 
-                let mut addr = base;
+                let mut current = base;
                 for _ in 1..entries {
-                    let prev = addr.wrapping_sub(4) & 0x00FF_FFFF;
-                    self.psx.write::<_, true>(Address(addr), prev).unwrap();
+                    let prev = current.wrapping_sub(4) & 0x00FF_FFFF;
+                    self.psx.write::<_, true>(Address(current), prev).unwrap();
 
-                    let region = Address(addr).physical().and_then(|p| p.region());
-                    debug!(
-                        self.psx.loggers.dma,
-                        "[{}] = {} ({region:?})",
-                        Address(addr),
-                        Address(prev)
-                    );
-
-                    addr = prev;
+                    current = prev;
                 }
 
                 self.psx
-                    .write::<_, true>(Address(addr), 0x00FF_FFFF)
+                    .write::<_, true>(Address(current), 0x00FF_FFFF)
                     .unwrap();
-                debug!(self.psx.loggers.dma, "[{}] = 0x00FF_FFFF", Address(addr));
-                debug!(
-                    self.psx.loggers.dma,
-                    "FINISHED - addr: {}",
-                    self.psx.cpu.instr_delay_slot().1
-                );
             }
             _ => todo!(),
         }
@@ -69,6 +55,37 @@ impl<'psx> Executor<'psx> {
     fn transfer_slice(&mut self, channel: Channel) {
         match channel {
             Channel::OTC => self.transfer_burst(channel),
+            Channel::GPU => {
+                let channel_control = &self.psx.dma.channels[channel as usize].control;
+                let channel_base = &self.psx.dma.channels[channel as usize].base;
+                let channel_block_control = &self.psx.dma.channels[channel as usize].block_control;
+
+                let count = channel_block_control.count();
+                let len = channel_block_control.len();
+
+                assert_eq!(
+                    self.psx.gpu.status.dma_direction(),
+                    gpu::DmaDirection::CpuToGp0
+                );
+
+                let increment = match channel_control.data_direction() {
+                    DataDirection::Forward => 4,
+                    DataDirection::Backward => -4,
+                };
+
+                let mut current = channel_base.addr().value();
+                for _ in 0..count {
+                    for _ in 0..len {
+                        let word = self.psx.read::<u32, true>(Address(current)).unwrap();
+                        self.psx
+                            .gpu
+                            .queue
+                            .push_back(gpu::instr::Packet::Rendering(word));
+
+                        current = current.wrapping_add_signed(increment);
+                    }
+                }
+            }
             _ => todo!(),
         }
     }
@@ -95,9 +112,7 @@ impl<'psx> Executor<'psx> {
                         self.psx
                             .gpu
                             .queue
-                            .push_back(gpu::instr::Instruction::Rendering(
-                                gpu::instr::RenderingInstruction::from_bits(word),
-                            ));
+                            .push_back(gpu::instr::Packet::Rendering(word));
                     }
 
                     current = next & !0b11;

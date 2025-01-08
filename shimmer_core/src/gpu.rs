@@ -1,17 +1,17 @@
 pub mod instr;
 pub mod interpreter;
 
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Range};
 
 pub use interpreter::Interpreter;
 
 use crate::cpu;
 use bitos::{
     bitos,
-    integer::{u1, u4},
+    integer::{u1, u4, u9, u10, u12},
 };
 use instr::{
-    Instruction,
+    Packet,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
 };
 
@@ -126,14 +126,29 @@ impl Default for GpuStatus {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuResponse {}
 
-#[derive(Default)]
+#[derive(Debug, Default)]
+pub struct EnvironmentState {
+    pub textured_rect_flip_x: bool,
+    pub textured_rect_flip_y: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct DisplayState {
+    pub area_start_x: u10,
+    pub area_start_y: u9,
+
+    pub horizontal_range: Range<u12>,
+    pub vertical_range: Range<u10>,
+}
+
+#[derive(Debug, Default)]
 pub struct State {
     pub status: GpuStatus,
     pub response: GpuResponse,
-    pub queue: VecDeque<Instruction>,
+    pub queue: VecDeque<Packet>,
 
-    textured_rect_flip_x: bool,
-    textured_rect_flip_y: bool,
+    pub environment: EnvironmentState,
+    pub display: DisplayState,
 }
 
 impl State {

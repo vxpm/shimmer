@@ -2,10 +2,15 @@ use crate::{
     PSX,
     gpu::{
         DmaDirection, GpuStatus,
-        instr::{DisplayOpcode, EnvironmentOpcode, Instruction, MiscOpcode, RenderingOpcode},
+        instr::{
+            DisplayOpcode, EnvironmentOpcode, MiscOpcode, RenderingOpcode,
+            rendering::VertexPositionPacket,
+        },
     },
 };
 use tinylog::debug;
+
+use super::instr::{DisplayInstruction, Packet, RenderingInstruction};
 
 pub struct Interpreter<'psx> {
     pub psx: &'psx mut PSX,
@@ -16,91 +21,146 @@ impl<'psx> Interpreter<'psx> {
         Self { psx }
     }
 
-    /// Executes the given GPU instruction.
-    pub fn exec(&mut self, instr: Instruction) {
-        debug!(self.psx.loggers.gpu, "received instr: {instr:?}");
+    /// Executes the given rendering instruction.
+    pub fn exec_render(&mut self, instr: RenderingInstruction) {
+        debug!(self.psx.loggers.gpu, "received render instr: {instr:?}");
 
-        match instr {
-            Instruction::Rendering(instr) => match instr.opcode() {
-                RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
-                    MiscOpcode::NOP => (),
-                    _ => debug!(self.psx.loggers.gpu, "unimplemented"),
-                },
-                RenderingOpcode::Environment => {
-                    let Some(opcode) = instr.environment_opcode() else {
-                        return;
-                    };
+        match instr.opcode() {
+            RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
+                MiscOpcode::NOP => (),
+                _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+            },
+            RenderingOpcode::Environment => {
+                let Some(opcode) = instr.environment_opcode() else {
+                    return;
+                };
 
-                    match opcode {
-                        EnvironmentOpcode::DrawingSettings => {
-                            let settings = instr.drawing_settings_instr();
-                            let stat = &mut self.psx.gpu.status;
+                match opcode {
+                    EnvironmentOpcode::DrawingSettings => {
+                        let settings = instr.drawing_settings_instr();
+                        let stat = &mut self.psx.gpu.status;
 
-                            stat.set_texpage_x_base(settings.texpage_x_base());
-                            stat.set_texpage_y_base(settings.texpage_y_base());
-                            stat.set_semi_transparency_mode(settings.semi_transparency_mode());
-                            stat.set_texpage_depth(settings.texpage_depth());
-                            stat.set_compression_mode(settings.compression_mode());
-                            stat.set_enable_drawing_to_display(
-                                settings.enable_drawing_to_display(),
-                            );
-                            stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+                        stat.set_texpage_x_base(settings.texpage_x_base());
+                        stat.set_texpage_y_base(settings.texpage_y_base());
+                        stat.set_semi_transparency_mode(settings.semi_transparency_mode());
+                        stat.set_texpage_depth(settings.texpage_depth());
+                        stat.set_compression_mode(settings.compression_mode());
+                        stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
+                        stat.set_texpage_y_base_2(settings.texpage_y_base_2());
 
-                            self.psx.gpu.textured_rect_flip_x = settings.textured_rect_flip_x();
-                            self.psx.gpu.textured_rect_flip_y = settings.textured_rect_flip_y();
-                        }
-                        _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+                        self.psx.gpu.environment.textured_rect_flip_x =
+                            settings.textured_rect_flip_x();
+                        self.psx.gpu.environment.textured_rect_flip_y =
+                            settings.textured_rect_flip_y();
                     }
+                    _ => debug!(self.psx.loggers.gpu, "unimplemented"),
                 }
-                _ => debug!(self.psx.loggers.gpu, "unimplemented"),
-            },
-            Instruction::Display(instr) => match instr.opcode().unwrap() {
-                DisplayOpcode::ResetGpu => {
-                    self.psx.gpu.status = GpuStatus::default();
+            }
+            RenderingOpcode::Polygon => {
+                for _ in 0..instr.args().unwrap_or_default() {
+                    debug!(
+                        self.psx.loggers.gpu,
+                        "vertex: {:?}",
+                        VertexPositionPacket::from_bits(
+                            self.psx.gpu.queue.pop_front().unwrap().value()
+                        )
+                    );
                 }
-                DisplayOpcode::DisplayMode => {
-                    let settings = instr.display_mode_instr();
-                    let stat = &mut self.psx.gpu.status;
 
-                    stat.set_horizontal_resolution(settings.horizontal_resolution());
-                    stat.set_vertical_resolution(settings.vertical_resolution());
-                    stat.set_video_mode(settings.video_mode());
-                    stat.set_display_depth(settings.display_depth());
-                    stat.set_vertical_interlace(settings.vertical_interlace());
-                    stat.set_force_horizontal_368(settings.force_horizontal_368());
-                    stat.set_flip_screen_x(settings.flip_screen_x());
-                }
-                DisplayOpcode::DmaDirection => {
-                    let instr = instr.dma_direction_instr();
-                    let dir = instr.direction();
-                    self.psx.gpu.status.set_dma_direction(dir);
+                return;
+            }
+            _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+        }
 
-                    match dir {
-                        DmaDirection::Off => self.psx.gpu.status.set_dma_request(false),
-                        // TODO: fifo state
-                        DmaDirection::Fifo => self.psx.gpu.status.set_dma_request(true),
-                        DmaDirection::CpuToGp0 => self
-                            .psx
-                            .gpu
-                            .status
-                            .set_dma_request(self.psx.gpu.status.ready_to_receive_block()),
-                        DmaDirection::GpuToCpu => self
-                            .psx
-                            .gpu
-                            .status
-                            .set_dma_request(self.psx.gpu.status.ready_to_send_vram()),
-                    };
-                }
-                _ => debug!(self.psx.loggers.gpu, "unimplemented"),
-            },
+        for _ in 0..instr.args().unwrap_or_default() {
+            debug!(
+                self.psx.loggers.gpu,
+                "instr arg: {:?}",
+                self.psx.gpu.queue.pop_front()
+            );
+        }
+    }
+
+    /// Executes the given display instruction.
+    pub fn exec_display(&mut self, instr: DisplayInstruction) {
+        debug!(self.psx.loggers.gpu, "received display instr: {instr:?}");
+
+        match instr.opcode().unwrap() {
+            DisplayOpcode::ResetGpu => {
+                self.psx.gpu.status = GpuStatus::default();
+            }
+            DisplayOpcode::DisplayMode => {
+                let settings = instr.display_mode_instr();
+                let stat = &mut self.psx.gpu.status;
+
+                stat.set_horizontal_resolution(settings.horizontal_resolution());
+                stat.set_vertical_resolution(settings.vertical_resolution());
+                stat.set_video_mode(settings.video_mode());
+                stat.set_display_depth(settings.display_depth());
+                stat.set_vertical_interlace(settings.vertical_interlace());
+                stat.set_force_horizontal_368(settings.force_horizontal_368());
+                stat.set_flip_screen_x(settings.flip_screen_x());
+            }
+            DisplayOpcode::DmaDirection => {
+                let instr = instr.dma_direction_instr();
+                let dir = instr.direction();
+                self.psx.gpu.status.set_dma_direction(dir);
+
+                match dir {
+                    DmaDirection::Off => self.psx.gpu.status.set_dma_request(false),
+                    // TODO: fifo state
+                    DmaDirection::Fifo => self.psx.gpu.status.set_dma_request(true),
+                    DmaDirection::CpuToGp0 => self
+                        .psx
+                        .gpu
+                        .status
+                        .set_dma_request(self.psx.gpu.status.ready_to_receive_block()),
+                    DmaDirection::GpuToCpu => self
+                        .psx
+                        .gpu
+                        .status
+                        .set_dma_request(self.psx.gpu.status.ready_to_send_vram()),
+                };
+            }
+            DisplayOpcode::DisplayArea => {
+                let settings = instr.display_area_instr();
+                self.psx.gpu.display.area_start_x = settings.x();
+                self.psx.gpu.display.area_start_y = settings.y();
+            }
+            DisplayOpcode::HorizontalDisplayRange => {
+                let settings = instr.horizontal_display_range_instr();
+                self.psx.gpu.display.horizontal_range = settings.x1()..settings.x2();
+            }
+            DisplayOpcode::VerticalDisplayRange => {
+                let settings = instr.vertical_dispaly_range_instr();
+                self.psx.gpu.display.vertical_range = settings.y1()..settings.y2();
+            }
+            _ => debug!(self.psx.loggers.gpu, "unimplemented"),
         }
     }
 
     /// Executes all queued GPU instructions.
     pub fn exec_queued(&mut self) {
         while !self.psx.gpu.queue.is_empty() {
-            let instr = self.psx.gpu.queue.pop_front().unwrap();
-            self.exec(instr);
+            let instr = self.psx.gpu.queue.front().unwrap();
+            let args = match instr {
+                Packet::Rendering(packet) => RenderingInstruction::from_bits(*packet).args(),
+                Packet::Display(_) => Some(0),
+            }
+            // TODO: deal with line instr
+            .unwrap_or_default();
+
+            if self.psx.gpu.queue.len() >= args {
+                let instr = self.psx.gpu.queue.pop_front().unwrap();
+                match instr {
+                    Packet::Rendering(packet) => {
+                        self.exec_render(RenderingInstruction::from_bits(packet))
+                    }
+                    Packet::Display(packet) => {
+                        self.exec_display(DisplayInstruction::from_bits(packet))
+                    }
+                }
+            }
         }
     }
 }

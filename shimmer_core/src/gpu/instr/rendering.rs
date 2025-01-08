@@ -1,6 +1,6 @@
 use bitos::{
     bitos,
-    integer::{u6, u9, u11},
+    integer::{i11, u6, u9},
 };
 
 /// The texture mode of a rendering instruction.
@@ -44,9 +44,9 @@ pub struct VertexColorPacket {
 #[derive(Debug)]
 pub struct VertexPositionPacket {
     #[bits(0..11)]
-    unsigned_x: u11,
+    pub x: i11,
     #[bits(16..27)]
-    unsigned_y: u11,
+    pub y: i11,
 }
 
 #[bitos(16)]
@@ -100,21 +100,21 @@ pub enum PolygonMode {
 #[derive(Debug)]
 pub struct PolygonInstr {
     #[bits(0..8)]
-    color_r: u8,
+    pub color_r: u8,
     #[bits(8..16)]
-    color_g: u8,
+    pub color_g: u8,
     #[bits(16..24)]
-    color_b: u8,
+    pub color_b: u8,
     #[bits(24)]
-    texture_mode: TextureMode,
+    pub texture_mode: TextureMode,
     #[bits(25)]
-    transparency_mode: TransparencyMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(26)]
-    textured: bool,
+    pub textured: bool,
     #[bits(27)]
-    polygon_mode: PolygonMode,
+    pub polygon_mode: PolygonMode,
     #[bits(28)]
-    shading_mode: ShadingMode,
+    pub shading_mode: ShadingMode,
 }
 
 /// The line mode of a [`LineInstr`].
@@ -139,17 +139,17 @@ pub enum LineMode {
 #[derive(Debug)]
 pub struct LineInstr {
     #[bits(0..8)]
-    color_r: u8,
+    pub color_r: u8,
     #[bits(8..16)]
-    color_g: u8,
+    pub color_g: u8,
     #[bits(16..24)]
-    color_b: u8,
+    pub color_b: u8,
     #[bits(25)]
-    transparency_mode: TransparencyMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(27)]
-    line_mode: LineMode,
+    pub line_mode: LineMode,
     #[bits(28)]
-    shading_mode: ShadingMode,
+    pub shading_mode: ShadingMode,
 }
 
 /// The rectangle mode of a [`RectangleInstr`].
