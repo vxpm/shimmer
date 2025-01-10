@@ -70,16 +70,16 @@ pub struct ChannelBlockControl {
 #[derive(Debug, Clone, Default)]
 pub struct ChannelControl {
     /// Direction of the DMA transfer.
-    #[bits(0..1)]
+    #[bits(0)]
     pub transfer_direction: TransferDirection,
     /// Direction of the data to be transferred.
-    #[bits(1..2)]
+    #[bits(1)]
     pub data_direction: DataDirection,
     /// When enabled, causes alternative behaviour depending on the transfer mode:
     /// - Burst: Enables CPU cycle stealing
     /// - Slice: Causes DMA to hang
     /// - Linked-List: ?
-    #[bits(8..9)]
+    #[bits(8)]
     pub alternative_behaviour: bool,
     /// The mode of operation for the transfer.
     #[bits(9..11)]
@@ -89,11 +89,13 @@ pub struct ChannelControl {
     #[bits(20..23)]
     pub chopping_cpu_window_size: u3,
     /// Whether a transfer is in progress or not.
-    #[bits(24..25)]
+    #[bits(24)]
     pub transfer_ongoing: bool,
     /// Forces the transfer to start without waiting for the DREQ.
-    #[bits(28..29)]
+    #[bits(28)]
     pub force_transfer: bool, // NOTE: DREQ refers to the hardware signal
+    #[bits(30)]
+    pub bus_snooping: bool,
 }
 
 #[derive(Debug, Clone, Default)]

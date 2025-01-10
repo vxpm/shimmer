@@ -590,6 +590,10 @@ impl PSX {
                         .control
                         .set_force_transfer(dummy.force_transfer());
 
+                    self.dma.channels[6]
+                        .control
+                        .set_bus_snooping(dummy.bus_snooping());
+
                     self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::DmaControl => {

@@ -9,6 +9,8 @@ list:
 
 # Downloads tests and puts them in the resources/tests directory
 get-tests:
+    @mkdir -p resources/tests
+
     @echo -e "=> Downloading Jakub's ps1-tests..."
     @wget {{jakubs_tests}} --output-document resources/tests/jakubs.zip -q --show-progress
 

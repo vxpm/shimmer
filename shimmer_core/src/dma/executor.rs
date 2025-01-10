@@ -6,7 +6,7 @@ use crate::{
     mem::Address,
 };
 use bitos::{BitUtils, integer::u24};
-use tinylog::{debug, info};
+use tinylog::info;
 
 pub struct Executor<'psx> {
     pub psx: &'psx mut PSX,
@@ -33,7 +33,7 @@ impl<'psx> Executor<'psx> {
 
         // perform transfer
         let mut current = base;
-        for index in 1..entries {
+        for index in 0..entries {
             match channel {
                 Channel::OTC => {
                     if index + 1 == entries {
@@ -161,6 +161,10 @@ impl<'psx> Executor<'psx> {
         for (channel, _) in enabled_channels {
             let channel_control = &self.psx.dma.channels[channel as usize].control;
             if channel_control.transfer_ongoing() {
+                if channel == Channel::OTC && !channel_control.force_transfer() {
+                    continue;
+                }
+
                 info!(self.psx.loggers.dma, "{channel:?} ongoing"; control = channel_control.clone());
 
                 match channel_control
