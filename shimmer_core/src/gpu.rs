@@ -1,8 +1,6 @@
 pub mod instr;
 pub mod interpreter;
 
-use std::{collections::VecDeque, ops::Range};
-
 pub use interpreter::Interpreter;
 
 use crate::cpu;
@@ -13,7 +11,9 @@ use bitos::{
 use instr::{
     Packet,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
+    rendering::{CoordPacket, SizePacket},
 };
+use std::{collections::VecDeque, ops::Range};
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,8 +117,7 @@ pub struct GpuStatus {
 
 impl Default for GpuStatus {
     fn default() -> Self {
-        Self::from_bits(0x1480_2000)
-        // .with_ready_to_send_vram(true)
+        Self::from_bits(0x1480_2000).with_ready_to_send_vram(true)
     }
 }
 
@@ -142,6 +141,15 @@ pub struct DisplayState {
 }
 
 #[derive(Debug, Default)]
+pub enum ExecState {
+    /// Currently not executing anything
+    #[default]
+    None,
+    /// Waiting for enough data to complete
+    CpuToVramBlit { dest: CoordPacket, size: SizePacket },
+}
+
+#[derive(Debug, Default)]
 pub struct State {
     pub status: GpuStatus,
     pub response: GpuResponse,
@@ -149,6 +157,8 @@ pub struct State {
 
     pub environment: EnvironmentState,
     pub display: DisplayState,
+
+    pub execution_state: ExecState,
 }
 
 impl State {

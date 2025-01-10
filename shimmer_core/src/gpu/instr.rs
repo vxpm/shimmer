@@ -180,27 +180,50 @@ impl std::fmt::Debug for RenderingInstruction {
 }
 
 impl RenderingInstruction {
-    /// How many arguments this instruction requires. If `None` is returned, the argument count is
-    /// dynamic and depends on an end marker.
-    pub fn args(&self) -> Option<usize> {
-        Some(match self.opcode() {
+    /// How many arguments this instruction requires at minimum.
+    pub fn args(&self) -> usize {
+        match self.opcode() {
             RenderingOpcode::Misc => match self.misc_opcode() {
                 Some(MiscOpcode::QuickRectangleFill) => 3,
                 _ => 0,
             },
-            RenderingOpcode::Polygon => match self.polygon_instr().polygon_mode() {
-                PolygonMode::Triangle => 3,
-                PolygonMode::Rectangle => 4,
-            },
-            RenderingOpcode::Line => match self.line_instr().line_mode() {
-                LineMode::Single => 2,
-                LineMode::Poly => return None,
-            },
-            RenderingOpcode::Rectangle => 4,
+            RenderingOpcode::Polygon => {
+                let instr = self.polygon_instr();
+                let vertices = match instr.polygon_mode() {
+                    PolygonMode::Triangle => 3,
+                    PolygonMode::Rectangle => 4,
+                };
+                let colors = vertices
+                    * match instr.shading_mode() {
+                        ShadingMode::Flat => 0,
+                        ShadingMode::Gouraud => 1,
+                    };
+                let uvs = vertices * instr.textured() as usize;
+
+                vertices + colors + uvs
+            }
+            RenderingOpcode::Line => {
+                let instr = self.line_instr();
+                match instr.shading_mode() {
+                    ShadingMode::Flat => 2,
+                    ShadingMode::Gouraud => 4,
+                }
+            }
+            RenderingOpcode::Rectangle => {
+                let instr = self.rectangle_instr();
+                let uv = instr.textured() as usize;
+                let dimensions = match instr.rectangle_mode() {
+                    RectangleMode::Variable => 1,
+                    _ => 0,
+                };
+
+                2 + uv + dimensions
+            }
             RenderingOpcode::VramToVramBlit => 4,
-            RenderingOpcode::CpuToVramBlit | RenderingOpcode::VramToCpuBlit => return None,
+            RenderingOpcode::CpuToVramBlit => 3,
+            RenderingOpcode::VramToCpuBlit => 3,
             RenderingOpcode::Environment => 0,
-        })
+        }
     }
 }
 

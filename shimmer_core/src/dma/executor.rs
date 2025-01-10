@@ -5,7 +5,7 @@ use crate::{
     gpu::{self},
     mem::Address,
 };
-use bitos::BitUtils;
+use bitos::{BitUtils, integer::u24};
 use tinylog::{debug, info};
 
 pub struct Executor<'psx> {
@@ -47,6 +47,19 @@ impl<'psx> Executor<'psx> {
                 self.psx
                     .write::<_, true>(Address(current), 0x00FF_FFFF)
                     .unwrap();
+
+                if self.psx.dma.channels[channel as usize]
+                    .control
+                    .alternative_behaviour()
+                {
+                    self.psx.dma.channels[channel as usize]
+                        .base
+                        .set_addr(u24::new(current));
+
+                    self.psx.dma.channels[channel as usize]
+                        .block_control
+                        .set_len(0);
+                }
             }
             _ => todo!(),
         }
@@ -85,6 +98,14 @@ impl<'psx> Executor<'psx> {
                         current = current.wrapping_add_signed(increment);
                     }
                 }
+
+                self.psx.dma.channels[channel as usize]
+                    .base
+                    .set_addr(u24::new(current));
+
+                self.psx.dma.channels[channel as usize]
+                    .block_control
+                    .set_count(0);
             }
             _ => todo!(),
         }
@@ -103,6 +124,10 @@ impl<'psx> Executor<'psx> {
                     let words = node.bits(24, 32);
 
                     if next == 0x00FF_FFFF {
+                        self.psx.dma.channels[channel as usize]
+                            .base
+                            .set_addr(u24::new(current));
+
                         break;
                     }
 

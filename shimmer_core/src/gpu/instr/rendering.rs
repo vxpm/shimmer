@@ -3,6 +3,26 @@ use bitos::{
     integer::{i11, u6, u9},
 };
 
+/// A framebuffer transfer coordinate packet.
+#[bitos(32)]
+#[derive(Debug)]
+pub struct CoordPacket {
+    #[bits(0..16)]
+    pub x: u16,
+    #[bits(16..32)]
+    pub y: u16,
+}
+
+/// A framebuffer transfer dimensions packet.
+#[bitos(32)]
+#[derive(Debug)]
+pub struct SizePacket {
+    #[bits(0..16)]
+    pub width: u16,
+    #[bits(16..32)]
+    pub height: u16,
+}
+
 /// The texture mode of a rendering instruction.
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
@@ -175,17 +195,17 @@ pub enum RectangleMode {
 #[derive(Debug)]
 pub struct RectangleInstr {
     #[bits(0..8)]
-    color_r: u8,
+    pub color_r: u8,
     #[bits(8..16)]
-    color_g: u8,
+    pub color_g: u8,
     #[bits(16..24)]
-    color_b: u8,
+    pub color_b: u8,
     #[bits(24)]
-    texture_mode: TextureMode,
+    pub texture_mode: TextureMode,
     #[bits(25)]
-    transparency_mode: TransparencyMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(26)]
-    textured: bool,
+    pub textured: bool,
     #[bits(27..29)]
-    rectangle_mode: RectangleMode,
+    pub rectangle_mode: RectangleMode,
 }

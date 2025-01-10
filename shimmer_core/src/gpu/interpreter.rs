@@ -1,15 +1,18 @@
-use super::instr::{DisplayInstruction, Packet, RenderingInstruction};
+use super::{
+    ExecState,
+    instr::{DisplayInstruction, Packet, RenderingInstruction},
+};
 use crate::{
     PSX,
     gpu::{
         DmaDirection, GpuStatus,
         instr::{
             DisplayOpcode, EnvironmentOpcode, MiscOpcode, RenderingOpcode,
-            rendering::VertexPositionPacket,
+            rendering::{CoordPacket, SizePacket, VertexPositionPacket},
         },
     },
 };
-use tinylog::debug;
+use tinylog::{debug, trace};
 
 pub struct Interpreter<'psx> {
     pub psx: &'psx mut PSX,
@@ -22,7 +25,11 @@ impl<'psx> Interpreter<'psx> {
 
     /// Executes the given rendering instruction.
     pub fn exec_render(&mut self, instr: RenderingInstruction) {
-        debug!(self.psx.loggers.gpu, "received render instr: {instr:?}");
+        debug!(
+            self.psx.loggers.gpu,
+            "received render instr: {instr:?} (0x{:08X})",
+            instr.into_bits()
+        );
 
         match instr.opcode() {
             RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
@@ -56,7 +63,7 @@ impl<'psx> Interpreter<'psx> {
                 }
             }
             RenderingOpcode::Polygon => {
-                for _ in 0..instr.args().unwrap_or_default() {
+                for _ in 0..instr.args() {
                     debug!(
                         self.psx.loggers.gpu,
                         "vertex: {:?}",
@@ -68,10 +75,17 @@ impl<'psx> Interpreter<'psx> {
 
                 return;
             }
+            RenderingOpcode::CpuToVramBlit => {
+                let dest = CoordPacket::from_bits(self.psx.gpu.queue.pop_front().unwrap().value());
+                let size = SizePacket::from_bits(self.psx.gpu.queue.pop_front().unwrap().value());
+                self.psx.gpu.execution_state = ExecState::CpuToVramBlit { dest, size };
+
+                return;
+            }
             _ => debug!(self.psx.loggers.gpu, "unimplemented"),
         }
 
-        for _ in 0..instr.args().unwrap_or_default() {
+        for _ in 0..instr.args() {
             debug!(
                 self.psx.loggers.gpu,
                 "instr arg: {:?}",
@@ -141,26 +155,49 @@ impl<'psx> Interpreter<'psx> {
     /// Executes all queued GPU instructions.
     pub fn exec_queued(&mut self) {
         while !self.psx.gpu.queue.is_empty() {
-            let instr = self.psx.gpu.queue.front().unwrap();
-            let args = match instr {
-                Packet::Rendering(packet) => RenderingInstruction::from_bits(*packet).args(),
-                Packet::Display(_) => Some(0),
-            }
-            // TODO: deal with line instr
-            .unwrap_or_default();
+            match &self.psx.gpu.execution_state {
+                ExecState::None => {
+                    let instr = self.psx.gpu.queue.front().unwrap();
+                    let args = match instr {
+                        Packet::Rendering(packet) => {
+                            RenderingInstruction::from_bits(*packet).args()
+                        }
+                        Packet::Display(_) => 0,
+                    };
 
-            if self.psx.gpu.queue.len() >= args {
-                let instr = self.psx.gpu.queue.pop_front().unwrap();
-                match instr {
-                    Packet::Rendering(packet) => {
-                        self.exec_render(RenderingInstruction::from_bits(packet))
+                    if self.psx.gpu.queue.len() <= args {
+                        break;
                     }
-                    Packet::Display(packet) => {
-                        self.exec_display(DisplayInstruction::from_bits(packet))
+
+                    let instr = self.psx.gpu.queue.pop_front().unwrap();
+                    match instr {
+                        Packet::Rendering(packet) => {
+                            self.exec_render(RenderingInstruction::from_bits(packet))
+                        }
+                        Packet::Display(packet) => {
+                            self.exec_display(DisplayInstruction::from_bits(packet))
+                        }
                     }
                 }
-            } else {
-                break;
+                ExecState::CpuToVramBlit { dest, size } => {
+                    let packets = (size.width() * size.height() + 1) / 2;
+                    trace!(self.psx.loggers.gpu, "packet count: {:#08X}", packets);
+
+                    if self.psx.gpu.queue.len() <= packets as usize {
+                        break;
+                    }
+
+                    for _ in 0..packets {
+                        let packet = self.psx.gpu.queue.pop_front().unwrap();
+                        trace!(
+                            self.psx.loggers.gpu,
+                            "cpu to vram packet: {:#08X}",
+                            packet.value()
+                        );
+                    }
+
+                    self.psx.gpu.execution_state = ExecState::None;
+                }
             }
         }
     }

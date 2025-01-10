@@ -1,7 +1,7 @@
 pub mod io;
 pub mod primitive;
 
-use crate::{PSX, exe::Executable, gpu, scheduler::Event, util};
+use crate::{PSX, dma, exe::Executable, gpu, scheduler::Event, util};
 use binrw::BinRead;
 use bitos::integer::u7;
 use easyerr::Error;
@@ -564,11 +564,31 @@ impl PSX {
                 | io::Reg::Dma2Control
                 | io::Reg::Dma3Control
                 | io::Reg::Dma4Control
-                | io::Reg::Dma5Control
-                | io::Reg::Dma6Control => {
+                | io::Reg::Dma5Control => {
                     let channel = reg.dma_channel().unwrap();
                     let bytes = self.dma.channels[channel as usize].control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
+
+                    self.scheduler.schedule(Event::Dma, 0);
+                }
+                io::Reg::Dma6Control => {
+                    let mut dummy = self.dma.channels[6].control.clone();
+                    let bytes = dummy.as_mut_bytes();
+
+                    0u32.write_to(&mut bytes[offset..]);
+                    value.write_to(&mut bytes[offset..]);
+
+                    self.dma.channels[6]
+                        .control
+                        .set_data_direction(dma::DataDirection::Backward);
+
+                    self.dma.channels[6]
+                        .control
+                        .set_transfer_ongoing(dummy.transfer_ongoing());
+
+                    self.dma.channels[6]
+                        .control
+                        .set_force_transfer(dummy.force_transfer());
 
                     self.scheduler.schedule(Event::Dma, 0);
                 }
@@ -598,11 +618,6 @@ impl PSX {
                             dummy.master_channel_interrupt_enable(),
                         );
 
-                    // C W
-                    // 0 0 -> 0
-                    // 0 1 -> 0
-                    // 1 0 -> 1
-                    // 1 1 -> 0
                     let reset = self
                         .dma
                         .interrupt_control

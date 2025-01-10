@@ -246,10 +246,24 @@ impl InterruptControl {
 // 02. Mask channels allowed to raise interrupts (interrupt mask = 1)
 // 03. Raise interrupt!
 
-#[derive(Default)]
 pub struct State {
     pub control: Control,
     pub interrupt_control: InterruptControl,
 
     pub channels: [ChannelState; 7],
+}
+
+impl Default for State {
+    fn default() -> Self {
+        let mut channels: [ChannelState; 7] = Default::default();
+        channels[6]
+            .control
+            .set_data_direction(DataDirection::Backward);
+
+        Self {
+            control: Default::default(),
+            interrupt_control: Default::default(),
+            channels,
+        }
+    }
 }
