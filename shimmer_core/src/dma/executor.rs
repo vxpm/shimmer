@@ -1,7 +1,7 @@
 use crate::{
     PSX,
     cpu::cop0::Interrupt,
-    dma::{Channel, DataDirection, TransferMode},
+    dma::{Channel, DataDirection, TransferDirection, TransferMode},
     gpu::{self},
     mem::Address,
 };
@@ -18,132 +18,139 @@ impl<'psx> Executor<'psx> {
     }
 
     fn transfer_burst(&mut self, channel: Channel) {
-        let channel_base = &self.psx.dma.channels[channel as usize].base;
-        let channel_block_control = &self.psx.dma.channels[channel as usize].block_control;
+        let channel_state = &self.psx.dma.channels[channel as usize];
 
-        match channel {
-            Channel::OTC => {
-                let base = channel_base.addr().value() & !0b11;
-                let entries = if channel_block_control.len() == 0 {
-                    0x10000
-                } else {
-                    u32::from(channel_block_control.len())
-                };
+        let base = channel_state.base.addr().value() & !0b11;
+        let entries = if channel_state.block_control.len() == 0 {
+            0x10000
+        } else {
+            u32::from(channel_state.block_control.len())
+        };
+        let increment = match channel_state.control.data_direction() {
+            DataDirection::Forward => 4,
+            DataDirection::Backward => -4,
+        };
 
-                debug!(
-                    self.psx.loggers.dma,
-                    "OTC base = {}, entries = {entries}",
-                    Address(base)
-                );
-
-                let mut current = base;
-                for _ in 1..entries {
-                    let prev = current.wrapping_sub(4) & 0x00FF_FFFF;
-                    self.psx.write::<_, true>(Address(current), prev).unwrap();
-
-                    current = prev;
+        // perform transfer
+        let mut current = base;
+        for index in 1..entries {
+            match channel {
+                Channel::OTC => {
+                    if index + 1 == entries {
+                        self.psx
+                            .write::<_, true>(Address(current), 0x00FF_FFFF)
+                            .unwrap();
+                    } else {
+                        let prev = current.wrapping_sub(4) & 0x00FF_FFFF;
+                        self.psx.write::<_, true>(Address(current), prev).unwrap();
+                    }
                 }
-
-                self.psx
-                    .write::<_, true>(Address(current), 0x00FF_FFFF)
-                    .unwrap();
-
-                if self.psx.dma.channels[channel as usize]
-                    .control
-                    .alternative_behaviour()
-                {
-                    self.psx.dma.channels[channel as usize]
-                        .base
-                        .set_addr(u24::new(current));
-
-                    self.psx.dma.channels[channel as usize]
-                        .block_control
-                        .set_len(0);
-                }
+                _ => todo!(),
             }
-            _ => todo!(),
+
+            current = current.wrapping_add_signed(increment);
+        }
+
+        // alt behaviour
+        if self.psx.dma.channels[channel as usize]
+            .control
+            .alternative_behaviour()
+        {
+            self.psx.dma.channels[channel as usize]
+                .base
+                .set_addr(u24::new(current));
+
+            self.psx.dma.channels[channel as usize]
+                .block_control
+                .set_len(0);
         }
     }
 
     fn transfer_slice(&mut self, channel: Channel) {
-        match channel {
-            Channel::OTC => self.transfer_burst(channel),
-            Channel::GPU => {
-                let channel_control = &self.psx.dma.channels[channel as usize].control;
-                let channel_base = &self.psx.dma.channels[channel as usize].base;
-                let channel_block_control = &self.psx.dma.channels[channel as usize].block_control;
+        if channel == Channel::OTC {
+            self.transfer_burst(channel);
+            return;
+        }
 
-                let count = channel_block_control.count();
-                let len = channel_block_control.len();
+        let channel_state = &self.psx.dma.channels[channel as usize];
 
-                assert_eq!(
-                    self.psx.gpu.status.dma_direction(),
-                    gpu::DmaDirection::CpuToGp0
-                );
+        let count = channel_state.block_control.count();
+        let len = channel_state.block_control.len();
+        let total = count as u32 * len as u32;
 
-                let increment = match channel_control.data_direction() {
-                    DataDirection::Forward => 4,
-                    DataDirection::Backward => -4,
-                };
+        let transfer_direction = channel_state.control.transfer_direction();
+        let increment = match channel_state.control.data_direction() {
+            DataDirection::Forward => 4,
+            DataDirection::Backward => -4,
+        };
 
-                let mut current = channel_base.addr().value();
-                for _ in 0..count {
-                    for _ in 0..len {
+        // perform transfer
+        let mut current = channel_state.base.addr().value();
+        for _ in 0..total {
+            match channel {
+                Channel::GPU => match transfer_direction {
+                    TransferDirection::DeviceToRam => todo!(),
+                    TransferDirection::RamToDevice => {
+                        assert_eq!(
+                            self.psx.gpu.status.dma_direction(),
+                            gpu::DmaDirection::CpuToGp0
+                        );
+
                         let word = self.psx.read::<u32, true>(Address(current)).unwrap();
                         self.psx
                             .gpu
                             .queue
                             .push_back(gpu::instr::Packet::Rendering(word));
-
-                        current = current.wrapping_add_signed(increment);
                     }
-                }
+                },
+                _ => todo!(),
+            }
 
+            current = current.wrapping_add_signed(increment);
+        }
+
+        self.psx.dma.channels[channel as usize]
+            .base
+            .set_addr(u24::new(current));
+
+        self.psx.dma.channels[channel as usize]
+            .block_control
+            .set_count(0);
+    }
+
+    fn transfer_linked(&mut self, channel: Channel) {
+        if channel == Channel::OTC {
+            self.transfer_burst(channel);
+            return;
+        }
+
+        assert_eq!(channel, Channel::GPU);
+
+        let channel_status = &self.psx.dma.channels[channel as usize];
+        let mut current = channel_status.base.addr().value() & !0b11;
+        loop {
+            let node = self.psx.read::<u32, true>(Address(current)).unwrap();
+            let next = node.bits(0, 24);
+            let words = node.bits(24, 32);
+
+            if next == 0x00FF_FFFF {
                 self.psx.dma.channels[channel as usize]
                     .base
                     .set_addr(u24::new(current));
 
-                self.psx.dma.channels[channel as usize]
-                    .block_control
-                    .set_count(0);
+                break;
             }
-            _ => todo!(),
-        }
-    }
 
-    fn transfer_linked(&mut self, channel: Channel) {
-        let channel_base = &self.psx.dma.channels[channel as usize].base;
-
-        match channel {
-            Channel::OTC => self.transfer_burst(channel),
-            Channel::GPU => {
-                let mut current = channel_base.addr().value() & !0b11;
-                loop {
-                    let node = self.psx.read::<u32, true>(Address(current)).unwrap();
-                    let next = node.bits(0, 24);
-                    let words = node.bits(24, 32);
-
-                    if next == 0x00FF_FFFF {
-                        self.psx.dma.channels[channel as usize]
-                            .base
-                            .set_addr(u24::new(current));
-
-                        break;
-                    }
-
-                    for i in 0..words {
-                        let addr = current + (i + 1) * 4;
-                        let word = self.psx.read::<u32, true>(Address(addr)).unwrap();
-                        self.psx
-                            .gpu
-                            .queue
-                            .push_back(gpu::instr::Packet::Rendering(word));
-                    }
-
-                    current = next & !0b11;
-                }
+            for i in 0..words {
+                let addr = current + (i + 1) * 4;
+                let word = self.psx.read::<u32, true>(Address(addr)).unwrap();
+                self.psx
+                    .gpu
+                    .queue
+                    .push_back(gpu::instr::Packet::Rendering(word));
             }
-            _ => todo!(),
+
+            current = next & !0b11;
         }
     }
 
