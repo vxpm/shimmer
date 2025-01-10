@@ -150,10 +150,109 @@ pub enum ExecState {
 }
 
 #[derive(Debug, Default)]
+pub struct Queue {
+    packets: VecDeque<Packet>,
+    render_len: usize,
+    display_len: usize,
+}
+
+impl Queue {
+    pub fn len(&self) -> usize {
+        self.packets.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn render_len(&self) -> usize {
+        self.render_len
+    }
+
+    pub fn display_len(&self) -> usize {
+        self.display_len
+    }
+
+    pub fn enqueue(&mut self, packet: Packet) {
+        match packet {
+            Packet::Rendering(_) => self.render_len += 1,
+            Packet::Display(_) => self.display_len += 1,
+        }
+
+        self.packets.push_back(packet);
+    }
+
+    pub fn front(&mut self) -> Option<&Packet> {
+        self.packets.front()
+    }
+
+    pub fn front_render(&mut self) -> Option<u32> {
+        let index = self
+            .packets
+            .iter()
+            .position(|p| matches!(p, Packet::Rendering(_)))?;
+
+        self.packets.get(index).map(|p| match p {
+            Packet::Rendering(value) => *value,
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn front_display(&mut self) -> Option<u32> {
+        let index = self
+            .packets
+            .iter()
+            .position(|p| matches!(p, Packet::Rendering(_)))?;
+
+        self.packets.get(index).map(|p| match p {
+            Packet::Display(value) => *value,
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn pop(&mut self) -> Option<Packet> {
+        let value = self.packets.pop_front();
+        match value {
+            Some(Packet::Rendering(_)) => self.render_len -= 1,
+            Some(Packet::Display(_)) => self.display_len -= 1,
+            _ => (),
+        }
+
+        value
+    }
+
+    pub fn pop_render(&mut self) -> Option<u32> {
+        let index = self
+            .packets
+            .iter()
+            .position(|p| matches!(p, Packet::Rendering(_)))?;
+
+        self.render_len -= 1;
+        self.packets.remove(index).map(|p| match p {
+            Packet::Rendering(value) => value,
+            _ => unreachable!(),
+        })
+    }
+
+    pub fn pop_display(&mut self) -> Option<u32> {
+        let index = self
+            .packets
+            .iter()
+            .position(|p| matches!(p, Packet::Rendering(_)))?;
+
+        self.display_len -= 1;
+        self.packets.remove(index).map(|p| match p {
+            Packet::Display(value) => value,
+            _ => unreachable!(),
+        })
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct State {
     pub status: GpuStatus,
     pub response: GpuResponse,
-    pub queue: VecDeque<Packet>,
+    pub queue: Queue,
 
     pub environment: EnvironmentState,
     pub display: DisplayState,

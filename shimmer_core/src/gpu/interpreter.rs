@@ -67,17 +67,15 @@ impl<'psx> Interpreter<'psx> {
                     debug!(
                         self.psx.loggers.gpu,
                         "vertex: {:?}",
-                        VertexPositionPacket::from_bits(
-                            self.psx.gpu.queue.pop_front().unwrap().value()
-                        )
+                        VertexPositionPacket::from_bits(self.psx.gpu.queue.pop_render().unwrap())
                     );
                 }
 
                 return;
             }
             RenderingOpcode::CpuToVramBlit => {
-                let dest = CoordPacket::from_bits(self.psx.gpu.queue.pop_front().unwrap().value());
-                let size = SizePacket::from_bits(self.psx.gpu.queue.pop_front().unwrap().value());
+                let dest = CoordPacket::from_bits(self.psx.gpu.queue.pop_render().unwrap());
+                let size = SizePacket::from_bits(self.psx.gpu.queue.pop_render().unwrap());
                 self.psx.gpu.execution_state = ExecState::CpuToVramBlit { dest, size };
 
                 return;
@@ -88,8 +86,8 @@ impl<'psx> Interpreter<'psx> {
         for _ in 0..instr.args() {
             debug!(
                 self.psx.loggers.gpu,
-                "instr arg: {:?}",
-                self.psx.gpu.queue.pop_front()
+                "ARG: {:?}",
+                self.psx.gpu.queue.pop_render()
             );
         }
     }
@@ -158,42 +156,35 @@ impl<'psx> Interpreter<'psx> {
             match &self.psx.gpu.execution_state {
                 ExecState::None => {
                     let instr = self.psx.gpu.queue.front().unwrap();
-                    let args = match instr {
-                        Packet::Rendering(packet) => {
-                            RenderingInstruction::from_bits(*packet).args()
-                        }
-                        Packet::Display(_) => 0,
-                    };
-
-                    if self.psx.gpu.queue.len() <= args {
-                        break;
-                    }
-
-                    let instr = self.psx.gpu.queue.pop_front().unwrap();
                     match instr {
                         Packet::Rendering(packet) => {
-                            self.exec_render(RenderingInstruction::from_bits(packet))
+                            let instr = RenderingInstruction::from_bits(*packet);
+                            if self.psx.gpu.queue.render_len() <= instr.args() {
+                                break;
+                            }
+
+                            self.psx.gpu.queue.pop();
+                            self.exec_render(instr);
                         }
                         Packet::Display(packet) => {
-                            self.exec_display(DisplayInstruction::from_bits(packet))
+                            let instr = DisplayInstruction::from_bits(*packet);
+
+                            self.psx.gpu.queue.pop();
+                            self.exec_display(instr);
                         }
-                    }
+                    };
                 }
-                ExecState::CpuToVramBlit { dest, size } => {
+                ExecState::CpuToVramBlit { dest: _, size } => {
                     let packets = (size.width() * size.height() + 1) / 2;
                     trace!(self.psx.loggers.gpu, "packet count: {:#08X}", packets);
 
-                    if self.psx.gpu.queue.len() <= packets as usize {
+                    if self.psx.gpu.queue.render_len() <= packets as usize {
                         break;
                     }
 
                     for _ in 0..packets {
-                        let packet = self.psx.gpu.queue.pop_front().unwrap();
-                        trace!(
-                            self.psx.loggers.gpu,
-                            "cpu to vram packet: {:#08X}",
-                            packet.value()
-                        );
+                        let packet = self.psx.gpu.queue.pop_render().unwrap();
+                        trace!(self.psx.loggers.gpu, "cpu to vram packet: {:#08X}", packet);
                     }
 
                     self.psx.gpu.execution_state = ExecState::None;
