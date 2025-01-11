@@ -6,7 +6,7 @@ use crate::{
     mem::Address,
 };
 use bitos::{BitUtils, integer::u24};
-use tinylog::info;
+use tinylog::{info, warn};
 
 pub struct Executor<'psx> {
     pub psx: &'psx mut PSX,
@@ -46,7 +46,7 @@ impl<'psx> Executor<'psx> {
                         self.psx.write::<_, true>(Address(current), prev).unwrap();
                     }
                 }
-                _ => todo!(),
+                _ => warn!(self.psx.loggers.dma, "unimplemented burst transfer"),
             }
 
             current = current.wrapping_add_signed(increment);
@@ -105,7 +105,7 @@ impl<'psx> Executor<'psx> {
                             .enqueue(gpu::cmd::Packet::Rendering(word));
                     }
                 },
-                _ => todo!(),
+                _ => warn!(self.psx.loggers.dma, "unimplemented slice transfer"),
             }
 
             current = current.wrapping_add_signed(increment);
@@ -157,14 +157,33 @@ impl<'psx> Executor<'psx> {
         }
     }
 
+    fn check_interrupt(&mut self) {
+        if self
+            .psx
+            .dma
+            .interrupt_control
+            .update_master_interrupt_flag()
+        {
+            self.psx.cop0.interrupt_status.request(Interrupt::DMA);
+        }
+    }
+
     pub fn progress_transfers(&mut self) {
+        self.check_interrupt();
+
         let mut enabled_channels = self.psx.dma.control.enabled_channels();
         enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
 
         for (channel, _) in enabled_channels {
             let channel_control = &self.psx.dma.channels[channel as usize].control;
             if channel_control.transfer_ongoing() {
-                if channel == Channel::OTC && !channel_control.force_transfer() {
+                let dreq = match channel {
+                    Channel::OTC => false,
+                    // Channel::GPU => self.psx.gpu.status.dma_request(),
+                    _ => true,
+                };
+
+                if !dreq && !channel_control.force_transfer() {
                     continue;
                 }
 
@@ -181,6 +200,7 @@ impl<'psx> Executor<'psx> {
                 channel_control.set_transfer_ongoing(false);
                 channel_control.set_force_transfer(false);
 
+                // set interrupt flag if enabled
                 let interrupt_control = &mut self.psx.dma.interrupt_control;
                 if interrupt_control
                     .channel_interrupt_mask_at(channel as usize)
@@ -189,16 +209,7 @@ impl<'psx> Executor<'psx> {
                     interrupt_control.set_channel_interrupt_flags_at(channel as usize, true);
                 }
 
-                let old_master_interrupt = interrupt_control.master_interrupt_flag();
-                let new_master_interrupt = interrupt_control.bus_error()
-                    || (interrupt_control.master_channel_interrupt_enable()
-                        && interrupt_control.channel_interrupt_flags_raw().value() != 0);
-
-                interrupt_control.set_master_interrupt_flag(new_master_interrupt);
-
-                if !old_master_interrupt && new_master_interrupt {
-                    self.psx.cop0.interrupt_status.request(Interrupt::DMA);
-                }
+                self.check_interrupt();
             }
         }
     }

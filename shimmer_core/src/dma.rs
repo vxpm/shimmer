@@ -197,14 +197,17 @@ pub struct InterruptControl {
 }
 
 impl InterruptControl {
-    /// If a DMA channel interrupt is being requested (i.e. a DMA interrupt should be
-    /// triggered if master channel interrupt is enabled), returns the channel requesting it.
-    #[inline]
-    pub fn requested(self) -> Option<u8> {
-        let requested =
-            self.channel_interrupt_flags_raw().value() & self.channel_interrupt_mask_raw().value();
-        let trailing = requested.trailing_zeros();
-        (trailing != 8).then_some(trailing as u8)
+    /// Updates the master interrupt flag and returns whether it performed a low-to-high
+    /// transition.
+    pub fn update_master_interrupt_flag(&mut self) -> bool {
+        let old = self.master_interrupt_flag();
+        self.set_master_interrupt_flag(
+            self.bus_error()
+                || (self.master_channel_interrupt_enable()
+                    && self.channel_interrupt_flags_raw().value() != 0),
+        );
+
+        !old && self.master_interrupt_flag()
     }
 }
 

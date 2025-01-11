@@ -609,19 +609,27 @@ impl PSX {
                     0u32.write_to(&mut bytes[offset..]);
                     value.write_to(&mut bytes[offset..]);
 
+                    // interrupt modes
                     self.dma
                         .interrupt_control
                         .set_channel_interrupt_mode(dummy.channel_interrupt_mode());
+
+                    // bus error flag
                     self.dma.interrupt_control.set_bus_error(dummy.bus_error());
+
+                    // interrupt mask
                     self.dma
                         .interrupt_control
-                        .set_channel_interrupt_mask_raw(dummy.channel_interrupt_mask_raw());
+                        .set_channel_interrupt_mask(dummy.channel_interrupt_mask());
+
+                    // interrupt enable
                     self.dma
                         .interrupt_control
                         .set_master_channel_interrupt_enable(
                             dummy.master_channel_interrupt_enable(),
                         );
 
+                    // reset interrupt flags
                     let reset = self
                         .dma
                         .interrupt_control

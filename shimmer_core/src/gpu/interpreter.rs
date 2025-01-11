@@ -95,10 +95,13 @@ impl<'psx> Interpreter<'psx> {
                     );
                 }
 
+                self.psx.gpu.status.set_ready_to_receive_cmd(true);
                 self.psx.gpu.status.set_ready_to_receive_block(true);
                 return;
             }
             RenderingOpcode::CpuToVramBlit => {
+                self.psx.gpu.status.set_ready_to_send_vram(true);
+
                 let dest = CoordPacket::from_bits(self.psx.gpu.queue.pop_render().unwrap());
                 let size = SizePacket::from_bits(self.psx.gpu.queue.pop_render().unwrap());
                 self.psx.gpu.execution_state = ExecState::CpuToVramBlit { dest, size };
@@ -123,6 +126,7 @@ impl<'psx> Interpreter<'psx> {
 
         match cmd.opcode().unwrap() {
             DisplayOpcode::ResetGpu => {
+                // TODO: reset internal registers
                 self.psx.gpu.status = GpuStatus::default();
             }
             DisplayOpcode::DisplayMode => {
@@ -139,8 +143,7 @@ impl<'psx> Interpreter<'psx> {
             }
             DisplayOpcode::DmaDirection => {
                 let cmd = cmd.dma_direction_cmd();
-                let dir = cmd.direction();
-                self.psx.gpu.status.set_dma_direction(dir);
+                self.psx.gpu.status.set_dma_direction(cmd.direction());
 
                 self.update_dma_request();
             }
@@ -172,15 +175,20 @@ impl<'psx> Interpreter<'psx> {
                     match cmd {
                         Packet::Rendering(packet) => {
                             let cmd = RenderingCommand::from_bits(*packet);
-                            if matches!(
+                            let has_dynamic_arg_count = matches!(
                                 cmd.opcode(),
                                 RenderingOpcode::Line | RenderingOpcode::Polygon
-                            ) {
+                            );
+
+                            if has_dynamic_arg_count {
                                 self.psx.gpu.status.set_ready_to_receive_block(false);
                             }
 
                             if self.psx.gpu.queue.render_len() <= cmd.args() {
+                                self.psx.gpu.status.set_ready_to_receive_cmd(false);
                                 break;
+                            } else if !has_dynamic_arg_count {
+                                self.psx.gpu.status.set_ready_to_receive_cmd(true);
                             }
 
                             self.psx.gpu.queue.pop();

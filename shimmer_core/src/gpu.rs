@@ -1,8 +1,6 @@
 pub mod cmd;
 pub mod interpreter;
 
-pub use interpreter::Interpreter;
-
 use crate::cpu;
 use bitos::{
     bitos,
@@ -14,6 +12,8 @@ use cmd::{
     rendering::{CoordPacket, SizePacket},
 };
 use std::{collections::VecDeque, ops::Range};
+
+pub use interpreter::Interpreter;
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,49 +69,49 @@ pub struct GpuStatus {
     pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
     pub texpage_depth: TexturePageDepth,
-    #[bits(9..10)]
+    #[bits(9)]
     pub compression_mode: CompressionMode,
-    #[bits(10..11)]
+    #[bits(10)]
     pub enable_drawing_to_display: bool,
     /// If enabled, drawing sets the mask bit on pixels.
-    #[bits(11..12)]
+    #[bits(11)]
     pub write_to_mask: bool,
     /// If enabled, pixels can only be drawn to non-masked areas.
-    #[bits(12..13)]
+    #[bits(12)]
     pub enable_mask: bool,
-    #[bits(13..14)]
+    #[bits(13)]
     pub interlace: bool,
-    #[bits(14..15)]
+    #[bits(14)]
     pub flip_screen_x: bool,
     #[bits(15)]
     pub texpage_y_base_2: u1,
     #[bits(16..18)]
     pub horizontal_resolution: HorizontalResolution,
-    #[bits(18..19)]
+    #[bits(18)]
     pub force_horizontal_368: bool,
-    #[bits(19..20)]
+    #[bits(19)]
     pub vertical_resolution: VerticalResolution,
-    #[bits(20..21)]
+    #[bits(20)]
     pub video_mode: VideoMode,
-    #[bits(21..22)]
+    #[bits(21)]
     pub display_depth: DisplayDepth,
-    #[bits(22..23)]
+    #[bits(22)]
     pub vertical_interlace: bool,
-    #[bits(23..24)]
+    #[bits(23)]
     pub disable_display: bool,
-    #[bits(24..25)]
+    #[bits(24)]
     pub interrupt_request: bool,
-    #[bits(25..26)]
+    #[bits(25)]
     pub dma_request: bool,
-    #[bits(26..27)]
-    pub ready_to_receive_packet: bool,
-    #[bits(27..28)]
+    #[bits(26)]
+    pub ready_to_receive_cmd: bool,
+    #[bits(27)]
     pub ready_to_send_vram: bool,
-    #[bits(28..29)]
+    #[bits(28)]
     pub ready_to_receive_block: bool,
     #[bits(29..31)]
     pub dma_direction: DmaDirection,
-    #[bits(31..32)]
+    #[bits(31)]
     pub interlace_odd: bool,
 }
 

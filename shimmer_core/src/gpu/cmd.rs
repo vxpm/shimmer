@@ -97,9 +97,7 @@ impl std::fmt::Debug for DisplayCommand {
                 DisplayOpcode::DisplayEnabled => self.display_enable_cmd().fmt(f),
                 DisplayOpcode::DmaDirection => self.dma_direction_cmd().fmt(f),
                 DisplayOpcode::DisplayArea => self.display_area_cmd().fmt(f),
-                DisplayOpcode::HorizontalDisplayRange => {
-                    self.horizontal_display_range_cmd().fmt(f)
-                }
+                DisplayOpcode::HorizontalDisplayRange => self.horizontal_display_range_cmd().fmt(f),
                 DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_cmd().fmt(f),
                 DisplayOpcode::DisplayMode => self.display_mode_cmd().fmt(f),
                 DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV1"),
@@ -165,9 +163,7 @@ impl std::fmt::Debug for RenderingCommand {
                     EnvironmentOpcode::TexWindowSettings => {
                         self.texture_window_settings_cmd().fmt(f)
                     }
-                    EnvironmentOpcode::DrawingAreaTopLeft => {
-                        self.drawing_area_corner_cmd().fmt(f)
-                    }
+                    EnvironmentOpcode::DrawingAreaTopLeft => self.drawing_area_corner_cmd().fmt(f),
                     EnvironmentOpcode::DrawingAreaBottomRight => {
                         self.drawing_area_corner_cmd().fmt(f)
                     }
