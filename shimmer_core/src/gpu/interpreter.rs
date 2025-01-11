@@ -26,7 +26,7 @@ impl<'psx> Interpreter<'psx> {
     fn update_dma_request(&mut self) {
         let dir = self.psx.gpu.status.dma_direction();
         match dir {
-            DmaDirection::Off => self.psx.gpu.status.set_dma_request(false),
+            DmaDirection::Off => self.psx.gpu.status.set_dma_request(true),
             DmaDirection::Fifo => self.psx.gpu.status.set_dma_request(true),
             DmaDirection::CpuToGp0 => self
                 .psx
@@ -204,12 +204,11 @@ impl<'psx> Interpreter<'psx> {
                 }
                 ExecState::CpuToVramBlit { dest: _, size } => {
                     let packets = (size.width() * size.height() + 1) / 2;
-                    trace!(self.psx.loggers.gpu, "packet count: {:#08X}", packets);
-
                     if self.psx.gpu.queue.render_len() <= packets as usize {
                         break;
                     }
 
+                    trace!(self.psx.loggers.gpu, "packet count: {:#08X}", packets);
                     for _ in 0..packets {
                         let packet = self.psx.gpu.queue.pop_render().unwrap();
                         trace!(self.psx.loggers.gpu, "cpu to vram packet: {:#08X}", packet);
