@@ -649,6 +649,7 @@ impl PSX {
                     self.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::Gp1 => {
                     let mut raw = 0u32;
@@ -656,6 +657,7 @@ impl PSX {
                     self.gpu.queue.enqueue(gpu::cmd::Packet::Display(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
+                    self.scheduler.schedule(Event::Dma, 0);
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();

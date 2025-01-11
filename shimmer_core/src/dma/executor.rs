@@ -93,10 +93,13 @@ impl<'psx> Executor<'psx> {
                 Channel::GPU => match transfer_direction {
                     TransferDirection::DeviceToRam => todo!(),
                     TransferDirection::RamToDevice => {
-                        assert_eq!(
-                            self.psx.gpu.status.dma_direction(),
-                            gpu::DmaDirection::CpuToGp0
-                        );
+                        // assert_eq!(
+                        //     self.psx.gpu.status.dma_direction(),
+                        //     gpu::DmaDirection::CpuToGp0
+                        // );
+                        if self.psx.gpu.status.dma_direction() != gpu::DmaDirection::CpuToGp0 {
+                            warn!(self.psx.loggers.gpu, "wrong DMA direction");
+                        }
 
                         let word = self.psx.read::<u32, true>(Address(current)).unwrap();
                         self.psx
@@ -179,7 +182,7 @@ impl<'psx> Executor<'psx> {
             if channel_control.transfer_ongoing() {
                 let dreq = match channel {
                     Channel::OTC => false,
-                    // Channel::GPU => self.psx.gpu.status.dma_request(),
+                    Channel::GPU => self.psx.gpu.status.dma_request(),
                     _ => true,
                 };
 
