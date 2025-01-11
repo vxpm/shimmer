@@ -192,7 +192,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::SWL => self.swl(instr),
                 Opcode::SWR => self.swr(instr),
                 Opcode::XORI => self.xori(instr),
-                Opcode::COP0 | Opcode::COP2 => {
+                Opcode::COP0 | Opcode::COP1 | Opcode::COP2 | Opcode::COP3 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
                             CoOpcode::MFC => self.mfc(instr),
@@ -214,6 +214,7 @@ impl<'ctx> Interpreter<'ctx> {
                         DEFAULT_CYCLE_COUNT
                     }
                 }
+                Opcode::SWC0 | Opcode::SWC1 | Opcode::SWC2 | Opcode::SWC3 => self.swc(instr),
                 Opcode::SPECIAL => {
                     if let Some(op) = instr.special_op() {
                         match op {

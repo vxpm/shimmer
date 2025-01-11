@@ -19,15 +19,19 @@ pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum COP {
     COP0 = 0,
+    COP1 = 1,
     /// GTE
     COP2 = 2,
+    COP3 = 3,
 }
 
 impl COP {
     pub fn opcode(&self) -> instr::Opcode {
         match self {
             COP::COP0 => instr::Opcode::COP0,
+            COP::COP1 => instr::Opcode::COP1,
             COP::COP2 => instr::Opcode::COP2,
+            COP::COP3 => instr::Opcode::COP3,
         }
     }
 }
