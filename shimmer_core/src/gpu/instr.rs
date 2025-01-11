@@ -3,32 +3,33 @@ pub mod environment;
 pub mod rendering;
 
 use self::{display::*, environment::*, rendering::*};
-use bitos::{bitos, integer::u2};
+use bitos::bitos;
 
 /// The primary opcode of a [`RenderingInstruction`].
 #[bitos(3)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RenderingOpcode {
-    Misc = 0,
-    Polygon = 1,
-    Line = 2,
-    Rectangle = 3,
-    VramToVramBlit = 4,
-    CpuToVramBlit = 5,
-    VramToCpuBlit = 6,
-    Environment = 7,
+    Misc = 0x0,
+    Polygon = 0x1,
+    Line = 0x2,
+    Rectangle = 0x3,
+    VramToVramBlit = 0x4,
+    CpuToVramBlit = 0x5,
+    VramToCpuBlit = 0x6,
+    Environment = 0x7,
 }
 
 /// The misc opcode of a [`RenderingInstruction`].
-#[bitos(2)]
+#[bitos(5)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum MiscOpcode {
     /// Does nothing.
-    NOP = 0,
+    NOP = 0x00,
     /// Clear the texture cache of the GPU.
-    ClearCache = 1,
-    /// Fills an area in the frame buffer with a color. Requires 2 data packets.
-    QuickRectangleFill = 2,
+    ClearCache = 0x01,
+    /// Fills an area in the frame buffer with a color.
+    QuickRectangleFill = 0x02,
+    InterruptRequest = 0x1F,
 }
 
 /// The environment opcode of a [`RenderingInstruction`].
@@ -36,17 +37,16 @@ pub enum MiscOpcode {
 #[derive(Debug, PartialEq, Eq)]
 pub enum EnvironmentOpcode {
     /// Set the drawing setings.
-    DrawingSettings = 1,
+    DrawingSettings = 0x1,
     /// Setthe texture window settings.
-    TexWindowSettings = 2,
+    TexWindowSettings = 0x2,
     /// Set the top-left position of the drawing area.
-    DrawingAreaTopLeft = 3,
+    DrawingAreaTopLeft = 0x3,
     /// Set the bottom-right position of the drawing area.
-    DrawingAreaBottomRight = 4,
+    DrawingAreaBottomRight = 0x4,
     /// Set the offset of the drawing area.
-    DrawingOffset = 5,
-    // TODO: document
-    MaskBit = 6,
+    DrawingOffset = 0x5,
+    MaskSettings = 0x6,
 }
 
 #[bitos(6)]
@@ -61,8 +61,9 @@ pub enum DisplayOpcode {
     HorizontalDisplayRange = 0x6,
     VerticalDisplayRange = 0x7,
     DisplayMode = 0x8,
+    VramSizeV1 = 0x09,
     ReadGpuRegister = 0x10,
-    VramSize = 0x20,
+    VramSizeV2 = 0x20,
 }
 
 /// A Display instruction. Received through GP1.
@@ -101,8 +102,9 @@ impl std::fmt::Debug for DisplayInstruction {
                 }
                 DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_instr().fmt(f),
                 DisplayOpcode::DisplayMode => self.display_mode_instr().fmt(f),
+                DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV1"),
                 DisplayOpcode::ReadGpuRegister => write!(f, "ReadGpuRegister"),
-                DisplayOpcode::VramSize => write!(f, "VramSize"),
+                DisplayOpcode::VramSizeV2 => write!(f, "VramSizeV2"),
             },
             None => write!(f, "unknown opcode"),
         }
@@ -115,10 +117,8 @@ impl std::fmt::Debug for DisplayInstruction {
 pub struct RenderingInstruction {
     #[bits(29..32)]
     pub opcode: RenderingOpcode,
-    #[bits(24..26)]
+    #[bits(24..29)]
     pub misc_opcode: Option<MiscOpcode>,
-    #[bits(24..26)]
-    pub misc_opcode_raw: u2,
     #[bits(24..27)]
     pub environment_opcode: Option<EnvironmentOpcode>,
 
@@ -138,7 +138,7 @@ pub struct RenderingInstruction {
     #[bits(..)]
     pub drawing_offset_instr: DrawingOffsetInstr,
     #[bits(..)]
-    pub mask_bit_settings_instr: MaskBitSettingsInstr,
+    pub mask_settings_instr: MaskSettingsInstr,
 }
 
 impl std::fmt::Debug for RenderingInstruction {
@@ -149,6 +149,7 @@ impl std::fmt::Debug for RenderingInstruction {
                     MiscOpcode::NOP => write!(f, "NOP"),
                     MiscOpcode::ClearCache => write!(f, "ClearCache"),
                     MiscOpcode::QuickRectangleFill => write!(f, "QuickRectangleFill"),
+                    MiscOpcode::InterruptRequest => write!(f, "InterruptRequest"),
                 },
                 None => write!(f, "unknown misc opcode"),
             },
@@ -171,7 +172,7 @@ impl std::fmt::Debug for RenderingInstruction {
                         self.drawing_area_corner_instr().fmt(f)
                     }
                     EnvironmentOpcode::DrawingOffset => self.drawing_offset_instr().fmt(f),
-                    EnvironmentOpcode::MaskBit => self.mask_bit_settings_instr().fmt(f),
+                    EnvironmentOpcode::MaskSettings => self.mask_settings_instr().fmt(f),
                 },
                 None => write!(f, "unknown environment opcode"),
             },

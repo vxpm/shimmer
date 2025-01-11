@@ -20,6 +20,7 @@ impl<'psx> Executor<'psx> {
     fn transfer_burst(&mut self, channel: Channel) {
         let channel_state = &self.psx.dma.channels[channel as usize];
 
+        info!(self.psx.loggers.dma, "BURST TRANSFER OF {channel:?}");
         let base = channel_state.base.addr().value() & !0b11;
         let entries = if channel_state.block_control.len() == 0 {
             0x10000
@@ -72,6 +73,7 @@ impl<'psx> Executor<'psx> {
             return;
         }
 
+        info!(self.psx.loggers.dma, "SLICE TRANSFER OF {channel:?}");
         let channel_state = &self.psx.dma.channels[channel as usize];
 
         let count = channel_state.block_control.count();
@@ -124,6 +126,7 @@ impl<'psx> Executor<'psx> {
             return;
         }
 
+        info!(self.psx.loggers.dma, "LINKED TRANSFER OF {channel:?}");
         assert_eq!(channel, Channel::GPU);
 
         let channel_status = &self.psx.dma.channels[channel as usize];
@@ -164,8 +167,6 @@ impl<'psx> Executor<'psx> {
                 if channel == Channel::OTC && !channel_control.force_transfer() {
                     continue;
                 }
-
-                info!(self.psx.loggers.dma, "{channel:?} ongoing"; control = channel_control.clone());
 
                 match channel_control
                     .transfer_mode()

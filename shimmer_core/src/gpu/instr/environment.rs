@@ -99,6 +99,6 @@ pub struct DrawingOffsetInstr {
 /// A drawing offset instruction.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct MaskBitSettingsInstr {
+pub struct MaskSettingsInstr {
     // TODO: define this
 }

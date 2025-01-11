@@ -12,7 +12,7 @@ use crate::{
         },
     },
 };
-use tinylog::{debug, trace};
+use tinylog::{debug, trace, warn};
 
 pub struct Interpreter<'psx> {
     pub psx: &'psx mut PSX,
@@ -21,6 +21,24 @@ pub struct Interpreter<'psx> {
 impl<'psx> Interpreter<'psx> {
     pub fn new(psx: &'psx mut PSX) -> Self {
         Self { psx }
+    }
+
+    fn update_dma_request(&mut self) {
+        let dir = self.psx.gpu.status.dma_direction();
+        match dir {
+            DmaDirection::Off => self.psx.gpu.status.set_dma_request(false),
+            DmaDirection::Fifo => self.psx.gpu.status.set_dma_request(true),
+            DmaDirection::CpuToGp0 => self
+                .psx
+                .gpu
+                .status
+                .set_dma_request(self.psx.gpu.status.ready_to_receive_block()),
+            DmaDirection::GpuToCpu => self
+                .psx
+                .gpu
+                .status
+                .set_dma_request(self.psx.gpu.status.ready_to_send_vram()),
+        };
     }
 
     /// Executes the given rendering instruction.
@@ -34,7 +52,10 @@ impl<'psx> Interpreter<'psx> {
         match instr.opcode() {
             RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
                 MiscOpcode::NOP => (),
-                _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+                _ => warn!(
+                    self.psx.loggers.gpu,
+                    "unimplemented rendering (misc) instruction"
+                ),
             },
             RenderingOpcode::Environment => {
                 let Some(opcode) = instr.environment_opcode() else {
@@ -59,7 +80,10 @@ impl<'psx> Interpreter<'psx> {
                         self.psx.gpu.environment.textured_rect_flip_y =
                             settings.textured_rect_flip_y();
                     }
-                    _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+                    _ => warn!(
+                        self.psx.loggers.gpu,
+                        "unimplemented rendering (environment) instruction"
+                    ),
                 }
             }
             RenderingOpcode::Polygon => {
@@ -71,6 +95,7 @@ impl<'psx> Interpreter<'psx> {
                     );
                 }
 
+                self.psx.gpu.status.set_ready_to_receive_block(true);
                 return;
             }
             RenderingOpcode::CpuToVramBlit => {
@@ -80,7 +105,7 @@ impl<'psx> Interpreter<'psx> {
 
                 return;
             }
-            _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+            _ => warn!(self.psx.loggers.gpu, "unimplemented rendering instruction"),
         }
 
         for _ in 0..instr.args() {
@@ -117,21 +142,7 @@ impl<'psx> Interpreter<'psx> {
                 let dir = instr.direction();
                 self.psx.gpu.status.set_dma_direction(dir);
 
-                match dir {
-                    DmaDirection::Off => self.psx.gpu.status.set_dma_request(false),
-                    // TODO: fifo state
-                    DmaDirection::Fifo => self.psx.gpu.status.set_dma_request(true),
-                    DmaDirection::CpuToGp0 => self
-                        .psx
-                        .gpu
-                        .status
-                        .set_dma_request(self.psx.gpu.status.ready_to_receive_block()),
-                    DmaDirection::GpuToCpu => self
-                        .psx
-                        .gpu
-                        .status
-                        .set_dma_request(self.psx.gpu.status.ready_to_send_vram()),
-                };
+                self.update_dma_request();
             }
             DisplayOpcode::DisplayArea => {
                 let settings = instr.display_area_instr();
@@ -146,12 +157,14 @@ impl<'psx> Interpreter<'psx> {
                 let settings = instr.vertical_dispaly_range_instr();
                 self.psx.gpu.display.vertical_range = settings.y1()..settings.y2();
             }
-            _ => debug!(self.psx.loggers.gpu, "unimplemented"),
+            _ => warn!(self.psx.loggers.gpu, "unimplemented display instruction"),
         }
     }
 
     /// Executes all queued GPU instructions.
     pub fn exec_queued(&mut self) {
+        self.update_dma_request();
+
         while !self.psx.gpu.queue.is_empty() {
             match &self.psx.gpu.execution_state {
                 ExecState::None => {
@@ -159,6 +172,13 @@ impl<'psx> Interpreter<'psx> {
                     match instr {
                         Packet::Rendering(packet) => {
                             let instr = RenderingInstruction::from_bits(*packet);
+                            if matches!(
+                                instr.opcode(),
+                                RenderingOpcode::Line | RenderingOpcode::Polygon
+                            ) {
+                                self.psx.gpu.status.set_ready_to_receive_block(false);
+                            }
+
                             if self.psx.gpu.queue.render_len() <= instr.args() {
                                 break;
                             }
