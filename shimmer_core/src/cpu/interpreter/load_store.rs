@@ -2,7 +2,7 @@ use tinylog::trace;
 
 use super::{DEFAULT_CYCLE_COUNT, Interpreter};
 use crate::{
-    cpu::{RegLoad, cop0::Exception, instr::Instruction},
+    cpu::{COP, RegLoad, cop0::Exception, instr::Instruction},
     mem::Address,
 };
 
@@ -274,6 +274,27 @@ impl Interpreter<'_> {
         for (i, byte) in (0..len).zip(value.iter()) {
             let addr = addr + i;
             self.psx.write_unaligned::<u8, false>(addr, *byte);
+        }
+
+        MEMORY_CYCLE_COUNT
+    }
+
+    pub fn swc(&mut self, instr: Instruction) -> u64 {
+        let rs = self.psx.cpu.regs.read(instr.rs());
+        let _addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let system_status = self.psx.cop0.regs.system_status();
+
+        match instr.cop() {
+            COP::COP0 if system_status.cop0_enabled_in_user_mode() => (),
+            COP::COP1 if system_status.cop1_enabled() => (),
+            COP::COP2 if system_status.cop2_enabled() => {
+                /* let rt = self.psx.gte.regs.read(instr.rt());
+                if self.psx.write(addr, rt).is_err() {
+                    self.trigger_exception(Exception::AddressErrorStore);
+                }*/
+            }
+            COP::COP3 if system_status.cop3_enabled() => (),
+            _ => self.trigger_exception(Exception::CopUnusable),
         }
 
         MEMORY_CYCLE_COUNT

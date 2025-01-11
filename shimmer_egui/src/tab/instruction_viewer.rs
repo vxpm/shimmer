@@ -100,9 +100,21 @@ impl InstructionViewer {
                             let response = ui.label(name.color($color).monospace());
                             response.on_hover_text(stringify!($reg));
                         }
+                        RegSource::COP1 => {
+                            let reg = instr.$call();
+                            let name = RichText::new(format!("COP1_{reg:?}"));
+                            let response = ui.label(name.color($color).monospace());
+                            response.on_hover_text(stringify!($reg));
+                        }
                         RegSource::COP2 => {
                             let reg = instr.$call();
-                            let name = RichText::new(format!("COP0_{reg:?}"));
+                            let name = RichText::new(format!("COP2_{reg:?}"));
+                            let response = ui.label(name.color($color).monospace());
+                            response.on_hover_text(stringify!($reg));
+                        }
+                        RegSource::COP3 => {
+                            let reg = instr.$call();
+                            let name = RichText::new(format!("COP3_{reg:?}"));
                             let response = ui.label(name.color($color).monospace());
                             response.on_hover_text(stringify!($reg));
                         }
