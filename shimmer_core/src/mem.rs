@@ -638,14 +638,16 @@ impl PSX {
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;
                     value.write_to(&mut raw.as_mut_bytes()[offset..]);
-                    self.gpu.queue.enqueue(gpu::instr::Packet::Rendering(raw));
+                    self.gpu
+                        .queue
+                        .enqueue(gpu::commands::Packet::Rendering(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
                 }
                 io::Reg::Gp1 => {
                     let mut raw = 0u32;
                     value.write_to(&mut raw.as_mut_bytes()[offset..]);
-                    self.gpu.queue.enqueue(gpu::instr::Packet::Display(raw));
+                    self.gpu.queue.enqueue(gpu::commands::Packet::Display(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
                 }

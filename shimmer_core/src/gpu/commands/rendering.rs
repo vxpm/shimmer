@@ -23,7 +23,7 @@ pub struct SizePacket {
     pub height: u16,
 }
 
-/// The texture mode of a rendering instruction.
+/// The texture mode of a rendering command.
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum TextureMode {
@@ -31,7 +31,7 @@ pub enum TextureMode {
     Raw = 1,
 }
 
-/// The transparency mode of a rendering instruction.
+/// The transparency mode of a rendering command.
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum TransparencyMode {
@@ -39,7 +39,7 @@ pub enum TransparencyMode {
     SemiTransparent = 1,
 }
 
-/// The shading mode of a rendering instruction.
+/// The shading mode of a rendering command.
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum ShadingMode {
@@ -97,7 +97,7 @@ pub struct VertexUVPacket {
     page: TexPage,
 }
 
-/// The Polygon mode of a [`PolygonInstr`].
+/// The Polygon mode of a [`PolygonCmd`].
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum PolygonMode {
@@ -105,20 +105,20 @@ pub enum PolygonMode {
     Rectangle = 1,
 }
 
-/// A polygon rendering instruction. This instruction always requires some data packets, with the
+/// A polygon rendering command. This command always requires some data packets, with the
 /// amount changing depending on some of it's values.
 ///
-/// The data required by this instruction is vertex data, and it is received in the following
+/// The data required by this command is vertex data, and it is received in the following
 /// sequence:
 /// - If doing gouraud shading, a [`VertexColorPacket`].
 /// - A [`VertexPositionPacket`].
 /// - If doing textured polygons, a [`VertexUVPacket`].
 ///
-/// If the `polygon_mode` of this instruction is [`PolygonMode::Triangle`], 3 vertices are
+/// If the `polygon_mode` of this command is [`PolygonMode::Triangle`], 3 vertices are
 /// required. Otherwise, 4 are required. Pretty intuitive!
 #[bitos(32)]
 #[derive(Debug)]
-pub struct PolygonInstr {
+pub struct PolygonCmd {
     #[bits(0..8)]
     pub color_r: u8,
     #[bits(8..16)]
@@ -137,7 +137,7 @@ pub struct PolygonInstr {
     pub shading_mode: ShadingMode,
 }
 
-/// The line mode of a [`LineInstr`].
+/// The line mode of a [`LineCmd`].
 #[bitos(1)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum LineMode {
@@ -145,10 +145,10 @@ pub enum LineMode {
     Poly = 1,
 }
 
-/// A line rendering instruction. This instruction always requires some data packets, with the
+/// A line rendering command. This command always requires some data packets, with the
 /// amount changing depending on some of it's values.
 ///
-/// The data required by this instruction is vertex data, and it is received in the following
+/// The data required by this command is vertex data, and it is received in the following
 /// sequence:
 /// - If doing gouraud shading, a [`VertexColorPacket`].
 /// - A [`VertexPositionPacket`].
@@ -157,7 +157,7 @@ pub enum LineMode {
 /// 0x5000_5000 is received.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct LineInstr {
+pub struct LineCmd {
     #[bits(0..8)]
     pub color_r: u8,
     #[bits(8..16)]
@@ -172,7 +172,7 @@ pub struct LineInstr {
     pub shading_mode: ShadingMode,
 }
 
-/// The rectangle mode of a [`RectangleInstr`].
+/// The rectangle mode of a [`RectangleCmd`].
 #[bitos(2)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RectangleMode {
@@ -182,10 +182,10 @@ pub enum RectangleMode {
     Sprite16 = 3,
 }
 
-/// A rectangle rendering instruction. This instruction always requires some data packets, with the
+/// A rectangle rendering command. This command always requires some data packets, with the
 /// amount changing depending on some of it's values.
 ///
-/// The data required by this instruction is vertex data, and it is received in the following
+/// The data required by this command is vertex data, and it is received in the following
 /// sequence:
 /// - A [`VertexPositionPacket`], interpreted as the top-left corner of the Rectangle.
 /// - If doing textured rectangle, a [`VertexUVPacket`].
@@ -193,7 +193,7 @@ pub enum RectangleMode {
 /// height of the rectangle.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct RectangleInstr {
+pub struct RectangleCmd {
     #[bits(0..8)]
     pub color_r: u8,
     #[bits(8..16)]

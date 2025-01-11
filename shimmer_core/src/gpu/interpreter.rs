@@ -1,12 +1,12 @@
 use super::{
     ExecState,
-    instr::{DisplayInstruction, Packet, RenderingInstruction},
+    commands::{DisplayCommand, Packet, RenderingCommand},
 };
 use crate::{
     PSX,
     gpu::{
         DmaDirection, GpuStatus,
-        instr::{
+        commands::{
             DisplayOpcode, EnvironmentOpcode, MiscOpcode, RenderingOpcode,
             rendering::{CoordPacket, SizePacket, VertexPositionPacket},
         },
@@ -41,30 +41,30 @@ impl<'psx> Interpreter<'psx> {
         };
     }
 
-    /// Executes the given rendering instruction.
-    pub fn exec_render(&mut self, instr: RenderingInstruction) {
+    /// Executes the given rendering command.
+    pub fn exec_render(&mut self, cmd: RenderingCommand) {
         debug!(
             self.psx.loggers.gpu,
-            "received render instr: {instr:?} (0x{:08X})",
-            instr.into_bits()
+            "received render cmd: {cmd:?} (0x{:08X})",
+            cmd.into_bits()
         );
 
-        match instr.opcode() {
-            RenderingOpcode::Misc => match instr.misc_opcode().unwrap() {
+        match cmd.opcode() {
+            RenderingOpcode::Misc => match cmd.misc_opcode().unwrap() {
                 MiscOpcode::NOP => (),
                 _ => warn!(
                     self.psx.loggers.gpu,
-                    "unimplemented rendering (misc) instruction"
+                    "unimplemented rendering (misc) command"
                 ),
             },
             RenderingOpcode::Environment => {
-                let Some(opcode) = instr.environment_opcode() else {
+                let Some(opcode) = cmd.environment_opcode() else {
                     return;
                 };
 
                 match opcode {
                     EnvironmentOpcode::DrawingSettings => {
-                        let settings = instr.drawing_settings_instr();
+                        let settings = cmd.drawing_settings_cmd();
                         let stat = &mut self.psx.gpu.status;
 
                         stat.set_texpage_x_base(settings.texpage_x_base());
@@ -82,12 +82,12 @@ impl<'psx> Interpreter<'psx> {
                     }
                     _ => warn!(
                         self.psx.loggers.gpu,
-                        "unimplemented rendering (environment) instruction"
+                        "unimplemented rendering (environment) command"
                     ),
                 }
             }
             RenderingOpcode::Polygon => {
-                for _ in 0..instr.args() {
+                for _ in 0..cmd.args() {
                     debug!(
                         self.psx.loggers.gpu,
                         "vertex: {:?}",
@@ -105,10 +105,10 @@ impl<'psx> Interpreter<'psx> {
 
                 return;
             }
-            _ => warn!(self.psx.loggers.gpu, "unimplemented rendering instruction"),
+            _ => warn!(self.psx.loggers.gpu, "unimplemented rendering command"),
         }
 
-        for _ in 0..instr.args() {
+        for _ in 0..cmd.args() {
             debug!(
                 self.psx.loggers.gpu,
                 "ARG: {:?}",
@@ -117,16 +117,16 @@ impl<'psx> Interpreter<'psx> {
         }
     }
 
-    /// Executes the given display instruction.
-    pub fn exec_display(&mut self, instr: DisplayInstruction) {
-        debug!(self.psx.loggers.gpu, "received display instr: {instr:?}");
+    /// Executes the given display command.
+    pub fn exec_display(&mut self, cmd: DisplayCommand) {
+        debug!(self.psx.loggers.gpu, "received display cmd: {cmd:?}");
 
-        match instr.opcode().unwrap() {
+        match cmd.opcode().unwrap() {
             DisplayOpcode::ResetGpu => {
                 self.psx.gpu.status = GpuStatus::default();
             }
             DisplayOpcode::DisplayMode => {
-                let settings = instr.display_mode_instr();
+                let settings = cmd.display_mode_cmd();
                 let stat = &mut self.psx.gpu.status;
 
                 stat.set_horizontal_resolution(settings.horizontal_resolution());
@@ -138,59 +138,59 @@ impl<'psx> Interpreter<'psx> {
                 stat.set_flip_screen_x(settings.flip_screen_x());
             }
             DisplayOpcode::DmaDirection => {
-                let instr = instr.dma_direction_instr();
-                let dir = instr.direction();
+                let cmd = cmd.dma_direction_cmd();
+                let dir = cmd.direction();
                 self.psx.gpu.status.set_dma_direction(dir);
 
                 self.update_dma_request();
             }
             DisplayOpcode::DisplayArea => {
-                let settings = instr.display_area_instr();
+                let settings = cmd.display_area_cmd();
                 self.psx.gpu.display.area_start_x = settings.x();
                 self.psx.gpu.display.area_start_y = settings.y();
             }
             DisplayOpcode::HorizontalDisplayRange => {
-                let settings = instr.horizontal_display_range_instr();
+                let settings = cmd.horizontal_display_range_cmd();
                 self.psx.gpu.display.horizontal_range = settings.x1()..settings.x2();
             }
             DisplayOpcode::VerticalDisplayRange => {
-                let settings = instr.vertical_dispaly_range_instr();
+                let settings = cmd.vertical_dispaly_range_cmd();
                 self.psx.gpu.display.vertical_range = settings.y1()..settings.y2();
             }
-            _ => warn!(self.psx.loggers.gpu, "unimplemented display instruction"),
+            _ => warn!(self.psx.loggers.gpu, "unimplemented display command"),
         }
     }
 
-    /// Executes all queued GPU instructions.
+    /// Executes all queued GPU commands.
     pub fn exec_queued(&mut self) {
         self.update_dma_request();
 
         while !self.psx.gpu.queue.is_empty() {
             match &self.psx.gpu.execution_state {
                 ExecState::None => {
-                    let instr = self.psx.gpu.queue.front().unwrap();
-                    match instr {
+                    let cmd = self.psx.gpu.queue.front().unwrap();
+                    match cmd {
                         Packet::Rendering(packet) => {
-                            let instr = RenderingInstruction::from_bits(*packet);
+                            let cmd = RenderingCommand::from_bits(*packet);
                             if matches!(
-                                instr.opcode(),
+                                cmd.opcode(),
                                 RenderingOpcode::Line | RenderingOpcode::Polygon
                             ) {
                                 self.psx.gpu.status.set_ready_to_receive_block(false);
                             }
 
-                            if self.psx.gpu.queue.render_len() <= instr.args() {
+                            if self.psx.gpu.queue.render_len() <= cmd.args() {
                                 break;
                             }
 
                             self.psx.gpu.queue.pop();
-                            self.exec_render(instr);
+                            self.exec_render(cmd);
                         }
                         Packet::Display(packet) => {
-                            let instr = DisplayInstruction::from_bits(*packet);
+                            let cmd = DisplayCommand::from_bits(*packet);
 
                             self.psx.gpu.queue.pop();
-                            self.exec_display(instr);
+                            self.exec_display(cmd);
                         }
                     };
                 }

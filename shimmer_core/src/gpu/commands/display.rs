@@ -4,56 +4,56 @@ use bitos::{
     integer::{u9, u10, u12},
 };
 
-/// A display enable instruction.
+/// A display enable command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DisplayEnableInstr {
+pub struct DisplayEnableCmd {
     #[bits(0)]
     pub disabled: bool,
 }
 
-/// A DMA direction instruction.
+/// A DMA direction command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DmaDirectionInstr {
+pub struct DmaDirectionCmd {
     #[bits(0..2)]
     pub direction: DmaDirection,
 }
 
-/// A display area instruction.
+/// A display area command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DisplayAreaInstr {
+pub struct DisplayAreaCmd {
     #[bits(0..10)]
     pub x: u10,
     #[bits(10..19)]
     pub y: u9,
 }
 
-/// A horizontal display range instruction.
+/// A horizontal display range command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct HorizontalDisplayRangeInstr {
+pub struct HorizontalDisplayRangeCmd {
     #[bits(0..12)]
     pub x1: u12,
     #[bits(12..24)]
     pub x2: u12,
 }
 
-/// A horizontal display range instruction.
+/// A horizontal display range command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct VerticalDisplayRangeInstr {
+pub struct VerticalDisplayRangeCmd {
     #[bits(0..10)]
     pub y1: u10,
     #[bits(10..20)]
     pub y2: u10,
 }
 
-/// A horizontal display range instruction.
+/// A horizontal display range command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DisplayModeInstr {
+pub struct DisplayModeCmd {
     #[bits(0..2)]
     pub horizontal_resolution: HorizontalResolution,
     #[bits(2)]

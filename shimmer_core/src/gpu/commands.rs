@@ -5,7 +5,7 @@ pub mod rendering;
 use self::{display::*, environment::*, rendering::*};
 use bitos::bitos;
 
-/// The primary opcode of a [`RenderingInstruction`].
+/// The primary opcode of a [`RenderingCommand`].
 #[bitos(3)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum RenderingOpcode {
@@ -19,7 +19,7 @@ pub enum RenderingOpcode {
     Environment = 0x7,
 }
 
-/// The misc opcode of a [`RenderingInstruction`].
+/// The misc opcode of a [`RenderingCommand`].
 #[bitos(5)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum MiscOpcode {
@@ -32,7 +32,7 @@ pub enum MiscOpcode {
     InterruptRequest = 0x1F,
 }
 
-/// The environment opcode of a [`RenderingInstruction`].
+/// The environment opcode of a [`RenderingCommand`].
 #[bitos(3)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum EnvironmentOpcode {
@@ -66,42 +66,42 @@ pub enum DisplayOpcode {
     VramSizeV2 = 0x20,
 }
 
-/// A Display instruction. Received through GP1.
+/// A display command. Received through GP1.
 #[bitos(32)]
 #[derive(Clone, Copy)]
-pub struct DisplayInstruction {
+pub struct DisplayCommand {
     #[bits(24..30)]
     pub opcode: Option<DisplayOpcode>,
 
     #[bits(..)]
-    pub display_enable_instr: DisplayEnableInstr,
+    pub display_enable_cmd: DisplayEnableCmd,
     #[bits(..)]
-    pub dma_direction_instr: DmaDirectionInstr,
+    pub dma_direction_cmd: DmaDirectionCmd,
     #[bits(..)]
-    pub display_area_instr: DisplayAreaInstr,
+    pub display_area_cmd: DisplayAreaCmd,
     #[bits(..)]
-    pub horizontal_display_range_instr: HorizontalDisplayRangeInstr,
+    pub horizontal_display_range_cmd: HorizontalDisplayRangeCmd,
     #[bits(..)]
-    pub vertical_dispaly_range_instr: VerticalDisplayRangeInstr,
+    pub vertical_dispaly_range_cmd: VerticalDisplayRangeCmd,
     #[bits(..)]
-    pub display_mode_instr: DisplayModeInstr,
+    pub display_mode_cmd: DisplayModeCmd,
 }
 
-impl std::fmt::Debug for DisplayInstruction {
+impl std::fmt::Debug for DisplayCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.opcode() {
             Some(opcode) => match opcode {
                 DisplayOpcode::ResetGpu => write!(f, "ResetGpu"),
                 DisplayOpcode::ResetCommandBuffer => write!(f, "ResetCommandBuffer"),
                 DisplayOpcode::AcknowledgeGpuInterrupt => write!(f, "AcknowledgeGpuInterrupt"),
-                DisplayOpcode::DisplayEnabled => self.display_enable_instr().fmt(f),
-                DisplayOpcode::DmaDirection => self.dma_direction_instr().fmt(f),
-                DisplayOpcode::DisplayArea => self.display_area_instr().fmt(f),
+                DisplayOpcode::DisplayEnabled => self.display_enable_cmd().fmt(f),
+                DisplayOpcode::DmaDirection => self.dma_direction_cmd().fmt(f),
+                DisplayOpcode::DisplayArea => self.display_area_cmd().fmt(f),
                 DisplayOpcode::HorizontalDisplayRange => {
-                    self.horizontal_display_range_instr().fmt(f)
+                    self.horizontal_display_range_cmd().fmt(f)
                 }
-                DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_instr().fmt(f),
-                DisplayOpcode::DisplayMode => self.display_mode_instr().fmt(f),
+                DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_cmd().fmt(f),
+                DisplayOpcode::DisplayMode => self.display_mode_cmd().fmt(f),
                 DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV1"),
                 DisplayOpcode::ReadGpuRegister => write!(f, "ReadGpuRegister"),
                 DisplayOpcode::VramSizeV2 => write!(f, "VramSizeV2"),
@@ -111,10 +111,10 @@ impl std::fmt::Debug for DisplayInstruction {
     }
 }
 
-/// A GPU instruction. Received through GP0.
+/// A rendering command. Received through GP0.
 #[bitos(32)]
 #[derive(Clone, Copy)]
-pub struct RenderingInstruction {
+pub struct RenderingCommand {
     #[bits(29..32)]
     pub opcode: RenderingOpcode,
     #[bits(24..29)]
@@ -123,25 +123,25 @@ pub struct RenderingInstruction {
     pub environment_opcode: Option<EnvironmentOpcode>,
 
     #[bits(..)]
-    pub polygon_instr: PolygonInstr,
+    pub polygon_cmd: PolygonCmd,
     #[bits(..)]
-    pub line_instr: LineInstr,
+    pub line_cmd: LineCmd,
     #[bits(..)]
-    pub rectangle_instr: RectangleInstr,
+    pub rectangle_cmd: RectangleCmd,
 
     #[bits(..)]
-    pub drawing_settings_instr: DrawingSettingsInstr,
+    pub drawing_settings_cmd: DrawingSettingsCmd,
     #[bits(..)]
-    pub texture_window_settings_instr: TextureWindowSettingsInstr,
+    pub texture_window_settings_cmd: TextureWindowSettingsCmd,
     #[bits(..)]
-    pub drawing_area_corner_instr: DrawingAreaCornerInstr,
+    pub drawing_area_corner_cmd: DrawingAreaCornerCmd,
     #[bits(..)]
-    pub drawing_offset_instr: DrawingOffsetInstr,
+    pub drawing_offset_cmd: DrawingOffsetCmd,
     #[bits(..)]
-    pub mask_settings_instr: MaskSettingsInstr,
+    pub mask_settings_cmd: MaskSettingsCmd,
 }
 
-impl std::fmt::Debug for RenderingInstruction {
+impl std::fmt::Debug for RenderingCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.opcode() {
             RenderingOpcode::Misc => match self.misc_opcode() {
@@ -153,26 +153,26 @@ impl std::fmt::Debug for RenderingInstruction {
                 },
                 None => write!(f, "unknown misc opcode"),
             },
-            RenderingOpcode::Polygon => self.polygon_instr().fmt(f),
-            RenderingOpcode::Line => self.line_instr().fmt(f),
-            RenderingOpcode::Rectangle => self.rectangle_instr().fmt(f),
+            RenderingOpcode::Polygon => self.polygon_cmd().fmt(f),
+            RenderingOpcode::Line => self.line_cmd().fmt(f),
+            RenderingOpcode::Rectangle => self.rectangle_cmd().fmt(f),
             RenderingOpcode::VramToVramBlit => write!(f, "VramToVramBlit"),
             RenderingOpcode::CpuToVramBlit => write!(f, "CpuToVramBlit"),
             RenderingOpcode::VramToCpuBlit => write!(f, "VramToCpuBlit"),
             RenderingOpcode::Environment => match self.environment_opcode() {
                 Some(env_opcode) => match env_opcode {
-                    EnvironmentOpcode::DrawingSettings => self.drawing_settings_instr().fmt(f),
+                    EnvironmentOpcode::DrawingSettings => self.drawing_settings_cmd().fmt(f),
                     EnvironmentOpcode::TexWindowSettings => {
-                        self.texture_window_settings_instr().fmt(f)
+                        self.texture_window_settings_cmd().fmt(f)
                     }
                     EnvironmentOpcode::DrawingAreaTopLeft => {
-                        self.drawing_area_corner_instr().fmt(f)
+                        self.drawing_area_corner_cmd().fmt(f)
                     }
                     EnvironmentOpcode::DrawingAreaBottomRight => {
-                        self.drawing_area_corner_instr().fmt(f)
+                        self.drawing_area_corner_cmd().fmt(f)
                     }
-                    EnvironmentOpcode::DrawingOffset => self.drawing_offset_instr().fmt(f),
-                    EnvironmentOpcode::MaskSettings => self.mask_settings_instr().fmt(f),
+                    EnvironmentOpcode::DrawingOffset => self.drawing_offset_cmd().fmt(f),
+                    EnvironmentOpcode::MaskSettings => self.mask_settings_cmd().fmt(f),
                 },
                 None => write!(f, "unknown environment opcode"),
             },
@@ -180,8 +180,8 @@ impl std::fmt::Debug for RenderingInstruction {
     }
 }
 
-impl RenderingInstruction {
-    /// How many arguments this instruction requires at minimum.
+impl RenderingCommand {
+    /// How many arguments this command requires at minimum.
     pub fn args(&self) -> usize {
         match self.opcode() {
             RenderingOpcode::Misc => match self.misc_opcode() {
@@ -189,31 +189,31 @@ impl RenderingInstruction {
                 _ => 0,
             },
             RenderingOpcode::Polygon => {
-                let instr = self.polygon_instr();
-                let vertices = match instr.polygon_mode() {
+                let cmd = self.polygon_cmd();
+                let vertices = match cmd.polygon_mode() {
                     PolygonMode::Triangle => 3,
                     PolygonMode::Rectangle => 4,
                 };
                 let colors = vertices
-                    * match instr.shading_mode() {
+                    * match cmd.shading_mode() {
                         ShadingMode::Flat => 0,
                         ShadingMode::Gouraud => 1,
                     };
-                let uvs = vertices * instr.textured() as usize;
+                let uvs = vertices * cmd.textured() as usize;
 
                 vertices + colors + uvs
             }
             RenderingOpcode::Line => {
-                let instr = self.line_instr();
-                match instr.shading_mode() {
+                let cmd = self.line_cmd();
+                match cmd.shading_mode() {
                     ShadingMode::Flat => 2,
                     ShadingMode::Gouraud => 4,
                 }
             }
             RenderingOpcode::Rectangle => {
-                let instr = self.rectangle_instr();
-                let uv = instr.textured() as usize;
-                let dimensions = match instr.rectangle_mode() {
+                let cmd = self.rectangle_cmd();
+                let uv = cmd.textured() as usize;
+                let dimensions = match cmd.rectangle_mode() {
                     RectangleMode::Variable => 1,
                     _ => 0,
                 };

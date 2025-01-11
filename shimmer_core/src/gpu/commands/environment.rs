@@ -3,7 +3,7 @@ use bitos::{
     integer::{u1, u4, u5, u9, u10, u11},
 };
 
-/// The shading mode of a rendering instruction.
+/// The shading mode of a rendering command.
 #[bitos(2)]
 #[derive(Debug, PartialEq, Eq)]
 pub enum SemiTransparencyMode {
@@ -38,10 +38,10 @@ pub enum CompressionMode {
     Dither = 1,
 }
 
-/// A drawing settings instruction.
+/// A drawing settings command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DrawingSettingsInstr {
+pub struct DrawingSettingsCmd {
     #[bits(0..4)]
     pub texpage_x_base: u4,
     #[bits(4)]
@@ -62,10 +62,10 @@ pub struct DrawingSettingsInstr {
     pub textured_rect_flip_y: bool,
 }
 
-/// A texture window settings instruction.
+/// A texture window settings command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct TextureWindowSettingsInstr {
+pub struct TextureWindowSettingsCmd {
     #[bits(0..5)]
     tex_window_mask_x: u5,
     #[bits(5..10)]
@@ -76,29 +76,29 @@ pub struct TextureWindowSettingsInstr {
     tex_window_offset_y: u5,
 }
 
-/// A drawing area corner instruction.
+/// A drawing area corner command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DrawingAreaCornerInstr {
+pub struct DrawingAreaCornerCmd {
     #[bits(0..10)]
     x: u10,
     #[bits(10..19)]
     y: u9,
 }
 
-/// A drawing offset instruction.
+/// A drawing offset command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct DrawingOffsetInstr {
+pub struct DrawingOffsetCmd {
     #[bits(0..11)]
     unsigned_x: u11,
     #[bits(11..22)]
     unsigned_y: u11,
 }
 
-/// A drawing offset instruction.
+/// A drawing offset command.
 #[bitos(32)]
 #[derive(Debug)]
-pub struct MaskSettingsInstr {
+pub struct MaskSettingsCmd {
     // TODO: define this
 }

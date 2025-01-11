@@ -1,4 +1,4 @@
-pub mod instr;
+pub mod commands;
 pub mod interpreter;
 
 pub use interpreter::Interpreter;
@@ -8,7 +8,7 @@ use bitos::{
     bitos,
     integer::{u1, u4, u9, u10, u12},
 };
-use instr::{
+use commands::{
     Packet,
     environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
     rendering::{CoordPacket, SizePacket},
