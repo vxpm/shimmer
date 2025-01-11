@@ -102,7 +102,7 @@ impl<'psx> Executor<'psx> {
                         self.psx
                             .gpu
                             .queue
-                            .enqueue(gpu::commands::Packet::Rendering(word));
+                            .enqueue(gpu::cmd::Packet::Rendering(word));
                     }
                 },
                 _ => todo!(),
@@ -150,7 +150,7 @@ impl<'psx> Executor<'psx> {
                 self.psx
                     .gpu
                     .queue
-                    .enqueue(gpu::commands::Packet::Rendering(word));
+                    .enqueue(gpu::cmd::Packet::Rendering(word));
             }
 
             current = next & !0b11;

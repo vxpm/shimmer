@@ -1,12 +1,12 @@
 use super::{
     ExecState,
-    commands::{DisplayCommand, Packet, RenderingCommand},
+    cmd::{DisplayCommand, Packet, RenderingCommand},
 };
 use crate::{
     PSX,
     gpu::{
         DmaDirection, GpuStatus,
-        commands::{
+        cmd::{
             DisplayOpcode, EnvironmentOpcode, MiscOpcode, RenderingOpcode,
             rendering::{CoordPacket, SizePacket, VertexPositionPacket},
         },
