@@ -414,6 +414,8 @@ impl PSX {
                 }
                 io::Reg::Gp1 => {
                     let bytes = self.gpu.status.as_bytes();
+                    trace!(self.loggers.bus, "{:?}", self.gpu.status.clone());
+
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Timer2Value => {
@@ -542,7 +544,7 @@ impl PSX {
                     let bytes = self.dma.channels[channel as usize].base.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Dma0BlockControl
                 | io::Reg::Dma1BlockControl
@@ -557,7 +559,7 @@ impl PSX {
                         .as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Dma0Control
                 | io::Reg::Dma1Control
@@ -569,7 +571,7 @@ impl PSX {
                     let bytes = self.dma.channels[channel as usize].control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Dma6Control => {
                     let mut dummy = self.dma.channels[6].control.clone();
@@ -594,13 +596,13 @@ impl PSX {
                         .control
                         .set_bus_snooping(dummy.bus_snooping());
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::DmaControl => {
                     let bytes = self.dma.control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::DmaInterrupt => {
                     let mut dummy = self.dma.interrupt_control.clone();
@@ -641,7 +643,7 @@ impl PSX {
                         .interrupt_control
                         .set_channel_interrupt_flags_raw(u7::new(reset));
 
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;
@@ -649,7 +651,7 @@ impl PSX {
                     self.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Gp1 => {
                     let mut raw = 0u32;
@@ -657,7 +659,7 @@ impl PSX {
                     self.gpu.queue.enqueue(gpu::cmd::Packet::Display(raw));
 
                     self.scheduler.schedule(Event::Gpu, 0);
-                    self.scheduler.schedule(Event::Dma, 0);
+                    self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();
