@@ -18,6 +18,20 @@ pub enum Channel {
     OTC = 6,
 }
 
+impl Channel {
+    pub fn cycles_per_word(&self) -> u64 {
+        match self {
+            Channel::MdecIn => 1,
+            Channel::MdecOut => 1,
+            Channel::GPU => 1,
+            Channel::CDROM => 24,
+            Channel::SPU => 4,
+            Channel::PIO => 20,
+            Channel::OTC => 1,
+        }
+    }
+}
+
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferDirection {
@@ -251,22 +265,10 @@ impl InterruptControl {
 // 02. Mask channels allowed to raise interrupts (interrupt mask = 1)
 // 03. Raise interrupt!
 
-pub enum ExecState {
-    None,
-    BurstTransfer {
-        channel: Channel,
-        current: u32,
-        entries_left: u32,
-        direction: DataDirection,
-    },
-}
-
 pub struct State {
     pub control: Control,
     pub interrupt_control: InterruptControl,
     pub channels: [ChannelState; 7],
-
-    pub execution_state: ExecState,
 }
 
 impl Default for State {

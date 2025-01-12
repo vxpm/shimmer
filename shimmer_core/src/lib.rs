@@ -57,6 +57,7 @@ pub struct PSX {
 
 pub struct Emulator {
     psx: PSX,
+    dma_state: dma::executor::ExecState,
 }
 
 impl Emulator {
@@ -74,6 +75,7 @@ impl Emulator {
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),
             },
+            dma_state: dma::executor::ExecState::None,
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
@@ -119,9 +121,13 @@ impl Emulator {
                     let mut interpreter = gpu::Interpreter::new(self.psx_mut());
                     interpreter.exec_queued();
                 }
-                Event::Dma => {
-                    let mut executor = dma::Executor::new(self.psx_mut());
-                    executor.progress_transfers();
+                Event::DmaUpdate => {
+                    let mut executor = dma::Executor::new(&mut self.psx, &mut self.dma_state);
+                    executor.update();
+                }
+                Event::DmaAdvance => {
+                    let mut executor = dma::Executor::new(&mut self.psx, &mut self.dma_state);
+                    executor.advance();
                 }
             }
         }

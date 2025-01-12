@@ -105,6 +105,15 @@ pub enum PolygonMode {
     Rectangle = 1,
 }
 
+impl PolygonMode {
+    pub fn vertices(&self) -> usize {
+        match self {
+            PolygonMode::Triangle => 3,
+            PolygonMode::Rectangle => 4,
+        }
+    }
+}
+
 /// A polygon rendering command. This command always requires some data packets, with the
 /// amount changing depending on some of it's values.
 ///
