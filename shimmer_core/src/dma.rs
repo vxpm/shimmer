@@ -251,11 +251,22 @@ impl InterruptControl {
 // 02. Mask channels allowed to raise interrupts (interrupt mask = 1)
 // 03. Raise interrupt!
 
+pub enum ExecState {
+    None,
+    BurstTransfer {
+        channel: Channel,
+        current: u32,
+        entries_left: u32,
+        direction: DataDirection,
+    },
+}
+
 pub struct State {
     pub control: Control,
     pub interrupt_control: InterruptControl,
-
     pub channels: [ChannelState; 7],
+
+    pub execution_state: ExecState,
 }
 
 impl Default for State {
