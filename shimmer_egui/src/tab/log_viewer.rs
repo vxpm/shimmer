@@ -214,14 +214,27 @@ impl LogViewer {
                         .unwrap();
                 }
 
-                egui::ComboBox::from_label("Context:")
+                let response = egui::ComboBox::from_label("Context:")
                     .selected_text(self.logger_ctx.to_string())
                     .show_ui(ui, |ui| {
+                        let mut changed = false;
                         for context in ctx.exclusive.log_family.contexts() {
                             let context_str = context.to_string();
-                            ui.selectable_value(&mut self.logger_ctx, context, context_str);
+                            if ui
+                                .selectable_value(&mut self.logger_ctx, context, context_str)
+                                .clicked()
+                            {
+                                changed = true;
+                            }
                         }
+
+                        changed
                     });
+
+                if response.inner.unwrap_or_default() {
+                    self.row_heights.clear();
+                    self.row_top_offsets.borrow_mut().clear();
+                }
             });
         });
     }

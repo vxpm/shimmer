@@ -1,16 +1,20 @@
 use crate::{
     PSX,
     cpu::cop0::Interrupt,
-    dma::{Channel, DataDirection, TransferDirection, TransferMode},
+    dma::{Channel, ChannelInterruptMode, DataDirection, TransferDirection, TransferMode},
     gpu::{self},
     mem::Address,
     scheduler::Event,
 };
 use bitos::{BitUtils, integer::u24};
-use tinylog::{debug, error, info, warn};
+use tinylog::{error, info, warn};
 
 enum Progress {
+    /// The transfer is still ongoing.
     Ongoing,
+    /// The transfer has yielded control of the bus back to the CPU.
+    Yielded,
+    /// The transfer has finished.
     Finished,
 }
 
@@ -32,12 +36,6 @@ impl BurstTransfer {
             Channel::OTC => {
                 if self.remaining > 1 {
                     let prev = self.current_addr.wrapping_add_signed(increment) & 0x00FF_FFFF;
-                    debug!(
-                        psx.loggers.dma,
-                        "writing {:?} to {}",
-                        Address(prev),
-                        Address(self.current_addr)
-                    );
                     psx.write::<_, true>(Address(self.current_addr), prev)
                         .unwrap();
 
@@ -45,12 +43,6 @@ impl BurstTransfer {
 
                     Progress::Ongoing
                 } else {
-                    debug!(
-                        psx.loggers.dma,
-                        "writing {:#08X} to {}",
-                        0x00FF_FFFF,
-                        Address(self.current_addr)
-                    );
                     psx.write::<_, true>(Address(self.current_addr), 0x00FF_FFFF)
                         .unwrap();
 
@@ -97,10 +89,6 @@ impl SliceTransfer {
                 Channel::GPU => match transfer_direction {
                     TransferDirection::DeviceToRam => todo!(),
                     TransferDirection::RamToDevice => {
-                        if psx.gpu.status.dma_direction() != gpu::DmaDirection::CpuToGp0 {
-                            warn!(psx.loggers.gpu, "wrong DMA direction!");
-                        }
-
                         let word = psx.read::<u32, true>(Address(current_addr)).unwrap();
                         psx.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(word));
                     }
@@ -117,9 +105,9 @@ impl SliceTransfer {
         channel_state.block_control.set_count(count - 1);
 
         if count > 1 {
-            Progress::Finished
+            Progress::Yielded
         } else {
-            Progress::Ongoing
+            Progress::Finished
         }
     }
 }
@@ -151,7 +139,7 @@ impl LinkedTransfer {
                 .base
                 .set_addr(u24::new(next & !0b11));
 
-            Progress::Ongoing
+            Progress::Yielded
         }
     }
 }
@@ -203,6 +191,34 @@ impl Executor {
                 psx.scheduler
                     .schedule(Event::DmaAdvance, channel.cycles_per_word());
             }
+            Progress::Yielded => {
+                info!(
+                    psx.loggers.dma,
+                    "transfer on channel {channel:?} has yielded";
+                );
+
+                // if psx
+                //     .dma
+                //     .interrupt_control
+                //     .channel_interrupt_mode_at(channel as usize)
+                //     .unwrap()
+                //     == ChannelInterruptMode::OnBlock
+                // {
+                //     // set interrupt flag if enabled
+                //     let interrupt_control = &mut psx.dma.interrupt_control;
+                //     if interrupt_control
+                //         .channel_interrupt_mask_at(channel as usize)
+                //         .unwrap()
+                //     {
+                //         interrupt_control.set_channel_interrupt_flags_at(channel as usize, true);
+                //     }
+                //
+                //     update_master_interrupt(psx);
+                // }
+
+                psx.scheduler
+                    .schedule(Event::DmaAdvance, channel.cycles_per_word());
+            }
             Progress::Finished => {
                 info!(
                     psx.loggers.dma,
@@ -241,11 +257,21 @@ impl Executor {
                     if channel_state.control.transfer_ongoing() {
                         let dreq = match channel {
                             Channel::OTC => false,
-                            Channel::GPU => psx.gpu.status.dma_request(),
+                            Channel::GPU => {
+                                psx.gpu.status.update_dreq();
+                                psx.gpu.status.dma_request()
+                            }
                             _ => true,
                         };
 
                         if !dreq && !channel_state.control.force_transfer() {
+                            warn!(
+                                psx.loggers.dma,
+                                "{:?} DREQ not set: {:?}",
+                                channel,
+                                channel_state.control.clone()
+                            );
+
                             continue;
                         }
 

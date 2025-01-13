@@ -172,7 +172,7 @@ pub enum ChannelInterruptMode {
     /// The interrupt occurs only when the entire transfer completes.
     OnCompletion = 0x0,
     /// The interrupt occurs for every slice and linked-list transfer.
-    OnSegment = 0x1,
+    OnBlock = 0x1,
 }
 
 /// Register that controls how DMA channels raise interrupts and which channels are actually

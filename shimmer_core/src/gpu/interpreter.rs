@@ -5,17 +5,18 @@ use super::{
 use crate::{
     PSX,
     gpu::{
-        DmaDirection, GpuStatus,
+        GpuStatus,
         cmd::{
             DisplayOpcode, EnvironmentOpcode, MiscOpcode, RenderingOpcode,
             rendering::{
-                CoordPacket, ShadingMode, SizePacket, VertexColorPacket, VertexPositionPacket,
-                VertexUVPacket,
+                CoordPacket, RectangleMode, ShadingMode, SizePacket, VertexColorPacket,
+                VertexPositionPacket, VertexUVPacket,
             },
         },
     },
+    scheduler::Event,
 };
-use tinylog::{debug, error, warn};
+use tinylog::{debug, error};
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -23,22 +24,6 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    fn update_dma_request(&mut self, psx: &mut PSX) {
-        let dir = psx.gpu.status.dma_direction();
-        match dir {
-            DmaDirection::Off => psx.gpu.status.set_dma_request(true),
-            DmaDirection::Fifo => psx.gpu.status.set_dma_request(true),
-            DmaDirection::CpuToGp0 => psx
-                .gpu
-                .status
-                .set_dma_request(psx.gpu.status.ready_to_receive_block()),
-            DmaDirection::GpuToCpu => psx
-                .gpu
-                .status
-                .set_dma_request(psx.gpu.status.ready_to_send_vram()),
-        };
-    }
-
     /// Executes the given rendering command.
     pub fn exec_render(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         debug!(
@@ -48,40 +33,37 @@ impl Interpreter {
         );
 
         match cmd.opcode() {
-            RenderingOpcode::Misc => {
-                match cmd.misc_opcode().unwrap() {
-                    MiscOpcode::NOP => (),
-                    MiscOpcode::ClearCache => (),
-                    _ => warn!(psx.loggers.gpu, "unimplemented rendering (misc) command"),
+            RenderingOpcode::Misc => match cmd.misc_opcode().unwrap() {
+                MiscOpcode::NOP => (),
+                MiscOpcode::ClearCache => (),
+                _ => error!(
+                    psx.loggers.gpu,
+                    "unimplemented rendering (misc) command: {:?}",
+                    cmd.misc_opcode()
+                ),
+            },
+            RenderingOpcode::Environment => match cmd.environment_opcode().unwrap() {
+                EnvironmentOpcode::DrawingSettings => {
+                    let settings = cmd.drawing_settings_cmd();
+                    let stat = &mut psx.gpu.status;
+
+                    stat.set_texpage_x_base(settings.texpage_x_base());
+                    stat.set_texpage_y_base(settings.texpage_y_base());
+                    stat.set_semi_transparency_mode(settings.semi_transparency_mode());
+                    stat.set_texpage_depth(settings.texpage_depth());
+                    stat.set_compression_mode(settings.compression_mode());
+                    stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
+                    stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+
+                    psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
+                    psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
                 }
-
-                psx.gpu.status.set_ready_to_receive_cmd(true);
-            }
-            RenderingOpcode::Environment => {
-                match cmd.environment_opcode().unwrap() {
-                    EnvironmentOpcode::DrawingSettings => {
-                        let settings = cmd.drawing_settings_cmd();
-                        let stat = &mut psx.gpu.status;
-
-                        stat.set_texpage_x_base(settings.texpage_x_base());
-                        stat.set_texpage_y_base(settings.texpage_y_base());
-                        stat.set_semi_transparency_mode(settings.semi_transparency_mode());
-                        stat.set_texpage_depth(settings.texpage_depth());
-                        stat.set_compression_mode(settings.compression_mode());
-                        stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
-                        stat.set_texpage_y_base_2(settings.texpage_y_base_2());
-
-                        psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
-                        psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
-                    }
-                    _ => warn!(
-                        psx.loggers.gpu,
-                        "unimplemented rendering (environment) command"
-                    ),
-                }
-
-                psx.gpu.status.set_ready_to_receive_cmd(true);
-            }
+                _ => error!(
+                    psx.loggers.gpu,
+                    "unimplemented rendering (environment) command: {:?}",
+                    cmd.environment_opcode()
+                ),
+            },
             RenderingOpcode::Polygon => {
                 let cmd = cmd.polygon_cmd();
                 for _ in 0..cmd.polygon_mode().vertices() {
@@ -107,13 +89,14 @@ impl Interpreter {
                         );
                     }
                 }
-
-                psx.gpu.status.set_ready_to_receive_cmd(true);
             }
             RenderingOpcode::CpuToVramBlit => {
                 let dest = CoordPacket::from_bits(psx.gpu.queue.pop_render().unwrap());
                 let size = SizePacket::from_bits(psx.gpu.queue.pop_render().unwrap());
                 psx.gpu.execution_state = ExecState::CpuToVramBlit { dest, size };
+
+                psx.gpu.status.set_ready_to_send_vram(true);
+                psx.scheduler.schedule(Event::DmaUpdate, 0);
             }
             RenderingOpcode::VramToCpuBlit => {
                 debug!(psx.loggers.gpu, "coord: {:?}", psx.gpu.queue.pop_render());
@@ -124,11 +107,34 @@ impl Interpreter {
                 );
 
                 psx.gpu.status.set_ready_to_send_vram(true);
-
-                // TODO: actually send
-                psx.gpu.status.set_ready_to_receive_cmd(true);
+                psx.scheduler.schedule(Event::DmaUpdate, 0);
             }
-            _ => error!(psx.loggers.gpu, "unimplemented rendering command"),
+            RenderingOpcode::Rectangle => {
+                let cmd = cmd.rectangle_cmd();
+
+                debug!(
+                    psx.loggers.gpu,
+                    "vertex: {:?}",
+                    VertexPositionPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
+                );
+
+                if cmd.textured() {
+                    debug!(
+                        psx.loggers.gpu,
+                        "vertex: {:?}",
+                        VertexUVPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
+                    );
+                }
+
+                if cmd.rectangle_mode() == RectangleMode::Variable {
+                    debug!(
+                        psx.loggers.gpu,
+                        "size: {:?}",
+                        SizePacket::from_bits(psx.gpu.queue.pop_render().unwrap())
+                    );
+                }
+            }
+            _ => error!(psx.loggers.gpu, "unimplemented rendering command: {cmd:?}"),
         }
     }
 
@@ -156,8 +162,7 @@ impl Interpreter {
             DisplayOpcode::DmaDirection => {
                 let cmd = cmd.dma_direction_cmd();
                 psx.gpu.status.set_dma_direction(cmd.direction());
-
-                self.update_dma_request(psx);
+                psx.scheduler.schedule(Event::DmaUpdate, 0);
             }
             DisplayOpcode::DisplayArea => {
                 let settings = cmd.display_area_cmd();
@@ -176,15 +181,12 @@ impl Interpreter {
                 let settings = cmd.display_enable_cmd();
                 psx.gpu.status.set_disable_display(settings.disabled());
             }
-            _ => warn!(psx.loggers.gpu, "unimplemented display command"),
+            _ => error!(psx.loggers.gpu, "unimplemented display command: {cmd:?}"),
         }
     }
 
     /// Executes all queued GPU commands.
     pub fn exec_queued(&mut self, psx: &mut PSX) {
-        self.update_dma_request(psx);
-
-        psx.gpu.status.set_ready_to_receive_cmd(true);
         while !psx.gpu.queue.is_empty() {
             match &psx.gpu.execution_state {
                 ExecState::None => {
@@ -193,6 +195,12 @@ impl Interpreter {
                         Packet::Rendering(packet) => {
                             let cmd = RenderingCommand::from_bits(*packet);
                             if psx.gpu.queue.render_len() <= cmd.args() {
+                                debug!(
+                                    psx.loggers.gpu,
+                                    "{cmd:?} is waiting for {} arguments (has {})",
+                                    psx.gpu.queue.render_len(),
+                                    cmd.args()
+                                );
                                 break;
                             }
 
@@ -218,8 +226,10 @@ impl Interpreter {
                         let _packet = psx.gpu.queue.pop_render().unwrap();
                     }
 
-                    psx.gpu.status.set_ready_to_receive_cmd(true);
                     psx.gpu.execution_state = ExecState::None;
+
+                    psx.gpu.status.set_ready_to_send_vram(false);
+                    psx.scheduler.schedule(Event::DmaUpdate, 0);
                 }
             }
         }

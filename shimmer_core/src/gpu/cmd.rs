@@ -216,9 +216,9 @@ impl RenderingCommand {
 
                 2 + uv + dimensions
             }
-            RenderingOpcode::VramToVramBlit => 4,
-            RenderingOpcode::CpuToVramBlit => 3,
-            RenderingOpcode::VramToCpuBlit => 3,
+            RenderingOpcode::VramToVramBlit => 3,
+            RenderingOpcode::CpuToVramBlit => 2,
+            RenderingOpcode::VramToCpuBlit => 2,
             RenderingOpcode::Environment => 0,
         }
     }

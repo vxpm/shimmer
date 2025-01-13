@@ -117,7 +117,19 @@ pub struct GpuStatus {
 
 impl Default for GpuStatus {
     fn default() -> Self {
-        Self::from_bits(0x1480_2000).with_ready_to_send_vram(true)
+        Self::from_bits(0x1480_2000)
+    }
+}
+
+impl GpuStatus {
+    pub fn update_dreq(&mut self) {
+        let dir = self.dma_direction();
+        match dir {
+            DmaDirection::Off => self.set_dma_request(true),
+            DmaDirection::Fifo => self.set_dma_request(true),
+            DmaDirection::CpuToGp0 => self.set_dma_request(self.ready_to_receive_block()),
+            DmaDirection::GpuToCpu => self.set_dma_request(self.ready_to_send_vram()),
+        };
     }
 }
 
