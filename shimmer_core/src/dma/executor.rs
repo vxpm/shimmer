@@ -172,6 +172,14 @@ fn update_master_interrupt(psx: &mut PSX) {
 }
 
 impl Executor {
+    #[inline(always)]
+    pub fn ongoing(&self) -> bool {
+        match self {
+            Executor::Idle => false,
+            _ => true,
+        }
+    }
+
     pub fn advance(&mut self, psx: &mut PSX) {
         update_master_interrupt(psx);
 
