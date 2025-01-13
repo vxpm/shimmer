@@ -15,7 +15,7 @@ use crate::{
         },
     },
 };
-use tinylog::{debug, error, trace, warn};
+use tinylog::{debug, error, warn};
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -193,7 +193,6 @@ impl Interpreter {
                         Packet::Rendering(packet) => {
                             let cmd = RenderingCommand::from_bits(*packet);
                             if psx.gpu.queue.render_len() <= cmd.args() {
-                                // psx.gpu.status.set_ready_to_receive_cmd(false);
                                 break;
                             }
 
@@ -214,10 +213,9 @@ impl Interpreter {
                         break;
                     }
 
-                    trace!(psx.loggers.gpu, "packet count: {:#08X}", packets);
                     for _ in 0..packets {
-                        let packet = psx.gpu.queue.pop_render().unwrap();
-                        trace!(psx.loggers.gpu, "cpu to vram packet: {:#08X}", packet);
+                        // TODO: perform blit
+                        let _packet = psx.gpu.queue.pop_render().unwrap();
                     }
 
                     psx.gpu.status.set_ready_to_receive_cmd(true);

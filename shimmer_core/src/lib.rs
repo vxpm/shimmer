@@ -98,7 +98,8 @@ impl Emulator {
     }
 
     pub fn cycle(&mut self) {
-        self.psx.scheduler.advance(1);
+        self.psx.scheduler.advance();
+
         while let Some(e) = self.psx.scheduler.pop() {
             match e {
                 Event::Cpu => {

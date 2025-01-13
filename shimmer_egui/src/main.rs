@@ -29,6 +29,10 @@ use tab::{
 use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};
 use util::Timer;
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 /// Variables related to timing.
 struct Timing {
     running_timer: Timer,
@@ -345,6 +349,9 @@ impl eframe::App for App {
 
 fn main() {
     let cli = Cli::parse();
+
+    #[cfg(feature = "dhat-heap")]
+    let _profiler = dhat::Profiler::new_heap();
 
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
