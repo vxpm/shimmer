@@ -238,7 +238,7 @@ impl Queue {
         let index = self
             .packets
             .iter()
-            .position(|p| matches!(p, Packet::Rendering(_)))?;
+            .position(|p| matches!(p, Packet::Display(_)))?;
 
         self.display_len -= 1;
         self.packets.remove(index).map(|p| match p {

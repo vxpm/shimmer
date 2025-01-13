@@ -12,6 +12,7 @@ bytesize.workspace = true
 clap = { version = "4.5", features = ["derive"] }
 colorous = "1.0"
 crossbeam = "0.8"
+dhat = "0.3"
 egui_commonmark = { version = "0.19", default-features = false }
 eframe = { version = "0.30", default-features = false, features = [
     "wgpu",
@@ -22,3 +23,6 @@ egui_dock = "0.15"
 egui_table = "0.2"
 parking_lot = "0.12"
 si-scale = "0.2"
+
+[features]
+dhat-heap = []

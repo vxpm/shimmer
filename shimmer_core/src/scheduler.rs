@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Event {
     Cpu,
     VSync,
@@ -8,13 +8,13 @@ pub enum Event {
     DmaAdvance,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ScheduledEvent {
     happens_at: u64,
     event: Event,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Scheduler {
     elapsed: u64,
     scheduled: Vec<ScheduledEvent>,
@@ -23,26 +23,31 @@ pub struct Scheduler {
 impl Scheduler {
     #[inline(always)]
     pub fn schedule(&mut self, event: Event, after: u64) {
-        let cycle = self.elapsed + after;
+        let event = ScheduledEvent {
+            event,
+            happens_at: self.elapsed + after,
+        };
 
         let mut pos = self.scheduled.len();
         for i in 0..pos {
             let elem = unsafe { self.scheduled.get_unchecked(i) };
-            if elem.happens_at <= cycle {
+            if elem <= &event {
                 pos = i;
                 break;
             }
         }
 
-        self.scheduled.insert(pos, ScheduledEvent {
-            event,
-            happens_at: cycle,
-        });
+        self.scheduled.insert(pos, event);
     }
 
     #[inline(always)]
-    pub fn advance(&mut self, cycles: u64) {
-        self.elapsed += cycles;
+    pub fn len(&self) -> usize {
+        self.scheduled.len()
+    }
+
+    #[inline(always)]
+    pub fn advance(&mut self) {
+        self.elapsed += 1;
     }
 
     #[inline(always)]

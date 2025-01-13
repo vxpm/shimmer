@@ -596,6 +596,12 @@ impl PSX {
                         .control
                         .set_bus_snooping(dummy.bus_snooping());
 
+                    debug!(
+                        self.loggers.dma,
+                        "{:?}",
+                        self.dma.channels[6].control.clone()
+                    );
+
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::DmaControl => {

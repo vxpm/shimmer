@@ -7,7 +7,7 @@ use crate::{
     scheduler::Event,
 };
 use bitos::{BitUtils, integer::u24};
-use tinylog::{error, info, warn};
+use tinylog::{debug, error, info, warn};
 
 enum Progress {
     Ongoing,
@@ -32,6 +32,12 @@ impl BurstTransfer {
             Channel::OTC => {
                 if self.remaining > 1 {
                     let prev = self.current_addr.wrapping_add_signed(increment) & 0x00FF_FFFF;
+                    debug!(
+                        psx.loggers.dma,
+                        "writing {:?} to {}",
+                        Address(prev),
+                        Address(self.current_addr)
+                    );
                     psx.write::<_, true>(Address(self.current_addr), prev)
                         .unwrap();
 
@@ -39,6 +45,12 @@ impl BurstTransfer {
 
                     Progress::Ongoing
                 } else {
+                    debug!(
+                        psx.loggers.dma,
+                        "writing {:#08X} to {}",
+                        0x00FF_FFFF,
+                        Address(self.current_addr)
+                    );
                     psx.write::<_, true>(Address(self.current_addr), 0x00FF_FFFF)
                         .unwrap();
 
@@ -85,16 +97,15 @@ impl SliceTransfer {
                 Channel::GPU => match transfer_direction {
                     TransferDirection::DeviceToRam => todo!(),
                     TransferDirection::RamToDevice => {
-                        // assert_eq!(
-                        //     psx.gpu.status.dma_direction(),
-                        //     gpu::DmaDirection::CpuToGp0
-                        // );
+                        if psx.gpu.status.dma_direction() != gpu::DmaDirection::CpuToGp0 {
+                            warn!(psx.loggers.gpu, "wrong DMA direction!");
+                        }
 
                         let word = psx.read::<u32, true>(Address(current_addr)).unwrap();
                         psx.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(word));
                     }
                 },
-                _ => warn!(psx.loggers.dma, "unimplemented slice transfer"),
+                _ => error!(psx.loggers.dma, "unimplemented slice transfer"),
             }
 
             current_addr = current_addr.wrapping_add_signed(increment);
@@ -171,6 +182,14 @@ impl Executor {
             Executor::Idle => unreachable!(),
         };
 
+        match channel {
+            Channel::GPU => {
+                psx.scheduler.schedule(Event::Gpu, 0);
+            }
+            Channel::OTC => (),
+            _ => todo!(),
+        }
+
         match progress {
             Progress::Ongoing => {
                 psx.scheduler
@@ -186,7 +205,6 @@ impl Executor {
 
                 let channel_control = &mut psx.dma.channels[channel as usize].control;
                 channel_control.set_transfer_ongoing(false);
-                channel_control.set_force_transfer(false);
 
                 // set interrupt flag if enabled
                 let interrupt_control = &mut psx.dma.interrupt_control;
@@ -211,7 +229,7 @@ impl Executor {
                 enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
 
                 for (channel, _) in enabled_channels {
-                    let channel_state = &psx.dma.channels[channel as usize];
+                    let channel_state = &mut psx.dma.channels[channel as usize];
                     if channel_state.control.transfer_ongoing() {
                         let dreq = match channel {
                             Channel::OTC => false,
@@ -223,6 +241,7 @@ impl Executor {
                             continue;
                         }
 
+                        channel_state.control.set_force_transfer(false);
                         match channel_state
                             .control
                             .transfer_mode()
@@ -268,8 +287,7 @@ impl Executor {
 
                         psx.scheduler
                             .schedule(Event::DmaAdvance, channel.cycles_per_word());
-
-                        break;
+                        return;
                     }
                 }
             }
