@@ -57,7 +57,8 @@ pub struct PSX {
 
 pub struct Emulator {
     psx: PSX,
-    dma_state: dma::executor::ExecState,
+    gpu_interpreter: gpu::Interpreter,
+    dma_executor: dma::Executor,
 }
 
 impl Emulator {
@@ -75,7 +76,8 @@ impl Emulator {
                 cop0: cop0::State::default(),
                 gpu: gpu::State::default(),
             },
-            dma_state: dma::executor::ExecState::None,
+            dma_executor: dma::Executor::default(),
+            gpu_interpreter: gpu::Interpreter::default(),
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
@@ -100,7 +102,8 @@ impl Emulator {
         while let Some(e) = self.psx.scheduler.pop() {
             match e {
                 Event::Cpu => {
-                    let mut interpreter = cpu::Interpreter::new(self.psx_mut());
+                    // TODO: make CPU like gpu interpreter, dma executor, etc
+                    let mut interpreter = cpu::Interpreter::new(&mut self.psx);
                     let cycles = interpreter.exec_next();
 
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
@@ -118,16 +121,13 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Timer2, cycles);
                 }
                 Event::Gpu => {
-                    let mut interpreter = gpu::Interpreter::new(self.psx_mut());
-                    interpreter.exec_queued();
+                    self.gpu_interpreter.exec_queued(&mut self.psx);
                 }
                 Event::DmaUpdate => {
-                    let mut executor = dma::Executor::new(&mut self.psx, &mut self.dma_state);
-                    executor.update();
+                    self.dma_executor.update(&mut self.psx);
                 }
                 Event::DmaAdvance => {
-                    let mut executor = dma::Executor::new(&mut self.psx, &mut self.dma_state);
-                    executor.advance();
+                    self.dma_executor.advance(&mut self.psx);
                 }
             }
         }
