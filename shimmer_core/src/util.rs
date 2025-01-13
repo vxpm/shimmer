@@ -10,7 +10,8 @@ where
         .expect("boxed slice should have exactly LEN elements")
 }
 
-/// Hints to the compiler that a code path is "cold" (i.e. infrequently taken).
+/// Hints to the compiler that a code path is "cold" (i.e. infrequently taken). In practice, this
+/// will make the compiler prefer outlining this code.
 #[cold]
 #[inline(always)]
 pub fn cold_path() {}

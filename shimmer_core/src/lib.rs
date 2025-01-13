@@ -19,6 +19,7 @@ use scheduler::{Event, Scheduler};
 use tinylog::Logger;
 
 pub use binrw;
+use util::cold_path;
 
 pub struct Loggers {
     pub root: Logger,
@@ -104,6 +105,14 @@ impl Emulator {
             match e {
                 Event::Cpu => {
                     // TODO: make CPU like gpu interpreter, dma executor, etc
+
+                    // stall cpu while DMA is ongoing
+                    if self.dma_executor.ongoing() {
+                        cold_path();
+                        self.psx.scheduler.schedule(Event::Cpu, 16);
+                        continue;
+                    }
+
                     let mut interpreter = cpu::Interpreter::new(&mut self.psx);
                     let cycles = interpreter.exec_next();
 
