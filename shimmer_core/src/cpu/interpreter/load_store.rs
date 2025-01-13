@@ -1,5 +1,3 @@
-use tinylog::trace;
-
 use super::{DEFAULT_CYCLE_COUNT, Interpreter};
 use crate::{
     cpu::{COP, RegLoad, cop0::Exception, instr::Instruction},

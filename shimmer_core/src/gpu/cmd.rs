@@ -61,9 +61,9 @@ pub enum DisplayOpcode {
     HorizontalDisplayRange = 0x6,
     VerticalDisplayRange = 0x7,
     DisplayMode = 0x8,
-    VramSizeV1 = 0x09,
+    VramSizeV2 = 0x09,
     ReadGpuRegister = 0x10,
-    VramSizeV2 = 0x20,
+    VramSizeV1 = 0x20,
 }
 
 /// A display command. Received through GP1.
@@ -85,6 +85,8 @@ pub struct DisplayCommand {
     pub vertical_dispaly_range_cmd: VerticalDisplayRangeCmd,
     #[bits(..)]
     pub display_mode_cmd: DisplayModeCmd,
+    #[bits(..)]
+    pub vram_size_cmd: VramSizeCmd,
 }
 
 impl std::fmt::Debug for DisplayCommand {
@@ -100,9 +102,9 @@ impl std::fmt::Debug for DisplayCommand {
                 DisplayOpcode::HorizontalDisplayRange => self.horizontal_display_range_cmd().fmt(f),
                 DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_cmd().fmt(f),
                 DisplayOpcode::DisplayMode => self.display_mode_cmd().fmt(f),
-                DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV1"),
+                DisplayOpcode::VramSizeV2 => write!(f, "VramSizeV1"),
                 DisplayOpcode::ReadGpuRegister => write!(f, "ReadGpuRegister"),
-                DisplayOpcode::VramSizeV2 => write!(f, "VramSizeV2"),
+                DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV2"),
             },
             None => write!(f, "unknown opcode"),
         }
@@ -181,7 +183,7 @@ impl RenderingCommand {
     pub fn args(&self) -> usize {
         match self.opcode() {
             RenderingOpcode::Misc => match self.misc_opcode() {
-                Some(MiscOpcode::QuickRectangleFill) => 3,
+                Some(MiscOpcode::QuickRectangleFill) => 2,
                 _ => 0,
             },
             RenderingOpcode::Polygon => {

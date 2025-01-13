@@ -344,14 +344,17 @@ impl PSX {
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                trace!(
-                    self.loggers.bus,
-                    "{} bytes read from {reg:?}[{}..{}] ({})",
-                    size_of::<P>(),
-                    offset,
-                    offset + size_of::<P>(),
-                    addr,
-                )
+                let ignore_list = [io::Reg::SRAMFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
+                if !ignore_list.contains(&reg) && !reg.is_spu_voice() {
+                    trace!(
+                        self.loggers.bus,
+                        "{} bytes read from {reg:?}[{}..{}] ({})",
+                        size_of::<P>(),
+                        offset,
+                        offset + size_of::<P>(),
+                        addr,
+                    );
+                }
             }
 
             let read = match reg {
