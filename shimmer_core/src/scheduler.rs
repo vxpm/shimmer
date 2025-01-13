@@ -62,4 +62,9 @@ impl Scheduler {
             None
         }
     }
+
+    #[inline(always)]
+    pub fn elapsed(&self) -> u64 {
+        self.elapsed
+    }
 }
