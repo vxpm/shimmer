@@ -3,6 +3,8 @@ use bitos::{
     integer::{i11, u6, u9},
 };
 
+use super::TexPage;
+
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]
 #[derive(Debug)]
@@ -78,23 +80,19 @@ pub struct Clut {
     y: u9,
 }
 
-// TODO: finish this
-#[bitos(16)]
-#[derive(Debug)]
-pub struct TexPage {}
-
 /// A vertex UV packet.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VertexUVPacket {
     #[bits(0..8)]
-    u: u8,
+    pub u: u8,
     #[bits(8..16)]
-    v: u8,
+    pub v: u8,
+
     #[bits(16..32)]
-    clut: Clut,
-    #[bits(16..32)]
-    page: TexPage,
+    pub clut: Clut,
+    #[bits(16..28)]
+    pub texpage: TexPage,
 }
 
 /// The Polygon mode of a [`PolygonCmd`].
