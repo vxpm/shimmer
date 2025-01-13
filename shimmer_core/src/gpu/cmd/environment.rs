@@ -38,10 +38,9 @@ pub enum CompressionMode {
     Dither = 1,
 }
 
-/// A drawing settings command.
-#[bitos(32)]
+#[bitos(12)]
 #[derive(Debug)]
-pub struct DrawingSettingsCmd {
+pub struct TexPage {
     #[bits(0..4)]
     pub texpage_x_base: u4,
     #[bits(4)]
@@ -50,6 +49,16 @@ pub struct DrawingSettingsCmd {
     pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
     pub texpage_depth: TexturePageDepth,
+    #[bits(11)]
+    pub texpage_y_base_2: u1,
+}
+
+/// A drawing settings command.
+#[bitos(32)]
+#[derive(Debug)]
+pub struct DrawingSettingsCmd {
+    #[bits(0..12)]
+    pub texpage: TexPage,
     #[bits(9)]
     pub compression_mode: CompressionMode,
     #[bits(10)]

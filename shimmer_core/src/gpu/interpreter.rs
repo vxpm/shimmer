@@ -61,15 +61,17 @@ impl Interpreter {
                     let settings = cmd.drawing_settings_cmd();
                     let stat = &mut psx.gpu.status;
 
-                    stat.set_texpage_x_base(settings.texpage_x_base());
-                    stat.set_texpage_y_base(settings.texpage_y_base());
-                    stat.set_semi_transparency_mode(settings.semi_transparency_mode());
-                    stat.set_texpage_depth(settings.texpage_depth());
+                    stat.set_texpage_x_base(settings.texpage().texpage_x_base());
+                    stat.set_texpage_y_base(settings.texpage().texpage_y_base());
+                    stat.set_semi_transparency_mode(settings.texpage().semi_transparency_mode());
+                    stat.set_texpage_depth(settings.texpage().texpage_depth());
                     stat.set_compression_mode(settings.compression_mode());
                     stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
 
                     if psx.gpu.environment.double_vram {
                         stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+                    } else {
+                        stat.set_texpage_y_base_2(u1::new(0));
                     }
 
                     psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
@@ -83,7 +85,7 @@ impl Interpreter {
             },
             RenderingOpcode::Polygon => {
                 let cmd = cmd.polygon_cmd();
-                for _ in 0..cmd.polygon_mode().vertices() {
+                for index in 0..cmd.polygon_mode().vertices() {
                     if cmd.shading_mode() == ShadingMode::Gouraud {
                         debug!(
                             psx.loggers.gpu,
@@ -99,11 +101,20 @@ impl Interpreter {
                     );
 
                     if cmd.textured() {
-                        debug!(
-                            psx.loggers.gpu,
-                            "uv: {:?}",
-                            VertexUVPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
-                        );
+                        let uv = VertexUVPacket::from_bits(psx.gpu.queue.pop_render().unwrap());
+                        debug!(psx.loggers.gpu, "uv: {:?}", uv.clone());
+
+                        if index == 1 {
+                            let stat = &mut psx.gpu.status;
+                            stat.set_texpage_x_base(uv.texpage().texpage_x_base());
+                            stat.set_texpage_y_base(uv.texpage().texpage_y_base());
+                            stat.set_semi_transparency_mode(uv.texpage().semi_transparency_mode());
+                            stat.set_texpage_depth(uv.texpage().texpage_depth());
+
+                            if psx.gpu.environment.double_vram {
+                                stat.set_texpage_y_base_2(uv.texpage().texpage_y_base_2());
+                            }
+                        }
                     }
                 }
             }
@@ -201,10 +212,6 @@ impl Interpreter {
             DisplayOpcode::VramSizeV2 => {
                 let settings = cmd.vram_size_cmd();
                 psx.gpu.environment.double_vram = settings.double();
-
-                if !settings.double() {
-                    psx.gpu.status.set_texpage_y_base_2(u1::new(0));
-                }
             }
             _ => error!(psx.loggers.gpu, "unimplemented display command: {cmd:?}"),
         }
@@ -222,9 +229,9 @@ impl Interpreter {
                             if psx.gpu.queue.render_len() <= cmd.args() {
                                 debug!(
                                     psx.loggers.gpu,
-                                    "{cmd:?} is waiting for {} arguments (has {})",
+                                    "{cmd:?} is waiting for > {} arguments (has {})",
+                                    cmd.args(),
                                     psx.gpu.queue.render_len(),
-                                    cmd.args()
                                 );
                                 break;
                             }
