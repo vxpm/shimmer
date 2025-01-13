@@ -16,6 +16,7 @@ use crate::{
     },
     scheduler::Event,
 };
+use bitos::integer::u1;
 use tinylog::{debug, error};
 
 #[derive(Default)]
@@ -36,6 +37,19 @@ impl Interpreter {
             RenderingOpcode::Misc => match cmd.misc_opcode().unwrap() {
                 MiscOpcode::NOP => (),
                 MiscOpcode::ClearCache => (),
+                MiscOpcode::QuickRectangleFill => {
+                    debug!(
+                        psx.loggers.gpu,
+                        "top left: {:?}",
+                        CoordPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
+                    );
+
+                    debug!(
+                        psx.loggers.gpu,
+                        "dimensions: {:?}",
+                        SizePacket::from_bits(psx.gpu.queue.pop_render().unwrap())
+                    );
+                }
                 _ => error!(
                     psx.loggers.gpu,
                     "unimplemented rendering (misc) command: {:?}",
@@ -53,7 +67,10 @@ impl Interpreter {
                     stat.set_texpage_depth(settings.texpage_depth());
                     stat.set_compression_mode(settings.compression_mode());
                     stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
-                    stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+
+                    if psx.gpu.environment.double_vram {
+                        stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+                    }
 
                     psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
                     psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
@@ -84,7 +101,7 @@ impl Interpreter {
                     if cmd.textured() {
                         debug!(
                             psx.loggers.gpu,
-                            "vertex: {:?}",
+                            "uv: {:?}",
                             VertexUVPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
                         );
                     }
@@ -114,14 +131,14 @@ impl Interpreter {
 
                 debug!(
                     psx.loggers.gpu,
-                    "vertex: {:?}",
+                    "top left: {:?}",
                     VertexPositionPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
                 );
 
                 if cmd.textured() {
                     debug!(
                         psx.loggers.gpu,
-                        "vertex: {:?}",
+                        "uv: {:?}",
                         VertexUVPacket::from_bits(psx.gpu.queue.pop_render().unwrap())
                     );
                 }
@@ -180,6 +197,14 @@ impl Interpreter {
             DisplayOpcode::DisplayEnabled => {
                 let settings = cmd.display_enable_cmd();
                 psx.gpu.status.set_disable_display(settings.disabled());
+            }
+            DisplayOpcode::VramSizeV2 => {
+                let settings = cmd.vram_size_cmd();
+                psx.gpu.environment.double_vram = settings.double();
+
+                if !settings.double() {
+                    psx.gpu.status.set_texpage_y_base_2(u1::new(0));
+                }
             }
             _ => error!(psx.loggers.gpu, "unimplemented display command: {cmd:?}"),
         }

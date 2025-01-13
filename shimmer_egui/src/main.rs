@@ -64,7 +64,7 @@ impl ExclusiveState {
             .build();
 
         let level = if cfg!(debug_assertions) {
-            tinylog::Level::Trace
+            tinylog::Level::Debug
         } else {
             tinylog::Level::Info
         };

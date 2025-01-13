@@ -69,3 +69,10 @@ pub struct DisplayModeCmd {
     #[bits(7)]
     pub flip_screen_x: bool,
 }
+
+#[bitos(32)]
+#[derive(Debug)]
+pub struct VramSizeCmd {
+    #[bits(0)]
+    pub double: bool,
+}

@@ -139,6 +139,8 @@ pub struct GpuResponse {}
 
 #[derive(Debug, Default)]
 pub struct EnvironmentState {
+    pub double_vram: bool,
+
     pub textured_rect_flip_x: bool,
     pub textured_rect_flip_y: bool,
 }

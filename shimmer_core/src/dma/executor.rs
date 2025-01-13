@@ -1,13 +1,13 @@
 use crate::{
     PSX,
     cpu::cop0::Interrupt,
-    dma::{Channel, ChannelInterruptMode, DataDirection, TransferDirection, TransferMode},
+    dma::{Channel, DataDirection, TransferDirection, TransferMode},
     gpu::{self},
     mem::Address,
     scheduler::Event,
 };
 use bitos::{BitUtils, integer::u24};
-use tinylog::{error, info, warn};
+use tinylog::{error, info, trace, warn};
 
 enum Progress {
     /// The transfer is still ongoing.
@@ -192,29 +192,29 @@ impl Executor {
                     .schedule(Event::DmaAdvance, channel.cycles_per_word());
             }
             Progress::Yielded => {
-                info!(
+                trace!(
                     psx.loggers.dma,
                     "transfer on channel {channel:?} has yielded";
                 );
 
-                // if psx
-                //     .dma
-                //     .interrupt_control
-                //     .channel_interrupt_mode_at(channel as usize)
-                //     .unwrap()
-                //     == ChannelInterruptMode::OnBlock
-                // {
-                //     // set interrupt flag if enabled
-                //     let interrupt_control = &mut psx.dma.interrupt_control;
-                //     if interrupt_control
-                //         .channel_interrupt_mask_at(channel as usize)
-                //         .unwrap()
-                //     {
-                //         interrupt_control.set_channel_interrupt_flags_at(channel as usize, true);
-                //     }
-                //
-                //     update_master_interrupt(psx);
-                // }
+                if psx
+                    .dma
+                    .interrupt_control
+                    .channel_interrupt_mode_at(channel as usize)
+                    .unwrap()
+                    == crate::dma::ChannelInterruptMode::OnBlock
+                {
+                    // set interrupt flag if enabled
+                    let interrupt_control = &mut psx.dma.interrupt_control;
+                    if interrupt_control
+                        .channel_interrupt_mask_at(channel as usize)
+                        .unwrap()
+                    {
+                        interrupt_control.set_channel_interrupt_flags_at(channel as usize, true);
+                    }
+
+                    update_master_interrupt(psx);
+                }
 
                 psx.scheduler
                     .schedule(Event::DmaAdvance, channel.cycles_per_word());
