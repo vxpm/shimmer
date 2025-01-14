@@ -1,3 +1,5 @@
+//! [`Instruction`], which represents a single MIPS I instruction, and related items.
+
 use super::{COP, Reg};
 use bitos::{
     bitos,
@@ -5,7 +7,7 @@ use bitos::{
 };
 use strum::IntoStaticStr;
 
-/// The opcode of a [`Instruction`].
+/// The opcode of an [`Instruction`].
 #[bitos(6)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum Opcode {
@@ -58,7 +60,7 @@ pub enum BZKind {
     BGEZAL,
 }
 
-/// The special opcode of a [`Instruction`] whose primary opcode is [`Opcode::SPECIAL`].
+/// The special opcode of an [`Instruction`] whose primary opcode is [`Opcode::SPECIAL`].
 #[bitos(6)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum SpecialOpcode {
@@ -109,6 +111,7 @@ pub enum SpecialCoOpcode {
     RFE = 0x10,
 }
 
+/// A MIPS I instruction.
 #[bitos(32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Instruction {
@@ -439,215 +442,6 @@ impl Instruction {
             (Some(Opcode::COP0 | Opcode::COP2), _, None) => true,
             _ => false,
         }
-    }
-
-    #[inline(always)]
-    pub fn ori(rt: Reg, rs: Reg, imm: u16) -> Self {
-        Self::NOP
-            .with_op(Opcode::ORI)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn lui(rt: Reg, imm: u16) -> Self {
-        Self::NOP.with_op(Opcode::LUI).with_rt(rt).with_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn sll(rd: Reg, rt: Reg, imm: u5) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::SLL)
-            .with_rd(rd)
-            .with_rt(rt)
-            .with_imm5(imm)
-    }
-
-    #[inline(always)]
-    pub fn sw(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::SW)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn addiu(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::ADDIU)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn jmp(imm: u26) -> Self {
-        Self::NOP.with_op(Opcode::JMP).with_imm26(imm)
-    }
-
-    #[inline(always)]
-    pub fn or(rd: Reg, rs: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::OR)
-            .with_rd(rd)
-            .with_rs(rs)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn mtc(cop: COP, rd: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_op(cop.opcode())
-            .with_cop_op(CoOpcode::MTC)
-            .with_rd(rd)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn bne(rs: Reg, rt: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::BNE)
-            .with_rs(rs)
-            .with_rt(rt)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn addi(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::ADDI)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn lw(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::LW)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn sltu(rd: Reg, rs: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::SLTU)
-            .with_rd(rd)
-            .with_rs(rs)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn addu(rd: Reg, rs: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::ADDU)
-            .with_rd(rd)
-            .with_rs(rs)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn sh(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::SH)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn jal(imm: u26) -> Self {
-        Self::NOP.with_op(Opcode::JAL).with_imm26(imm)
-    }
-
-    #[inline(always)]
-    pub fn andi(rt: Reg, rs: Reg, imm: u16) -> Self {
-        Self::NOP
-            .with_op(Opcode::ANDI)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn sb(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::SB)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn jr(rs: Reg) -> Self {
-        Self::NOP.with_special_op(SpecialOpcode::JR).with_rs(rs)
-    }
-
-    #[inline(always)]
-    pub fn lb(rt: Reg, rs: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::LB)
-            .with_rt(rt)
-            .with_rs(rs)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn srl(rd: Reg, rt: Reg, imm: u5) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::SRL)
-            .with_rd(rd)
-            .with_rt(rt)
-            .with_imm5(imm)
-    }
-
-    #[inline(always)]
-    pub fn and(rd: Reg, rs: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::AND)
-            .with_rd(rd)
-            .with_rs(rs)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn add(rd: Reg, rs: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_special_op(SpecialOpcode::ADD)
-            .with_rd(rd)
-            .with_rs(rs)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn beq(rs: Reg, rt: Reg, imm: i16) -> Self {
-        Self::NOP
-            .with_op(Opcode::BEQ)
-            .with_rs(rs)
-            .with_rt(rt)
-            .with_signed_imm16(imm)
-    }
-
-    #[inline(always)]
-    pub fn mfc(cop: COP, rd: Reg, rt: Reg) -> Self {
-        Self::NOP
-            .with_op(cop.opcode())
-            .with_cop_op(CoOpcode::MFC)
-            .with_rd(rd)
-            .with_rt(rt)
-    }
-
-    #[inline(always)]
-    pub fn rfe() -> Self {
-        Self::NOP
-            .with_op(Opcode::COP0)
-            .with_cop(COP::COP0)
-            .with_cop_op(CoOpcode::SPECIAL)
-            .with_cop_special_op(SpecialCoOpcode::RFE)
     }
 }
 

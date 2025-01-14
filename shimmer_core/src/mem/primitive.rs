@@ -95,6 +95,7 @@ impl_primitive! {
     i32
 }
 
+/// Helper trait for reading primitives from byte slices.
 pub trait PrimitiveRw<P>
 where
     P: Primitive,
@@ -107,10 +108,12 @@ impl<P> PrimitiveRw<P> for [u8]
 where
     P: Primitive,
 {
+    #[inline(always)]
     fn read(&self) -> P {
         P::read_from_buf(self)
     }
 
+    #[inline(always)]
     fn write(&mut self, value: P) {
         value.write_to(self);
     }

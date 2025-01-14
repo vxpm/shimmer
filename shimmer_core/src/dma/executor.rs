@@ -1,13 +1,16 @@
+//! An executor for DMA transfers.
+
 use crate::{
     PSX,
-    cpu::cop0::Interrupt,
     dma::{Channel, DataDirection, TransferDirection, TransferMode},
+    interrupts::Interrupt,
     mem::Address,
     scheduler::Event,
 };
 use bitos::{BitUtils, integer::u24};
 use tinylog::{error, info, trace, warn};
 
+/// The progress made by a transfer.
 enum Progress {
     /// The transfer is still ongoing.
     Ongoing,
@@ -17,7 +20,8 @@ enum Progress {
     Finished,
 }
 
-pub struct BurstTransfer {
+/// An ongoing burst transfer.
+struct BurstTransfer {
     channel: Channel,
     current_addr: u32,
     remaining: u32,
@@ -66,7 +70,8 @@ impl BurstTransfer {
     }
 }
 
-pub struct SliceTransfer {
+/// An ongoing slice transfer.
+struct SliceTransfer {
     channel: Channel,
 }
 
@@ -111,7 +116,8 @@ impl SliceTransfer {
     }
 }
 
-pub struct LinkedTransfer {
+/// An ongoing linked list transfer.
+struct LinkedTransfer {
     channel: Channel,
 }
 
@@ -144,7 +150,7 @@ impl LinkedTransfer {
 }
 
 #[derive(Default)]
-pub enum Executor {
+enum ExecutorInner {
     #[default]
     Idle,
     BurstTransfer(BurstTransfer),
@@ -154,15 +160,19 @@ pub enum Executor {
 
 fn update_master_interrupt(psx: &mut PSX) {
     if psx.dma.interrupt_control.update_master_interrupt_flag() {
-        psx.cop0.interrupt_status.request(Interrupt::DMA);
+        psx.interrupts.status.request(Interrupt::DMA);
     }
 }
+
+/// A DMA transfer executor.
+#[derive(Default)]
+pub struct Executor(ExecutorInner);
 
 impl Executor {
     #[inline(always)]
     pub fn ongoing(&self) -> bool {
-        match self {
-            Executor::Idle => false,
+        match self.0 {
+            ExecutorInner::Idle => false,
             _ => true,
         }
     }
@@ -170,11 +180,11 @@ impl Executor {
     pub fn advance(&mut self, psx: &mut PSX) {
         update_master_interrupt(psx);
 
-        let (channel, progress) = match self {
-            Executor::BurstTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            Executor::SliceTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            Executor::LinkedTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            Executor::Idle => unreachable!(),
+        let (channel, progress) = match &mut self.0 {
+            ExecutorInner::BurstTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            ExecutorInner::SliceTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            ExecutorInner::LinkedTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            ExecutorInner::Idle => unreachable!(),
         };
 
         match channel {
@@ -224,7 +234,7 @@ impl Executor {
                     "finished transfer on channel {channel:?}";
                 );
 
-                *self = Executor::Idle;
+                self.0 = ExecutorInner::Idle;
 
                 let channel_control = &mut psx.dma.channels[channel as usize].control;
                 channel_control.set_transfer_ongoing(false);
@@ -246,85 +256,82 @@ impl Executor {
     pub fn update(&mut self, psx: &mut PSX) {
         update_master_interrupt(psx);
 
-        match self {
-            Executor::Idle => {
-                let mut enabled_channels = psx.dma.control.enabled_channels();
-                enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
+        if matches!(self.0, ExecutorInner::Idle) {
+            let mut enabled_channels = psx.dma.control.enabled_channels();
+            enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
 
-                for (channel, _) in enabled_channels {
-                    let channel_state = &mut psx.dma.channels[channel as usize];
-                    if channel_state.control.transfer_ongoing() {
-                        let dreq = match channel {
-                            Channel::OTC => false,
-                            Channel::GPU => {
-                                psx.gpu.status.update_dreq();
-                                psx.gpu.status.dma_request()
-                            }
-                            _ => true,
-                        };
+            for (channel, _) in enabled_channels {
+                let channel_state = &mut psx.dma.channels[channel as usize];
+                if channel_state.control.transfer_ongoing() {
+                    let dreq = match channel {
+                        Channel::OTC => false,
+                        Channel::GPU => {
+                            psx.gpu.status.update_dreq();
+                            psx.gpu.status.dma_request()
+                        }
+                        _ => true,
+                    };
 
-                        if !dreq && !channel_state.control.force_transfer() {
-                            warn!(
+                    if !dreq && !channel_state.control.force_transfer() {
+                        warn!(
+                            psx.loggers.dma,
+                            "{:?} DREQ not set: {:?}",
+                            channel,
+                            channel_state.control.clone()
+                        );
+
+                        continue;
+                    }
+
+                    channel_state.control.set_force_transfer(false);
+                    match channel_state
+                        .control
+                        .transfer_mode()
+                        .unwrap_or(TransferMode::Burst)
+                    {
+                        TransferMode::Burst => {
+                            let current_addr = channel_state.base.addr().value() & !0b11;
+                            let remaining = if channel_state.block_control.len() == 0 {
+                                0x10000
+                            } else {
+                                u32::from(channel_state.block_control.len())
+                            };
+
+                            info!(
                                 psx.loggers.dma,
-                                "{:?} DREQ not set: {:?}",
-                                channel,
-                                channel_state.control.clone()
+                                "starting burst transfer on channel {channel:?}";
+                                base = Address(current_addr), remaining = remaining
                             );
 
-                            continue;
+                            self.0 = ExecutorInner::BurstTransfer(BurstTransfer {
+                                channel,
+                                current_addr,
+                                remaining,
+                            });
                         }
+                        TransferMode::Slice => {
+                            info!(
+                                psx.loggers.dma,
+                                "starting slice transfer on channel {channel:?}";
+                            );
 
-                        channel_state.control.set_force_transfer(false);
-                        match channel_state
-                            .control
-                            .transfer_mode()
-                            .unwrap_or(TransferMode::Burst)
-                        {
-                            TransferMode::Burst => {
-                                let current_addr = channel_state.base.addr().value() & !0b11;
-                                let remaining = if channel_state.block_control.len() == 0 {
-                                    0x10000
-                                } else {
-                                    u32::from(channel_state.block_control.len())
-                                };
-
-                                info!(
-                                    psx.loggers.dma,
-                                    "starting burst transfer on channel {channel:?}";
-                                    base = Address(current_addr), remaining = remaining
-                                );
-
-                                *self = Executor::BurstTransfer(BurstTransfer {
-                                    channel,
-                                    current_addr,
-                                    remaining,
-                                });
-                            }
-                            TransferMode::Slice => {
-                                info!(
-                                    psx.loggers.dma,
-                                    "starting slice transfer on channel {channel:?}";
-                                );
-
-                                *self = Executor::SliceTransfer(SliceTransfer { channel });
-                            }
-                            TransferMode::LinkedList => {
-                                info!(
-                                    psx.loggers.dma,
-                                    "starting linked transfer on channel {channel:?}";
-                                );
-
-                                *self = Executor::LinkedTransfer(LinkedTransfer { channel });
-                            }
+                            self.0 = ExecutorInner::SliceTransfer(SliceTransfer { channel });
                         }
+                        TransferMode::LinkedList => {
+                            info!(
+                                psx.loggers.dma,
+                                "starting linked transfer on channel {channel:?}";
+                            );
 
-                        psx.scheduler
-                            .schedule(Event::DmaAdvance, channel.cycles_per_word());
-                        return;
+                            self.0 = ExecutorInner::LinkedTransfer(LinkedTransfer { channel });
+                        }
                     }
+
+                    psx.scheduler
+                        .schedule(Event::DmaAdvance, channel.cycles_per_word());
+                    return;
                 }
             }
-            _ => (),
         }
     }
 }

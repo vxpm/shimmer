@@ -1,5 +1,7 @@
+//! Items related to the GPU of the PSX.
+
 pub mod cmd;
-pub mod interpreter;
+mod interpreter;
 
 use crate::cpu;
 use bitos::{
@@ -14,46 +16,47 @@ pub use interpreter::Interpreter;
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HorizontalResolution {
-    R256 = 0,
-    R320 = 1,
-    R512 = 2,
-    R640 = 3,
+    R256,
+    R320,
+    R512,
+    R640,
 }
 
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalResolution {
-    R240 = 0,
-    R480 = 1,
+    R240,
+    R480,
 }
 
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VideoMode {
     /// 60Hz
-    NTSC = 0,
+    NTSC,
     /// 50Hz
-    PAL = 1,
+    PAL,
 }
 
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayDepth {
     /// 15 Bit
-    Limited = 0,
+    Limited,
     /// 24 Bit
-    Full = 1,
+    Full,
 }
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmaDirection {
-    Off = 0,
-    Fifo = 1,
-    CpuToGp0 = 2,
-    GpuToCpu = 3,
+    Off,
+    Fifo,
+    CpuToGp0,
+    GpuToCpu,
 }
 
+/// The status of the GPU.
 #[bitos(32)]
 #[derive(Debug, Clone, Copy)]
 pub struct Status {
@@ -129,10 +132,12 @@ impl Status {
     }
 }
 
+/// The GPU response for the last request.
 #[bitos(32)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Response {}
 
+/// Environment configuration of the GPU.
 #[derive(Debug, Default)]
 pub struct EnvironmentState {
     pub double_vram: bool,
@@ -141,6 +146,7 @@ pub struct EnvironmentState {
     pub textured_rect_flip_y: bool,
 }
 
+/// Display configuration of the GPU.
 #[derive(Debug, Default)]
 pub struct DisplayState {
     pub area_start_x: u10,
@@ -152,7 +158,7 @@ pub struct DisplayState {
 
 /// The state of the GPU.
 #[derive(Debug, Default)]
-pub struct State {
+pub struct Gpu {
     /// The GPU status. This is the value of GPUSTAT (GP0).
     pub status: Status,
     /// The GPU status. This is the value of GPUREAD (GP1).
@@ -162,11 +168,13 @@ pub struct State {
     /// The queued packets written to GP1.
     pub display_queue: VecDeque<u32>,
 
+    /// Environment configuration.
     pub environment: EnvironmentState,
+    /// Display configuration.
     pub display: DisplayState,
 }
 
-impl State {
+impl Gpu {
     #[inline]
     pub fn cycles_per_vblank(&self) -> u32 {
         match self.status.video_mode() {

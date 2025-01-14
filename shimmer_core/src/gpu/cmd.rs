@@ -197,7 +197,7 @@ impl RenderingCommand {
                         ShadingMode::Flat => 0,
                         ShadingMode::Gouraud => 1,
                     };
-                let uvs = vertices * cmd.textured() as usize;
+                let uvs = vertices * usize::from(cmd.textured());
 
                 vertices + colors + uvs
             }
@@ -210,7 +210,7 @@ impl RenderingCommand {
             }
             RenderingOpcode::Rectangle => {
                 let cmd = self.rectangle_cmd();
-                let uv = cmd.textured() as usize;
+                let uv = usize::from(cmd.textured());
                 let dimensions = match cmd.rectangle_mode() {
                     RectangleMode::Variable => 1,
                     _ => 0,

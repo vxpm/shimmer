@@ -1,6 +1,8 @@
+//! Items related to the CPU of the PSX, the R3000.
+
 pub mod cop0;
 pub mod instr;
-pub mod interpreter;
+mod interpreter;
 
 use crate::mem::{self, Address};
 use bitos::bitos;
@@ -9,20 +11,25 @@ use strum::{EnumMessage, IntoStaticStr, VariantArray};
 
 pub use interpreter::Interpreter;
 
+/// The frequency of the CPU, in Hz.
 pub const FREQUENCY: u32 = 33_870_000;
 
 // these are only the general exception vectors...
-pub const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
-pub const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
+const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
+const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
+/// A CPU coprocessor kind.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
 pub enum COP {
-    COP0 = 0,
-    COP1 = 1,
+    /// System Coprocessor
+    COP0,
+    /// Floating Point Unit, absent in the PSX
+    COP1,
     /// GTE
-    COP2 = 2,
-    COP3 = 3,
+    COP2,
+    /// Absent in the PSX
+    COP3,
 }
 
 impl COP {
@@ -36,7 +43,7 @@ impl COP {
     }
 }
 
-/// A general purpose register of the CPU.
+/// A general purpose register of the CPU or one of it's coprocessors.
 #[bitos(5)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray, EnumMessage)]
 pub enum Reg {
@@ -221,17 +228,19 @@ impl Reg {
         }
     }
 
+    // TODO: move it here since this enum is used for the COPs too
     pub fn description(&self) -> &'static str {
         self.get_documentation().unwrap()
     }
 }
 
+/// The registers of the CPU.
 #[derive(Clone)]
 pub struct Registers {
-    pub gp: [u32; 32],
-    pub hi: u32,
-    pub lo: u32,
-    pub pc: u32,
+    gp: [u32; 32],
+    hi: u32,
+    lo: u32,
+    pc: u32,
 }
 
 impl std::fmt::Debug for Registers {
@@ -276,26 +285,29 @@ impl Registers {
 
     #[inline(always)]
     pub fn write(&mut self, reg: Reg, value: u32) {
-        self.gp[reg as usize] = value;
-        self.gp[0] = 0;
+        if reg != Reg::R0 {
+            self.gp[reg as usize] = value;
+        }
     }
 }
 
+/// A pending load operation, usually in the delay slot.
 #[derive(Debug, Clone, Copy)]
-struct RegLoad {
-    reg: Reg,
-    value: u32,
+pub struct RegLoad {
+    pub reg: Reg,
+    pub value: u32,
 }
 
+/// The state of the CPU.
 #[derive(Debug, Clone, Default)]
-pub struct State {
+pub struct Cpu {
     regs: Registers,
     cache_control: u32,
     load_delay_slot: Option<RegLoad>,
     instr_delay_slot: (Instruction, Address),
 }
 
-impl State {
+impl Cpu {
     pub fn instr_delay_slot(&self) -> (Instruction, Address) {
         self.instr_delay_slot
     }

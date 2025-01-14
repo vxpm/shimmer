@@ -9,7 +9,12 @@ impl Interpreter<'_> {
         let system_status = self.psx.cop0.regs.system_status();
 
         match instr.cop() {
-            COP::COP0 => self.psx.cop0.to_load = Some((instr.rd(), rt)),
+            COP::COP0 => {
+                self.psx.cop0.load_delay_slot = Some(RegLoad {
+                    reg: instr.rd(),
+                    value: rt,
+                })
+            }
             COP::COP1 if system_status.cop1_enabled() => {}
             // TODO: remove stub
             COP::COP2 if system_status.cop2_enabled() => {

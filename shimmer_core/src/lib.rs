@@ -1,3 +1,7 @@
+//! Core crate of the shimmer PSX emulator. This crate is intended to contain the actual emulator
+//! functionality, but no "frontend" code such as a GUI or a CLI. It also does not perform any sort
+//! of rendering: it only _provides_ the information necessary for a renderer to do it's job.
+
 #![feature(inline_const_pat)]
 #![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
@@ -7,6 +11,7 @@ pub mod cpu;
 pub mod dma;
 pub mod exe;
 pub mod gpu;
+pub mod interrupts;
 pub mod kernel;
 pub mod mem;
 pub mod timers;
@@ -15,12 +20,14 @@ mod scheduler;
 mod util;
 
 use cpu::cop0;
+use interrupts::Interrupt;
 use scheduler::{Event, Scheduler};
 use tinylog::Logger;
 
 pub use binrw;
 use util::cold_path;
 
+/// All the loggers of the [`PSX`].
 pub struct Loggers {
     pub root: Logger,
     pub bus: Logger,
@@ -43,27 +50,35 @@ impl Loggers {
     }
 }
 
-/// The state of the PSX.
+/// The state of the PSX. [`Emulator`] and it's systems operate on this struct.
 pub struct PSX {
+    /// The event scheduler.
     pub scheduler: Scheduler,
+    /// The loggers of this [`PSX`].
     pub loggers: Loggers,
 
     pub memory: mem::Memory,
-    pub timers: timers::State,
-    pub dma: dma::State,
-    pub cpu: cpu::State,
-    pub cop0: cop0::State,
-    pub gpu: gpu::State,
+    pub timers: timers::Timers,
+    pub dma: dma::Controller,
+    pub cpu: cpu::Cpu,
+    pub cop0: cop0::Cop0,
+    pub interrupts: interrupts::Controller,
+    pub gpu: gpu::Gpu,
 }
 
+/// The shimmer emulator.
 pub struct Emulator {
+    /// The state of the system.
     psx: PSX,
-    gpu_interpreter: gpu::Interpreter,
+
+    /// The GPU command interpreter.
+    gpu_state_machine: gpu::Interpreter,
+    /// The DMA executor.
     dma_executor: dma::Executor,
 }
 
 impl Emulator {
-    /// Creates a new [`PSX`].
+    /// Creates a new [`Emulator`].
     pub fn with_bios(bios: Vec<u8>, logger: Logger) -> Self {
         let mut e = Self {
             psx: PSX {
@@ -71,14 +86,15 @@ impl Emulator {
                 loggers: Loggers::new(logger),
 
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
-                timers: timers::State::default(),
-                dma: dma::State::default(),
-                cpu: cpu::State::default(),
-                cop0: cop0::State::default(),
-                gpu: gpu::State::default(),
+                timers: timers::Timers::default(),
+                dma: dma::Controller::default(),
+                cpu: cpu::Cpu::default(),
+                cop0: cop0::Cop0::default(),
+                interrupts: interrupts::Controller::default(),
+                gpu: gpu::Gpu::default(),
             },
             dma_executor: dma::Executor::default(),
-            gpu_interpreter: gpu::Interpreter::default(),
+            gpu_state_machine: gpu::Interpreter::default(),
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
@@ -88,16 +104,19 @@ impl Emulator {
         e
     }
 
+    /// Returns a reference to the state of the system.
     #[inline(always)]
     pub fn psx(&mut self) -> &PSX {
         &self.psx
     }
 
+    /// Returns a mutable reference to the state of the system.
     #[inline(always)]
     pub fn psx_mut(&mut self) -> &mut PSX {
         &mut self.psx
     }
 
+    /// Executes a single system cycle.
     pub fn cycle(&mut self) {
         self.psx.scheduler.advance();
 
@@ -119,9 +138,7 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }
                 Event::VSync => {
-                    let bus = self.psx_mut();
-                    bus.cop0.interrupt_status.request(cop0::Interrupt::VBlank);
-
+                    self.psx.interrupts.status.request(Interrupt::VBlank);
                     self.psx
                         .scheduler
                         .schedule(Event::VSync, u64::from(self.psx.gpu.cycles_per_vblank()));
@@ -131,7 +148,7 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Timer2, cycles);
                 }
                 Event::Gpu => {
-                    self.gpu_interpreter.exec_queued(&mut self.psx);
+                    self.gpu_state_machine.exec_queued(&mut self.psx);
                 }
                 Event::DmaUpdate => {
                     self.dma_executor.update(&mut self.psx);

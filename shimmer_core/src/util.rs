@@ -11,7 +11,7 @@ where
 }
 
 /// Hints to the compiler that a code path is "cold" (i.e. infrequently taken). In practice, this
-/// will make the compiler prefer outlining this code.
+/// will make the compiler prefer outlining the code.
 #[cold]
 #[inline(always)]
 pub fn cold_path() {}

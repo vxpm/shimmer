@@ -1,3 +1,6 @@
+//! Items related to the kernel of the PSX.
+
+/// A kernel function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Function {
     AddCDROMDevice,
@@ -39,6 +42,8 @@ pub enum Function {
 }
 
 impl Function {
+    /// Returns the kernel function that is executed when called through `0xA0` with the given
+    /// function code, if any.
     pub fn a0(code: u8) -> Option<Self> {
         Some(match code {
             0x03 => Self::Write,
@@ -63,6 +68,8 @@ impl Function {
         })
     }
 
+    /// Returns the kernel function that is executed when called through `0xB0` with the given
+    /// function code, if any.
     pub fn b0(code: u8) -> Option<Self> {
         Some(match code {
             0x00 => Self::AllocKernelMemory,
@@ -80,6 +87,8 @@ impl Function {
         })
     }
 
+    /// Returns the kernel function that is executed when called through `0xC0` with the given
+    /// function code, if any.
     pub fn c0(code: u8) -> Option<Self> {
         Some(match code {
             0x00 => Self::EnqueueTimerAndVblankIrqs,
@@ -95,6 +104,7 @@ impl Function {
         })
     }
 
+    /// Returns the amount of arguments required by this function.
     pub fn args(&self) -> usize {
         match self {
             Self::AddDrv => 1,

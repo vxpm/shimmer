@@ -1,3 +1,5 @@
+//! An interpreter for the R3000 CPU.
+
 mod arith_logic;
 mod coproc;
 mod exception;
@@ -21,6 +23,9 @@ use crate::{
 };
 use tinylog::{debug, error, info, warn};
 
+/// An interpreter of the R3000 CPU. This struct does not have any persistent state and is mostly
+/// just convenience for the implementation. It is intended to be created whenever you want to
+/// execute an instruction.
 pub struct Interpreter<'ctx> {
     psx: &'ctx mut PSX,
     /// Address of the currently executing instruction.
@@ -32,6 +37,7 @@ pub struct Interpreter<'ctx> {
 const DEFAULT_CYCLE_COUNT: u64 = 2;
 
 impl<'ctx> Interpreter<'ctx> {
+    #[inline(always)]
     pub fn new(psx: &'ctx mut PSX) -> Self {
         Self {
             psx,
@@ -40,6 +46,7 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
+    #[cold]
     #[inline(never)]
     fn sideload(&mut self) {
         if let Some(exe) = &self.psx.memory.sideload {
@@ -106,7 +113,7 @@ impl<'ctx> Interpreter<'ctx> {
             .set_branch_delay(in_branch_delay);
 
         // jump to exception handler indicated by BEV in system status
-        // TODO: this always jumps to the general exception handler... although others are very
+        // NOTE: this always jumps to the general exception handler... although others are very
         // unlikely to be used
         let exception_handler = if self
             .psx
@@ -123,28 +130,20 @@ impl<'ctx> Interpreter<'ctx> {
         self.psx.cpu.regs.pc = exception_handler.value();
     }
 
-    pub fn check_interrupts(&mut self) -> bool {
-        // (I_STAT & I_MASK)
-        let masked_interrupt_status = self
-            .psx
-            .cop0
-            .interrupt_status
-            .mask(&self.psx.cop0.interrupt_mask);
-
-        // get interrupt if != 0
+    fn check_interrupts(&mut self) -> bool {
+        let masked_interrupt_status = self.psx.interrupts.status.mask(&self.psx.interrupts.mask);
         let requested_interrupt = masked_interrupt_status.requested();
 
-        // update CAUSE
         self.psx
             .cop0
             .regs
             .cause_mut()
-            .set_interrupt_pending(requested_interrupt.is_some());
+            .set_system_interrupt_pending(requested_interrupt.is_some());
 
         if let Some(requested_interrupt) = requested_interrupt {
             // must have SR.BIT10 == 1
             let system_status = self.psx.cop0.regs.system_status();
-            if !system_status.interrupts_enabled() {
+            if !system_status.system_interrupts_enabled() {
                 return false;
             }
 
@@ -348,8 +347,8 @@ impl<'ctx> Interpreter<'ctx> {
             if let Some(load) = self.psx.cpu.load_delay_slot.take() {
                 self.psx.cpu.regs.write(load.reg, load.value);
             }
-            if let Some((reg, value)) = self.psx.cop0.to_load.take() {
-                self.psx.cop0.regs.write(reg, value);
+            if let Some(load) = self.psx.cop0.load_delay_slot.take() {
+                self.psx.cop0.regs.write(load.reg, load.value);
             }
 
             self.trigger_exception(Exception::AddressErrorLoad);
@@ -367,7 +366,7 @@ impl<'ctx> Interpreter<'ctx> {
         self.log_kernel_calls();
 
         self.pending_load = self.psx.cpu.load_delay_slot.take();
-        let pending_load_cop0 = self.psx.cop0.to_load.take();
+        let pending_load_cop0 = self.psx.cop0.load_delay_slot.take();
 
         let cycles = if !self.check_interrupts() {
             self.exec(current_instr)
@@ -379,8 +378,8 @@ impl<'ctx> Interpreter<'ctx> {
             self.psx.cpu.regs.write(load.reg, load.value);
         }
 
-        if let Some((reg, value)) = pending_load_cop0 {
-            self.psx.cop0.regs.write(reg, value);
+        if let Some(load) = pending_load_cop0 {
+            self.psx.cop0.regs.write(load.reg, load.value);
         }
 
         cycles

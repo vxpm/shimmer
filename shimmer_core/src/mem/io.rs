@@ -1,7 +1,10 @@
+//! Items related to memory mapped IO.
+
 use super::Address;
 use crate::dma::Channel;
 use strum::VariantArray;
 
+/// A memory mapped register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray)]
 pub enum Reg {
     // Memory Control 1
@@ -254,7 +257,8 @@ pub enum Reg {
 }
 
 impl Reg {
-    fn address_and_width(self) -> (Address, usize) {
+    /// Returns the address and the width of this register.
+    pub const fn address_and_width(self) -> (Address, usize) {
         let (addr, width) = match self {
             // Memory Control 1
             Reg::Expansion1Base => (0x1F80_1000, 4),
@@ -506,18 +510,21 @@ impl Reg {
         (Address(addr), width)
     }
 
+    /// Returns the address of this register.
     #[inline(always)]
-    pub fn address(self) -> Address {
+    pub const fn address(self) -> Address {
         self.address_and_width().0
     }
 
+    /// Returns the width of this register.
     #[inline(always)]
-    pub fn width(self) -> usize {
+    pub const fn width(self) -> usize {
         self.address_and_width().1
     }
 
     /// Returns the offset of the given address with respect to this register, but only if it's
     /// contained inside the register's range `addr..(addr + width)`.
+    #[inline(always)]
     pub fn offset(self, addr: Address) -> Option<usize> {
         let (reg_addr, width) = self.address_and_width();
         addr.value()
@@ -542,6 +549,8 @@ impl Reg {
         })
     }
 
+    /// Returns the register for which a given address in inside, if any, and the offset of the
+    /// address.
     pub fn reg_and_offset(addr: Address) -> Option<(Reg, usize)> {
         for reg in Self::VARIANTS {
             if let Some(offset) = reg.offset(addr) {
