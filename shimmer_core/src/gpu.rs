@@ -6,11 +6,7 @@ use bitos::{
     bitos,
     integer::{u1, u4, u9, u10, u12},
 };
-use cmd::{
-    Packet,
-    environment::{CompressionMode, SemiTransparencyMode, TexPageDepth},
-    rendering::{CoordPacket, SizePacket},
-};
+use cmd::environment::{CompressionMode, SemiTransparencyMode, TexPageDepth};
 use std::{collections::VecDeque, ops::Range};
 
 pub use interpreter::Interpreter;
@@ -60,7 +56,7 @@ pub enum DmaDirection {
 
 #[bitos(32)]
 #[derive(Debug, Clone, Copy)]
-pub struct GpuStatus {
+pub struct Status {
     #[bits(0..4)]
     pub texpage_x_base: u4,
     #[bits(4..5)]
@@ -115,13 +111,13 @@ pub struct GpuStatus {
     pub interlace_odd: bool,
 }
 
-impl Default for GpuStatus {
+impl Default for Status {
     fn default() -> Self {
         Self::from_bits(0x1480_2000)
     }
 }
 
-impl GpuStatus {
+impl Status {
     pub fn update_dreq(&mut self) {
         let dir = self.dma_direction();
         match dir {
@@ -135,7 +131,7 @@ impl GpuStatus {
 
 #[bitos(32)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct GpuResponse {}
+pub struct Response {}
 
 #[derive(Debug, Default)]
 pub struct EnvironmentState {
@@ -154,110 +150,17 @@ pub struct DisplayState {
     pub vertical_range: Range<u10>,
 }
 
-#[derive(Debug, Default)]
-pub struct Queue {
-    packets: VecDeque<Packet>,
-    render_len: usize,
-    display_len: usize,
-}
-
-impl Queue {
-    pub fn len(&self) -> usize {
-        self.packets.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn render_len(&self) -> usize {
-        self.render_len
-    }
-
-    pub fn display_len(&self) -> usize {
-        self.display_len
-    }
-
-    pub fn enqueue(&mut self, packet: Packet) {
-        match packet {
-            Packet::Rendering(_) => self.render_len += 1,
-            Packet::Display(_) => self.display_len += 1,
-        }
-
-        self.packets.push_back(packet);
-    }
-
-    pub fn front(&mut self) -> Option<&Packet> {
-        self.packets.front()
-    }
-
-    pub fn front_render(&mut self) -> Option<u32> {
-        let index = self
-            .packets
-            .iter()
-            .position(|p| matches!(p, Packet::Rendering(_)))?;
-
-        self.packets.get(index).map(|p| match p {
-            Packet::Rendering(value) => *value,
-            _ => unreachable!(),
-        })
-    }
-
-    pub fn front_display(&mut self) -> Option<u32> {
-        let index = self
-            .packets
-            .iter()
-            .position(|p| matches!(p, Packet::Rendering(_)))?;
-
-        self.packets.get(index).map(|p| match p {
-            Packet::Display(value) => *value,
-            _ => unreachable!(),
-        })
-    }
-
-    pub fn pop(&mut self) -> Option<Packet> {
-        let value = self.packets.pop_front();
-        match value {
-            Some(Packet::Rendering(_)) => self.render_len -= 1,
-            Some(Packet::Display(_)) => self.display_len -= 1,
-            _ => (),
-        }
-
-        value
-    }
-
-    pub fn pop_render(&mut self) -> Option<u32> {
-        let index = self
-            .packets
-            .iter()
-            .position(|p| matches!(p, Packet::Rendering(_)))?;
-
-        self.render_len -= 1;
-        self.packets.remove(index).map(|p| match p {
-            Packet::Rendering(value) => value,
-            _ => unreachable!(),
-        })
-    }
-
-    pub fn pop_display(&mut self) -> Option<u32> {
-        let index = self
-            .packets
-            .iter()
-            .position(|p| matches!(p, Packet::Display(_)))?;
-
-        self.display_len -= 1;
-        self.packets.remove(index).map(|p| match p {
-            Packet::Display(value) => value,
-            _ => unreachable!(),
-        })
-    }
-}
-
+/// The state of the GPU.
 #[derive(Debug, Default)]
 pub struct State {
-    pub status: GpuStatus,
-    pub response: GpuResponse,
-    pub queue: Queue,
+    /// The GPU status. This is the value of GPUSTAT (GP0).
+    pub status: Status,
+    /// The GPU status. This is the value of GPUREAD (GP1).
+    pub response: Response,
+    /// The queued packets written to GP0.
+    pub render_queue: VecDeque<u32>,
+    /// The queued packets written to GP1.
+    pub display_queue: VecDeque<u32>,
 
     pub environment: EnvironmentState,
     pub display: DisplayState,

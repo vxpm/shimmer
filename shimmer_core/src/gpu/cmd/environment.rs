@@ -1,3 +1,5 @@
+//! Environment commands.
+
 use bitos::{
     bitos,
     integer::{u1, u4, u5, u9, u10, u11},

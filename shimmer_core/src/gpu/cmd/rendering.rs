@@ -1,3 +1,5 @@
+//! Rendering commands.
+
 use super::TexPage;
 use bitos::{
     bitos,
@@ -6,7 +8,7 @@ use bitos::{
 
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CoordPacket {
     #[bits(0..16)]
     pub x: u16,
@@ -16,7 +18,7 @@ pub struct CoordPacket {
 
 /// A framebuffer transfer dimensions packet.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SizePacket {
     #[bits(0..16)]
     pub width: u16,

@@ -1,3 +1,5 @@
+//! Display commands.
+
 use crate::gpu::{DisplayDepth, DmaDirection, HorizontalResolution, VerticalResolution, VideoMode};
 use bitos::{
     bitos,

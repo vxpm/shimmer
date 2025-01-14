@@ -102,9 +102,9 @@ impl std::fmt::Debug for DisplayCommand {
                 DisplayOpcode::HorizontalDisplayRange => self.horizontal_display_range_cmd().fmt(f),
                 DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_cmd().fmt(f),
                 DisplayOpcode::DisplayMode => self.display_mode_cmd().fmt(f),
-                DisplayOpcode::VramSizeV2 => write!(f, "VramSizeV1"),
+                DisplayOpcode::VramSizeV2 => self.vram_size_cmd().fmt(f),
                 DisplayOpcode::ReadGpuRegister => write!(f, "ReadGpuRegister"),
-                DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV2"),
+                DisplayOpcode::VramSizeV1 => write!(f, "VramSizeV1"),
             },
             None => write!(f, "unknown opcode"),
         }
@@ -179,7 +179,7 @@ impl std::fmt::Debug for RenderingCommand {
 }
 
 impl RenderingCommand {
-    /// How many arguments this command requires at minimum.
+    /// How many arguments this command requires before execution can start.
     pub fn args(&self) -> usize {
         match self.opcode() {
             RenderingOpcode::Misc => match self.misc_opcode() {
@@ -222,20 +222,6 @@ impl RenderingCommand {
             RenderingOpcode::CpuToVramBlit => 2,
             RenderingOpcode::VramToCpuBlit => 2,
             RenderingOpcode::Environment => 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Packet {
-    Rendering(u32),
-    Display(u32),
-}
-
-impl Packet {
-    pub fn value(&self) -> u32 {
-        match self {
-            Packet::Rendering(packet) | Packet::Display(packet) => *packet,
         }
     }
 }

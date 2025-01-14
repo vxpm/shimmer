@@ -2,7 +2,6 @@ use crate::{
     PSX,
     cpu::cop0::Interrupt,
     dma::{Channel, DataDirection, TransferDirection, TransferMode},
-    gpu::{self},
     mem::Address,
     scheduler::Event,
 };
@@ -90,7 +89,7 @@ impl SliceTransfer {
                     TransferDirection::DeviceToRam => todo!(),
                     TransferDirection::RamToDevice => {
                         let word = psx.read::<u32, true>(Address(current_addr)).unwrap();
-                        psx.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(word));
+                        psx.gpu.render_queue.push_back(word);
                     }
                 },
                 _ => error!(psx.loggers.dma, "unimplemented slice transfer"),
@@ -132,7 +131,7 @@ impl LinkedTransfer {
             for i in 0..words {
                 let addr = current_addr + (i + 1) * 4;
                 let word = psx.read::<u32, true>(Address(addr)).unwrap();
-                psx.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(word));
+                psx.gpu.render_queue.push_back(word);
             }
 
             psx.dma.channels[self.channel as usize]

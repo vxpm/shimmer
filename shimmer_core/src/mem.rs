@@ -1,7 +1,7 @@
 pub mod io;
 pub mod primitive;
 
-use crate::{PSX, dma, exe::Executable, gpu, scheduler::Event, util};
+use crate::{PSX, dma, exe::Executable, scheduler::Event, util};
 use binrw::BinRead;
 use bitos::integer::u7;
 use easyerr::Error;
@@ -657,7 +657,7 @@ impl PSX {
                 io::Reg::Gp0 => {
                     let mut raw = 0u32;
                     value.write_to(&mut raw.as_mut_bytes()[offset..]);
-                    self.gpu.queue.enqueue(gpu::cmd::Packet::Rendering(raw));
+                    self.gpu.render_queue.push_back(raw);
 
                     self.scheduler.schedule(Event::Gpu, 0);
                     self.scheduler.schedule(Event::DmaUpdate, 0);
@@ -665,7 +665,7 @@ impl PSX {
                 io::Reg::Gp1 => {
                     let mut raw = 0u32;
                     value.write_to(&mut raw.as_mut_bytes()[offset..]);
-                    self.gpu.queue.enqueue(gpu::cmd::Packet::Display(raw));
+                    self.gpu.display_queue.push_back(raw);
 
                     self.scheduler.schedule(Event::Gpu, 0);
                     self.scheduler.schedule(Event::DmaUpdate, 0);
