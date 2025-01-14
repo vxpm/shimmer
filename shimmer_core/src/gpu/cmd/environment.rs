@@ -20,7 +20,7 @@ pub enum SemiTransparencyMode {
 /// The bit depth of the texture page.
 #[bitos(2)]
 #[derive(Debug, PartialEq, Eq)]
-pub enum TexturePageDepth {
+pub enum TexPageDepth {
     Nibble = 0,
     Byte = 1,
     /// 15 Bit
@@ -42,15 +42,15 @@ pub enum CompressionMode {
 #[derive(Debug)]
 pub struct TexPage {
     #[bits(0..4)]
-    pub texpage_x_base: u4,
+    pub x_base: u4,
     #[bits(4)]
-    pub texpage_y_base: u1,
+    pub y_base: u1,
     #[bits(5..7)]
     pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
-    pub texpage_depth: TexturePageDepth,
+    pub depth: TexPageDepth,
     #[bits(11)]
-    pub texpage_y_base_2: u1,
+    pub y_base_2: u1,
 }
 
 /// A drawing settings command.
