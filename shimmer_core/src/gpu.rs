@@ -8,7 +8,7 @@ use bitos::{
 };
 use cmd::{
     Packet,
-    environment::{CompressionMode, SemiTransparencyMode, TexturePageDepth},
+    environment::{CompressionMode, SemiTransparencyMode, TexPageDepth},
     rendering::{CoordPacket, SizePacket},
 };
 use std::{collections::VecDeque, ops::Range};
@@ -68,7 +68,7 @@ pub struct GpuStatus {
     #[bits(5..7)]
     pub semi_transparency_mode: SemiTransparencyMode,
     #[bits(7..9)]
-    pub texpage_depth: TexturePageDepth,
+    pub texpage_depth: TexPageDepth,
     #[bits(9)]
     pub compression_mode: CompressionMode,
     #[bits(10)]

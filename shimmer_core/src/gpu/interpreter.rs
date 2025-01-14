@@ -61,10 +61,10 @@ impl Interpreter {
                     let settings = cmd.drawing_settings_cmd();
                     let stat = &mut psx.gpu.status;
 
-                    stat.set_texpage_x_base(settings.texpage().texpage_x_base());
-                    stat.set_texpage_y_base(settings.texpage().texpage_y_base());
+                    stat.set_texpage_x_base(settings.texpage().x_base());
+                    stat.set_texpage_y_base(settings.texpage().y_base());
                     stat.set_semi_transparency_mode(settings.texpage().semi_transparency_mode());
-                    stat.set_texpage_depth(settings.texpage().texpage_depth());
+                    stat.set_texpage_depth(settings.texpage().depth());
                     stat.set_compression_mode(settings.compression_mode());
                     stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
 
@@ -106,13 +106,15 @@ impl Interpreter {
 
                         if index == 1 {
                             let stat = &mut psx.gpu.status;
-                            stat.set_texpage_x_base(uv.texpage().texpage_x_base());
-                            stat.set_texpage_y_base(uv.texpage().texpage_y_base());
+                            stat.set_texpage_x_base(uv.texpage().x_base());
+                            stat.set_texpage_y_base(uv.texpage().y_base());
                             stat.set_semi_transparency_mode(uv.texpage().semi_transparency_mode());
-                            stat.set_texpage_depth(uv.texpage().texpage_depth());
+                            stat.set_texpage_depth(uv.texpage().depth());
 
                             if psx.gpu.environment.double_vram {
-                                stat.set_texpage_y_base_2(uv.texpage().texpage_y_base_2());
+                                stat.set_texpage_y_base_2(uv.texpage().y_base_2());
+                            } else {
+                                stat.set_texpage_y_base_2(u1::new(0));
                             }
                         }
                     }
