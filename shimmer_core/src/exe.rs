@@ -1,7 +1,10 @@
+//! Items related to the executable format of the PSX.
+
 use crate::mem::Address;
 use binrw::BinRead;
 use std::ffi::{CStr, CString};
 
+/// Header of a PSX executable.
 #[derive(Debug, Clone, BinRead)]
 #[br(magic = b"PS-X EXE\0\0\0\0\0\0\0\0")]
 pub struct Header {
@@ -24,6 +27,7 @@ pub struct Header {
     pub marker: CString,
 }
 
+/// A PSX executable.
 #[derive(Debug, Clone, BinRead)]
 pub struct Executable {
     pub header: Header,

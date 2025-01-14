@@ -1,11 +1,20 @@
+//! The event scheduler of the [`PSX`](super::PSX).
+
+/// Possible schedule events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Event {
+    /// Execute the next CPU instruction.
     Cpu,
+    /// Fire a VSync.
     VSync,
-    Timer2,
+    /// Update the GPU state machine.
     Gpu,
+    /// Update the DMA state machine and possibly start a transfer.
     DmaUpdate,
+    /// Advance the currently ongoing DMA transfer.
     DmaAdvance,
+    /// Advance Timer2.
+    Timer2,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -14,6 +23,10 @@ struct ScheduledEvent {
     event: Event,
 }
 
+/// The event scheduler of the [`PSX`](super::PSX).
+///
+/// The scheduler is responsible for keeping track of how many cycles have elapsed and what should
+/// happen next.
 #[derive(Debug, Default)]
 pub struct Scheduler {
     elapsed: u64,

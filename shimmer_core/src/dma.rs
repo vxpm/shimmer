@@ -1,4 +1,6 @@
-pub mod executor;
+//! Items related to the DMA (Direct Memory Access) controller of the PSX.
+
+mod executor;
 
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
@@ -6,6 +8,7 @@ use integer::{u3, u7, u24};
 
 pub use executor::Executor;
 
+/// A DMA channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Channel {
@@ -19,6 +22,7 @@ pub enum Channel {
 }
 
 impl Channel {
+    /// How many cycles it takes to transfer a single word in this DMA channel.
     pub fn cycles_per_word(&self) -> u64 {
         match self {
             Channel::MdecIn => 1,
@@ -32,13 +36,17 @@ impl Channel {
     }
 }
 
+/// The direction of a DMA transfer.
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferDirection {
+    /// Copying from some source in the device to a destination address in RAM (the channel base).
     DeviceToRam = 0x0,
+    /// Copying from a source address in RAM (the channel base) to some destination in the device.
     RamToDevice = 0x1,
 }
 
+/// The direction of data in a DMA transfer.
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataDirection {
@@ -48,6 +56,7 @@ pub enum DataDirection {
     Backward = 0x1,
 }
 
+/// Modes a transfer can be executed in.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferMode {
@@ -55,18 +64,19 @@ pub enum TransferMode {
     Burst = 0x0,
     /// Data is transferred block by block.
     Slice = 0x1,
+    /// Data is transferred through a linked list of data nodes.
     LinkedList = 0x2,
 }
 
-/// Contains the base memory address where the DMA of channel `N` will start writing to/reading from.
+/// Contains the base memory address of a DMA channel.
 #[bitos(32)]
 #[derive(Debug, Clone, Default)]
 pub struct ChannelBase {
     #[bits(0..24)]
-    addr: u24,
+    pub addr: u24,
 }
 
-/// Used for configuring the blocks transferred in the DMA of channel `N`.
+/// Configuration of the blocks transferred through a DMA channel.
 #[allow(clippy::len_without_is_empty)]
 #[bitos(32)]
 #[derive(Debug, Clone, Default)]
@@ -79,7 +89,7 @@ pub struct ChannelBlockControl {
     pub count: u16,
 }
 
-/// Used for configuring the blocks transferred in the DMA of channel `N`.
+/// Configuration of a DMA channel.
 #[bitos(32)]
 #[derive(Debug, Clone, Default)]
 pub struct ChannelControl {
@@ -112,6 +122,7 @@ pub struct ChannelControl {
     pub bus_snooping: bool,
 }
 
+/// The state of a DMA channel.
 #[derive(Debug, Clone, Default)]
 pub struct ChannelState {
     pub base: ChannelBase,
@@ -119,6 +130,7 @@ pub struct ChannelState {
     pub control: ChannelControl,
 }
 
+/// Configuration of a channel in the DMA controller's configuration.
 #[bitos(4)]
 #[derive(Debug, Clone)]
 pub struct ChannelStatus {
@@ -130,6 +142,7 @@ pub struct ChannelStatus {
     pub enabled: bool,
 }
 
+/// Configuration of the DMA controller regarding channels.
 #[bitos(32)]
 #[derive(Debug, Clone, Default)]
 pub struct Control {
@@ -166,6 +179,7 @@ impl Control {
     }
 }
 
+/// How interrupts should be raised for a given channel.
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelInterruptMode {
@@ -175,8 +189,7 @@ pub enum ChannelInterruptMode {
     OnBlock = 0x1,
 }
 
-/// Register that controls how DMA channels raise interrupts and which channels are actually
-/// allowed to raise one.
+/// Configuration of the DMA controller regarding interrupts.
 #[bitos(32)]
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct InterruptControl {
@@ -225,53 +238,14 @@ impl InterruptControl {
     }
 }
 
-// DMA Controller Behaviour
-//
-// # Summary
-// The DMA controller is responsible for actually executing the DMAs and for raising interrupts
-// when needed. It has two main registers:
-// - DMA Control (DMAC): Controls which DMA channels are enabled and their priorities. When a DMA
-// needs to be chosen, the one with highest priority wins.
-// - DMA Interrupt Control (DMAIC): Controls how interrupts are raised for each channel, whether
-// they are allowed to raise an interrupt and whether they want to raise one.
-//
-// It also has a bunch of registers for each of the DMA channels:
-// - DMA Channel Control N (DMACCN): Controls the behaviour of DMA channel N.
-// - DMA Block Control N (DMABCN): Controls the size and the amount of transfer blocks for DMA
-// channel N.
-// - DMA Base N: Contains the base address for the DMA transfer.
-//
-// # Transfer
-// A transfer in channel N starts when:
-// - DMACCN has `transfer_ongoing` set by the CPU.
-// - The channel is enabled in DMAC and it has the highest priority of all enabled channels.
-//
-// When a transfer starts, the DMA controller transfers data as specified by the channel control.
-// Transfers have 3 modes:
-// - Burst: Transfer all at once.
-// - Slice: Split data into blocks and transfer a single block per DMA request.
-// - Linked-List: Transfer happens in blocks, like in Slice, but the blocks are not contiguous.
-//
-// Note that multiple transfers can happen at the same time:
-//
-// When the transfer in channel N finishes, DMACCN `transfer_ongoing` must be unset.
-//
-// # Interrupts
-// Whenever a channel has its interrupt flag raised, the DMA controller must trigger the DMA
-// interrupt (according to the DMA interrupt mode of the channel that completed) if the channel
-// interrupt is enabled in the mask.
-//
-// 01. Check channels that have completed (interrupt flag = 1)
-// 02. Mask channels allowed to raise interrupts (interrupt mask = 1)
-// 03. Raise interrupt!
-
-pub struct State {
+/// The state of the DMA controller.
+pub struct Controller {
     pub control: Control,
     pub interrupt_control: InterruptControl,
     pub channels: [ChannelState; 7],
 }
 
-impl Default for State {
+impl Default for Controller {
     fn default() -> Self {
         let mut channels: [ChannelState; 7] = Default::default();
         channels[6]

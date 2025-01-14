@@ -1,3 +1,5 @@
+//! Items related to the timers of the PSX.
+
 use bitos::{bitos, integer::u2};
 
 #[bitos(2)]
@@ -93,6 +95,6 @@ impl Timer2 {
 }
 
 #[derive(Default)]
-pub struct State {
+pub struct Timers {
     pub timer2: Timer2,
 }

@@ -1,14 +1,17 @@
+//! Items related to the memory of the PSX.
+
 pub mod io;
-pub mod primitive;
+
+mod primitive;
 
 use crate::{PSX, dma, exe::Executable, scheduler::Event, util};
 use binrw::BinRead;
 use bitos::integer::u7;
 use easyerr::Error;
-
-pub use primitive::{Primitive, PrimitiveRw};
 use tinylog::{debug, trace, warn};
 use zerocopy::IntoBytes;
+
+pub use primitive::{Primitive, PrimitiveRw};
 
 /// A memory segment refers to a specific range of memory addresses, each with it's own purpose and
 /// properties.
@@ -48,6 +51,7 @@ impl Segment {
     }
 }
 
+/// A memory region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Region {
     Ram,
@@ -63,7 +67,7 @@ pub enum Region {
 #[expect(clippy::len_without_is_empty, reason = "not a collection")]
 impl Region {
     /// The length of this region, in bytes.
-    #[inline]
+    #[inline(always)]
     pub const fn start(&self) -> PhysicalAddress {
         // SAFETY: the addresses are in the physical range
         unsafe {
@@ -81,7 +85,7 @@ impl Region {
     }
 
     /// The length of this region, in bytes.
-    #[inline]
+    #[inline(always)]
     pub const fn len(&self) -> u32 {
         match self {
             Region::Ram => 2 * bytesize::MIB as u32,
@@ -224,9 +228,9 @@ impl Address {
 
     /// Returns the physical address that this virtual address maps to.
     ///
-    /// If the [segment](Self::segment) of this address is `KUSEG | KSEG0 | KSEG1`,
-    /// this is somewhere in `0000_0000..0x2000_0000`. Otherwise, it's in `KSEG2` and
-    /// does not map to a physical address.
+    /// If the [`segment`](Self::segment) of this address is `KUSEG | KSEG0 | KSEG1`, this is
+    /// somewhere in `0000_0000..0x2000_0000`. Otherwise, it's in `KSEG2` and does not map to a
+    /// physical address.
     #[inline(always)]
     pub const fn physical(self) -> Option<PhysicalAddress> {
         PhysicalAddress::new(match self.segment() {
@@ -276,6 +280,7 @@ impl PartialEq<u32> for Address {
 
 pub type BoxedU8Arr<const LEN: usize> = Box<[u8; LEN]>;
 
+/// Collection of memory components, e.g. RAM, BIOS and the Scratchpad.
 pub struct Memory {
     /// Main RAM (the first 2 MB).
     pub ram: BoxedU8Arr<{ Region::Ram.len() as usize }>,
@@ -359,15 +364,11 @@ impl PSX {
 
             let read = match reg {
                 io::Reg::InterruptStatus => {
-                    let value = self.cop0.interrupt_status.into_bits();
-                    let bytes = value.as_bytes();
-
+                    let bytes = self.interrupts.status.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::InterruptMask => {
-                    let value = self.cop0.interrupt_mask.into_bits();
-                    let bytes = value.as_bytes();
-
+                    let bytes = self.interrupts.mask.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Dma0Base
@@ -417,7 +418,7 @@ impl PSX {
                 }
                 io::Reg::Gp1 => {
                     let bytes = self.gpu.status.as_bytes();
-                    trace!(self.loggers.bus, "{:?}", self.gpu.status.clone());
+                    trace!(self.loggers.bus, "{:?}", self.gpu.status);
 
                     P::read_from_buf(&bytes[offset..])
                 }
@@ -525,7 +526,7 @@ impl PSX {
 
             match reg {
                 io::Reg::InterruptStatus => {
-                    let stat_bytes = &mut self.cop0.interrupt_status.as_mut_bytes()[offset..];
+                    let stat_bytes = &mut self.interrupts.status.as_mut_bytes()[offset..];
                     let value_bytes = value.as_bytes();
 
                     for (value_byte, stat_byte) in value_bytes.iter().zip(stat_bytes) {
@@ -533,7 +534,7 @@ impl PSX {
                     }
                 }
                 io::Reg::InterruptMask => {
-                    let reg_bytes = self.cop0.interrupt_mask.as_mut_bytes();
+                    let reg_bytes = self.interrupts.mask.as_mut_bytes();
                     value.write_to(&mut reg_bytes[offset..]);
                 }
                 io::Reg::Dma0Base

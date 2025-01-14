@@ -1,102 +1,13 @@
+//! Items related to the coprocessor 0 (COP0). It is responsible for exception handling and keeping
+//! track of the CPU state.
+
 use super::COP;
+use super::RegLoad;
 use crate::cpu::Reg;
 use bitos::BitUtils;
 use bitos::bitos;
-use strum::FromRepr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, FromRepr)]
-pub enum Interrupt {
-    VBlank = 0x00,
-    GPU = 0x01,
-    CDROM = 0x02,
-    DMA = 0x03,
-    Timer0 = 0x04,
-    Timer1 = 0x05,
-    Timer2 = 0x06,
-    ControllerAndMemCard = 0x07,
-    SIO = 0x08,
-    SPU = 0x09,
-    Controller = 0xA,
-}
-
-#[bitos(32)]
-#[derive(Clone, Copy, Default)]
-pub struct InterruptStatus {
-    #[bits(0..10)]
-    status: [bool; 10],
-}
-
-impl std::fmt::Debug for InterruptStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set()
-            .entries(
-                self.status()
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, requested)| {
-                        requested.then_some(Interrupt::from_repr(i).unwrap())
-                    }),
-            )
-            .finish()
-    }
-}
-
-impl InterruptStatus {
-    #[inline]
-    pub fn request(&mut self, interrupt: Interrupt) {
-        self.set_status_at(interrupt as usize, true);
-    }
-
-    #[inline]
-    pub fn mask(&mut self, mask: &InterruptMask) -> Self {
-        let status_bits: u32 = self.0;
-        let mask_bits: u32 = mask.0;
-        let masked = status_bits & mask_bits;
-
-        Self::from_bits(masked)
-    }
-
-    #[inline]
-    pub fn requested(&self) -> Option<Interrupt> {
-        // TODO: improve this
-        let trailing = self.0.trailing_zeros();
-        (trailing < 10).then(|| match trailing {
-            0x00 => Interrupt::VBlank,
-            0x01 => Interrupt::GPU,
-            0x02 => Interrupt::CDROM,
-            0x03 => Interrupt::DMA,
-            0x04 => Interrupt::Timer0,
-            0x05 => Interrupt::Timer1,
-            0x06 => Interrupt::Timer2,
-            0x07 => Interrupt::ControllerAndMemCard,
-            0x08 => Interrupt::SIO,
-            0x09 => Interrupt::SPU,
-            0x0A => Interrupt::Controller,
-            _ => unreachable!(),
-        })
-    }
-}
-
-#[bitos(32)]
-#[derive(Clone, Copy, Default)]
-pub struct InterruptMask {
-    #[bits(0..10)]
-    enabled: [bool; 10],
-}
-
-impl std::fmt::Debug for InterruptMask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_set()
-            .entries(
-                self.enabled()
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, enabled)| enabled.then_some(Interrupt::from_repr(i).unwrap())),
-            )
-            .finish()
-    }
-}
-
+/// A CPU exception kind.
 #[bitos(5)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exception {
@@ -121,7 +32,7 @@ pub enum Exception {
 }
 
 /// Represents the value of the CAUSE register. It describes the most recently recognised
-/// exception, and is also used to request interrupts.
+/// exception and is also used to request CPU interrupts.
 #[bitos(32)]
 #[derive(Debug, Clone)]
 pub struct Cause {
@@ -129,9 +40,10 @@ pub struct Cause {
     #[bits(2..7)]
     pub exception: Option<Exception>,
     /// Used to request a CPU interrupt if it is enabled in the System Register. In the PSX,
-    /// there's only one interrupt line connected, which is the third entry in this array.
+    /// there's only one interrupt line connected, which is the third entry in this array: it is
+    /// connected to the system interrupt controller.
     #[bits(8..16)]
-    pending_interrupt_lines: [bool; 8],
+    pub pending_interrupt_lines: [bool; 8],
     /// The coprocessor that caused this exception if it ocurred because of a coprocessor
     /// instruction for a coprocessor that wasn't enabled in the System Register.
     #[bits(28..30)]
@@ -143,35 +55,38 @@ pub struct Cause {
 }
 
 impl Cause {
-    #[inline]
-    pub fn interrupt_pending(&self) -> bool {
+    /// Returns whether a system interrupt is currently pending.
+    #[inline(always)]
+    pub fn system_interrupt_pending(&self) -> bool {
         self.pending_interrupt_lines_at(2).unwrap()
     }
 
-    #[inline]
-    pub fn set_interrupt_pending(&mut self, value: bool) {
+    /// Sets a system interrupt as pending.
+    #[inline(always)]
+    pub fn set_system_interrupt_pending(&mut self, value: bool) {
         self.set_pending_interrupt_lines_at(2, value);
     }
 }
 
-/// Represents the state of the CPU before an exception happened.
+/// Represents the mode of the CPU.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CpuState {
+pub struct CpuMode {
     #[bits(0)]
     interrupts_enabled: bool,
     #[bits(1)]
     user_mode: bool,
 }
 
-/// Represents the value of the System Status register
+/// Represents the value of the System Status register.
 #[bitos(32)]
 #[derive(Debug, Clone)]
 pub struct SystemStatus {
     #[bits(0..6)]
-    pub cpu_state_stack: [CpuState; 3],
-    /// Contains which interrupt lines are permitted to fire a CPU interrupt. In the PSX,
-    /// there's only one interrupt line connected, which is the third entry in this array.
+    pub cpu_mode_stack: [CpuMode; 3],
+    /// Contains which interrupt lines are allowed to fire a CPU interrupt. In the PSX, there's
+    /// only one interrupt line connected, which is the third entry in this array: it is connected
+    /// to the system interrupt controller.
     #[bits(8..16)]
     pub enabled_interrupt_lines: [bool; 8],
     #[bits(16..17)]
@@ -195,30 +110,32 @@ pub struct SystemStatus {
 }
 
 impl SystemStatus {
-    /// Disables interrupts, goes into kernel mode and pushes the new [`CpuState`] onto the state stack.
+    /// Disables interrupts, goes into kernel mode and pushes the new [`CpuMode`] onto the mode
+    /// stack.
     pub fn start_exception(&mut self) {
-        let mut stack = self.cpu_state_stack();
+        let mut stack = self.cpu_mode_stack();
         stack.copy_within(0..2, 1);
-        stack[0] = CpuState::from_bits(Default::default());
-        self.set_cpu_state_stack(stack);
+        stack[0] = CpuMode::from_bits(Default::default());
+        self.set_cpu_mode_stack(stack);
     }
 
-    /// Pops the [`CpuState`] from the state stack.
+    /// Pops the current [`CpuMode`] from the state stack.
     pub fn restore_from_exception(&mut self) {
-        let mut stack = self.cpu_state_stack();
+        let mut stack = self.cpu_mode_stack();
         stack.copy_within(1..3, 0);
-        self.set_cpu_state_stack(stack);
+        self.set_cpu_mode_stack(stack);
     }
 
-    /// Whether interrupts are currently enabled or not.
-    pub fn interrupts_enabled(&self) -> bool {
+    /// Whether system interrupts are currently enabled or not.
+    pub fn system_interrupts_enabled(&self) -> bool {
         self.enabled_interrupt_lines_at(2).unwrap()
-            && self.cpu_state_stack_at(0).unwrap().interrupts_enabled()
+            && self.cpu_mode_stack_at(0).unwrap().interrupts_enabled()
     }
 }
 
+/// The registers of COP0.
 #[derive(Clone)]
-pub struct Registers(pub(super) [u32; 32]);
+pub struct Registers([u32; 32]);
 
 impl std::fmt::Debug for Registers {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -250,10 +167,12 @@ impl Default for Registers {
 }
 
 impl Registers {
+    #[inline(always)]
     pub fn read(&self, reg: Reg) -> u32 {
         self.0[reg as usize]
     }
 
+    #[inline(always)]
     pub fn write(&mut self, reg: Reg, value: u32) {
         match reg {
             Reg::COP0_CAUSE => {
@@ -263,27 +182,30 @@ impl Registers {
         }
     }
 
+    #[inline(always)]
     pub fn system_status(&self) -> &SystemStatus {
         zerocopy::transmute_ref!(&self.0[Reg::COP0_SR as usize])
     }
 
+    #[inline(always)]
     pub fn system_status_mut(&mut self) -> &mut SystemStatus {
         zerocopy::transmute_mut!(&mut self.0[Reg::COP0_SR as usize])
     }
 
+    #[inline(always)]
     pub fn cause(&self) -> &Cause {
         zerocopy::transmute_ref!(&self.0[Reg::COP0_CAUSE as usize])
     }
 
+    #[inline(always)]
     pub fn cause_mut(&mut self) -> &mut Cause {
         zerocopy::transmute_mut!(&mut self.0[Reg::COP0_CAUSE as usize])
     }
 }
 
+/// The state of COP0.
 #[derive(Debug, Clone, Default)]
-pub struct State {
-    pub regs: Registers,
-    pub interrupt_status: InterruptStatus,
-    pub interrupt_mask: InterruptMask,
-    pub to_load: Option<(Reg, u32)>,
+pub struct Cop0 {
+    pub(super) regs: Registers,
+    pub(super) load_delay_slot: Option<RegLoad>,
 }
