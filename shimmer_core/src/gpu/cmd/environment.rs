@@ -7,7 +7,7 @@ use bitos::{
 
 /// The shading mode of a rendering command.
 #[bitos(2)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SemiTransparencyMode {
     /// Final Color = Old / 2 + New / 2
     Half = 0,
@@ -21,7 +21,7 @@ pub enum SemiTransparencyMode {
 
 /// The bit depth of the texture page.
 #[bitos(2)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TexPageDepth {
     Nibble = 0,
     Byte = 1,
@@ -32,7 +32,7 @@ pub enum TexPageDepth {
 
 /// The compression mode of colors.
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionMode {
     /// Strip LSBs.
     Strip = 0,

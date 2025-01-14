@@ -117,9 +117,14 @@ pub struct ChannelControl {
     pub transfer_ongoing: bool,
     /// Forces the transfer to start without waiting for the DREQ.
     #[bits(28)]
-    pub force_transfer: bool, // NOTE: DREQ refers to the hardware signal
+    pub force_transfer: bool,
     #[bits(30)]
     pub bus_snooping: bool,
+}
+
+impl ChannelControl {
+    pub const DMA6_WRITE_MASK: u64 =
+        Self::TRANSFER_ONGOING_MASK | Self::FORCE_TRANSFER_MASK | Self::BUS_SNOOPING_MASK;
 }
 
 /// The state of a DMA channel.
@@ -207,7 +212,7 @@ pub struct InterruptControl {
     pub channel_interrupt_mask_raw: u7,
     /// Specifies if channels are allowed to raise an interrupt.
     #[bits(23..24)]
-    pub master_channel_interrupt_enable: bool,
+    pub master_interrupt_enable: bool,
     /// Set whenever the transfer of the given channel completes (according to the mode in
     /// `channel_interrupt_mode`), but only if enabled in the channel interrupt mask. Writing 1 to
     /// these bits clears them.
@@ -224,13 +229,19 @@ pub struct InterruptControl {
 }
 
 impl InterruptControl {
+    pub const WRITE_MASK: u64 = Self::CHANNEL_INTERRUPT_MODE_MASK
+        | Self::BUS_ERROR_MASK
+        | Self::CHANNEL_INTERRUPT_MASK_MASK
+        | Self::MASTER_INTERRUPT_ENABLE_MASK
+        | Self::CHANNEL_INTERRUPT_FLAGS_MASK;
+
     /// Updates the master interrupt flag and returns whether it performed a low-to-high
     /// transition.
     pub fn update_master_interrupt_flag(&mut self) -> bool {
         let old = self.master_interrupt_flag();
         self.set_master_interrupt_flag(
             self.bus_error()
-                || (self.master_channel_interrupt_enable()
+                || (self.master_interrupt_enable()
                     && self.channel_interrupt_flags_raw().value() != 0),
         );
 
