@@ -1,9 +1,8 @@
+use super::TexPage;
 use bitos::{
     bitos,
     integer::{i11, u6, u9},
 };
-
-use super::TexPage;
 
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]
@@ -71,6 +70,7 @@ pub struct VertexPositionPacket {
     pub y: i11,
 }
 
+/// CLUT information of a textured vertex.
 #[bitos(16)]
 #[derive(Debug)]
 pub struct Clut {

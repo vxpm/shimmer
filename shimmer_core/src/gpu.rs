@@ -155,15 +155,6 @@ pub struct DisplayState {
 }
 
 #[derive(Debug, Default)]
-pub enum ExecState {
-    /// Currently not executing anything
-    #[default]
-    None,
-    /// Waiting for enough data to complete
-    CpuToVramBlit { dest: CoordPacket, size: SizePacket },
-}
-
-#[derive(Debug, Default)]
 pub struct Queue {
     packets: VecDeque<Packet>,
     render_len: usize,
@@ -270,8 +261,6 @@ pub struct State {
 
     pub environment: EnvironmentState,
     pub display: DisplayState,
-
-    pub execution_state: ExecState,
 }
 
 impl State {

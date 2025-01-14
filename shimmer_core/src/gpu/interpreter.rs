@@ -1,7 +1,4 @@
-use super::{
-    ExecState,
-    cmd::{DisplayCommand, Packet, RenderingCommand},
-};
+use super::cmd::{DisplayCommand, RenderingCommand};
 use crate::{
     PSX,
     gpu::{
@@ -19,9 +16,12 @@ use crate::{
 use bitos::integer::u1;
 use tinylog::{debug, error};
 
-#[derive(Default)]
-pub struct Interpreter {
-    // no state currently
+#[derive(Debug, Default)]
+pub enum Interpreter {
+    #[default]
+    Idle,
+    /// Waiting for enough data to complete a CPU to VRAM blit
+    CpuToVramBlit { dest: CoordPacket, size: SizePacket },
 }
 
 impl Interpreter {
@@ -123,7 +123,7 @@ impl Interpreter {
             RenderingOpcode::CpuToVramBlit => {
                 let dest = CoordPacket::from_bits(psx.gpu.queue.pop_render().unwrap());
                 let size = SizePacket::from_bits(psx.gpu.queue.pop_render().unwrap());
-                psx.gpu.execution_state = ExecState::CpuToVramBlit { dest, size };
+                *self = Interpreter::CpuToVramBlit { dest, size };
 
                 psx.gpu.status.set_ready_to_send_vram(true);
                 psx.scheduler.schedule(Event::DmaUpdate, 0);
@@ -219,53 +219,56 @@ impl Interpreter {
         }
     }
 
-    /// Executes all queued GPU commands.
-    pub fn exec_queued(&mut self, psx: &mut PSX) {
-        while !psx.gpu.queue.is_empty() {
-            match &psx.gpu.execution_state {
-                ExecState::None => {
-                    let cmd = psx.gpu.queue.front().unwrap();
-                    match cmd {
-                        Packet::Rendering(packet) => {
-                            let cmd = RenderingCommand::from_bits(*packet);
-                            if psx.gpu.queue.render_len() <= cmd.args() {
-                                debug!(
-                                    psx.loggers.gpu,
-                                    "{cmd:?} is waiting for > {} arguments (has {})",
-                                    cmd.args(),
-                                    psx.gpu.queue.render_len(),
-                                );
-                                break;
-                            }
-
-                            psx.gpu.queue.pop();
-                            self.exec_render(psx, cmd);
-                        }
-                        Packet::Display(packet) => {
-                            let cmd = DisplayCommand::from_bits(*packet);
-
-                            psx.gpu.queue.pop();
-                            self.exec_display(psx, cmd);
-                        }
-                    };
-                }
-                ExecState::CpuToVramBlit { dest: _, size } => {
-                    let packets = (size.width() * size.height() + 1) / 2;
-                    if psx.gpu.queue.render_len() <= packets as usize {
+    fn exec_queued_render(&mut self, psx: &mut PSX) {
+        match self {
+            Interpreter::Idle => {
+                while let Some(packet) = psx.gpu.queue.front_render() {
+                    let cmd = RenderingCommand::from_bits(packet);
+                    if psx.gpu.queue.render_len() <= cmd.args() {
+                        debug!(
+                            psx.loggers.gpu,
+                            "{cmd:?} is waiting for {} arguments (has {})",
+                            cmd.args(),
+                            psx.gpu.queue.render_len() - 1,
+                        );
                         break;
                     }
 
-                    for _ in 0..packets {
-                        // TODO: perform blit
-                        let _packet = psx.gpu.queue.pop_render().unwrap();
-                    }
-
-                    psx.gpu.execution_state = ExecState::None;
-
-                    psx.gpu.status.set_ready_to_send_vram(false);
-                    psx.scheduler.schedule(Event::DmaUpdate, 0);
+                    psx.gpu.queue.pop_render();
+                    self.exec_render(psx, cmd);
                 }
             }
+            Interpreter::CpuToVramBlit { dest: _, size } => {
+                let packets = (size.width() * size.height() + 1) / 2;
+                if psx.gpu.queue.render_len() < packets as usize {
+                    return;
+                }
+
+                for _ in 0..packets {
+                    // TODO: perform blit
+                    let _packet = psx.gpu.queue.pop_render().unwrap();
+                }
+
+                *self = Interpreter::Idle;
+
+                psx.gpu.status.set_ready_to_send_vram(false);
+                psx.scheduler.schedule(Event::DmaUpdate, 0);
+
+                self.exec_queued_render(psx);
+            }
         }
+    }
+
+    fn exec_queued_display(&mut self, psx: &mut PSX) {
+        while let Some(packet) = psx.gpu.queue.pop_display() {
+            let cmd = DisplayCommand::from_bits(packet);
+            self.exec_display(psx, cmd);
+        }
+    }
+
+    /// Executes all queued GPU commands.
+    pub fn exec_queued(&mut self, psx: &mut PSX) {
+        self.exec_queued_display(psx);
+        self.exec_queued_render(psx);
     }
 }
