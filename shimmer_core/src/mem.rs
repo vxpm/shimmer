@@ -337,6 +337,25 @@ pub struct MisalignedAddressErr {
     pub alignment: u32,
 }
 
+/// Helper function to perform masked writes.
+fn write_masked<P: Primitive, B: bitos::Bits>(src: P, offset: usize, mask: B::Bits, dst: &mut B)
+where
+    B::Bits: zerocopy::IntoBytes
+        + zerocopy::FromBytes
+        + std::ops::BitAnd<B::Bits, Output = B::Bits>
+        + std::ops::BitOr<B::Bits, Output = B::Bits>
+        + std::ops::Not<Output = B::Bits>,
+{
+    let current = dst.to_bits();
+
+    let mut buf = current;
+    let bytes = buf.as_mut_bytes();
+    src.write_to(&mut bytes[offset..]);
+
+    let new = (current & !mask) | (buf & mask);
+    *dst = B::from_bits(new);
+}
+
 impl PSX {
     fn read_io_ports<P, const SILENT: bool>(&self, addr: Address) -> P
     where
@@ -427,7 +446,7 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Timer2Mode => {
-                    let value = self.timers.timer2.mode.into_bits();
+                    let value = self.timers.timer2.mode.to_bits();
                     let bytes = value.as_bytes();
 
                     P::read_from_buf(&bytes[offset..])
@@ -578,32 +597,11 @@ impl PSX {
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Dma6Control => {
-                    let mut dummy = self.dma.channels[6].control.clone();
-                    let bytes = dummy.as_mut_bytes();
-
-                    0u32.write_to(&mut bytes[offset..]);
-                    value.write_to(&mut bytes[offset..]);
-
-                    self.dma.channels[6]
-                        .control
-                        .set_data_direction(dma::DataDirection::Backward);
-
-                    self.dma.channels[6]
-                        .control
-                        .set_transfer_ongoing(dummy.transfer_ongoing());
-
-                    self.dma.channels[6]
-                        .control
-                        .set_force_transfer(dummy.force_transfer());
-
-                    self.dma.channels[6]
-                        .control
-                        .set_bus_snooping(dummy.bus_snooping());
-
-                    debug!(
-                        self.loggers.dma,
-                        "{:?}",
-                        self.dma.channels[6].control.clone()
+                    write_masked(
+                        value,
+                        offset,
+                        dma::ChannelControl::DMA6_WRITE_MASK as u32,
+                        &mut self.dma.channels[6].control,
                     );
 
                     self.scheduler.schedule(Event::DmaUpdate, 0);
@@ -615,31 +613,13 @@ impl PSX {
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::DmaInterrupt => {
-                    let mut dummy = self.dma.interrupt_control.clone();
-                    let bytes = dummy.as_mut_bytes();
-
-                    0u32.write_to(&mut bytes[offset..]);
-                    value.write_to(&mut bytes[offset..]);
-
-                    // interrupt modes
-                    self.dma
-                        .interrupt_control
-                        .set_channel_interrupt_mode(dummy.channel_interrupt_mode());
-
-                    // bus error flag
-                    self.dma.interrupt_control.set_bus_error(dummy.bus_error());
-
-                    // interrupt mask
-                    self.dma
-                        .interrupt_control
-                        .set_channel_interrupt_mask(dummy.channel_interrupt_mask());
-
-                    // interrupt enable
-                    self.dma
-                        .interrupt_control
-                        .set_master_channel_interrupt_enable(
-                            dummy.master_channel_interrupt_enable(),
-                        );
+                    let mut result = self.dma.interrupt_control.clone();
+                    write_masked(
+                        value,
+                        offset,
+                        dma::InterruptControl::WRITE_MASK as u32,
+                        &mut result,
+                    );
 
                     // reset interrupt flags
                     let reset = self
@@ -647,12 +627,10 @@ impl PSX {
                         .interrupt_control
                         .channel_interrupt_flags_raw()
                         .value()
-                        & !dummy.channel_interrupt_flags_raw().value();
+                        & !result.channel_interrupt_flags_raw().value();
+                    result.set_channel_interrupt_flags_raw(u7::new(reset));
 
-                    self.dma
-                        .interrupt_control
-                        .set_channel_interrupt_flags_raw(u7::new(reset));
-
+                    self.dma.interrupt_control = result;
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Gp0 => {

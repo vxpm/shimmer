@@ -21,7 +21,7 @@ impl Interpreter {
         debug!(
             psx.loggers.gpu,
             "received render cmd: {cmd:?} (0x{:08X})",
-            cmd.into_bits()
+            cmd.to_bits()
         );
 
         match cmd.opcode() {
@@ -121,7 +121,7 @@ impl Interpreter {
                 let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
                 debug!(psx.loggers.gpu, "starting CPU to VRAM blit"; dest = dest.clone(), size = size.clone());
-                self.0 = InterpreterInner::CpuToVramBlit { dest, size };
+                self.0 = InterpreterInner::CpuToVramBlit { _dest: dest, size };
 
                 psx.gpu.status.set_ready_to_send_vram(true);
                 psx.scheduler.schedule(Event::DmaUpdate, 0);

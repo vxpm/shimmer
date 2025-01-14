@@ -7,7 +7,7 @@ use bitos::bitos;
 
 /// The primary opcode of a [`RenderingCommand`].
 #[bitos(3)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderingOpcode {
     Misc = 0x0,
     Polygon = 0x1,
@@ -21,7 +21,7 @@ pub enum RenderingOpcode {
 
 /// The misc opcode of a [`RenderingCommand`].
 #[bitos(5)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MiscOpcode {
     /// Does nothing.
     NOP = 0x00,
@@ -34,7 +34,7 @@ pub enum MiscOpcode {
 
 /// The environment opcode of a [`RenderingCommand`].
 #[bitos(3)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EnvironmentOpcode {
     /// Set the drawing setings.
     DrawingSettings = 0x1,
@@ -50,7 +50,7 @@ pub enum EnvironmentOpcode {
 }
 
 #[bitos(6)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayOpcode {
     ResetGpu = 0x0,
     ResetCommandBuffer = 0x1,

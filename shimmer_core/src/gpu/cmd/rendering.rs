@@ -28,7 +28,7 @@ pub struct SizePacket {
 
 /// The texture mode of a rendering command.
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextureMode {
     Modulated = 0,
     Raw = 1,
@@ -36,7 +36,7 @@ pub enum TextureMode {
 
 /// The transparency mode of a rendering command.
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransparencyMode {
     Opaque = 0,
     SemiTransparent = 1,
@@ -44,7 +44,7 @@ pub enum TransparencyMode {
 
 /// The shading mode of a rendering command.
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShadingMode {
     Flat = 0,
     Gouraud = 1,
@@ -99,7 +99,7 @@ pub struct VertexUVPacket {
 
 /// The Polygon mode of a [`PolygonCmd`].
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PolygonMode {
     Triangle = 0,
     Rectangle = 1,
@@ -148,7 +148,7 @@ pub struct PolygonCmd {
 
 /// The line mode of a [`LineCmd`].
 #[bitos(1)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineMode {
     Single = 0,
     Poly = 1,
@@ -183,7 +183,7 @@ pub struct LineCmd {
 
 /// The rectangle mode of a [`RectangleCmd`].
 #[bitos(2)]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RectangleMode {
     Variable = 0,
     SinglePixel = 1,

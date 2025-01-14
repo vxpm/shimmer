@@ -17,7 +17,7 @@ enum InterpreterInner {
     Idle,
     /// Waiting for enough data to complete a CPU to VRAM blit
     CpuToVramBlit {
-        dest: CoordPacket,
+        _dest: CoordPacket,
         size: SizePacket,
     },
     PolyLine {
@@ -51,7 +51,7 @@ impl Interpreter {
                     self.exec_queued_render(psx);
                 }
             }
-            InterpreterInner::CpuToVramBlit { dest: _, size } => {
+            InterpreterInner::CpuToVramBlit { _dest, size } => {
                 let packets = (size.width() * size.height() + 1) / 2;
                 if psx.gpu.render_queue.len() < packets as usize {
                     return;
