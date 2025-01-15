@@ -4,11 +4,12 @@ use crate::{
         cmd::{
             EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
             rendering::{
-                CoordPacket, LineMode, RectangleMode, ShadingMode, SizePacket, VertexColorPacket,
-                VertexPositionPacket, VertexUVPacket,
+                CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
+                VertexColorPacket, VertexPositionPacket, VertexUVPacket,
             },
         },
         interpreter::{Inner, Interpreter},
+        renderer::{Action, Rgba, UntexturedTriangle, Vertex},
     },
     scheduler::Event,
 };
@@ -75,45 +76,179 @@ impl Interpreter {
             },
             RenderingOpcode::Polygon => {
                 let cmd = cmd.polygon_cmd();
-                for index in 0..cmd.polygon_mode().vertices() {
-                    if index != 0 && cmd.shading_mode() == ShadingMode::Gouraud {
-                        debug!(
-                            psx.loggers.gpu,
-                            "gouraud: {:?}",
-                            VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-                        );
+                let textured_color = Rgba {
+                    r: 0,
+                    g: 0,
+                    b: 180,
+                    a: 255,
+                };
+                let base_color = Rgba {
+                    r: cmd.color_r(),
+                    g: cmd.color_g(),
+                    b: cmd.color_b(),
+                    a: 255,
+                };
+
+                let vertex_a_xy =
+                    VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                let vertex_a_uv = if cmd.textured() {
+                    VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
+                } else {
+                    VertexUVPacket::from_bits(0)
+                };
+
+                let vertex_a = Vertex {
+                    color: if cmd.textured() {
+                        textured_color
+                    } else {
+                        base_color
+                    },
+                    x: vertex_a_xy.x(),
+                    y: vertex_a_xy.y(),
+                    u: vertex_a_uv.u(),
+                    v: vertex_a_uv.v(),
+                    padding: 0,
+                };
+
+                let vertex_b_rgba = if cmd.shading_mode() == ShadingMode::Gouraud {
+                    let color =
+                        VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                    Rgba {
+                        r: color.color_r(),
+                        g: color.color_g(),
+                        b: color.color_b(),
+                        a: 255,
+                    }
+                } else {
+                    base_color
+                };
+
+                let vertex_b_xy =
+                    VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                let vertex_b_uv = if cmd.textured() {
+                    let uv = VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                    debug!(psx.loggers.gpu, "page: {:?} ", uv.texpage());
+
+                    let stat = &mut psx.gpu.status;
+                    stat.set_texpage_x_base(uv.texpage().x_base());
+                    stat.set_texpage_y_base(uv.texpage().y_base());
+                    stat.set_semi_transparency_mode(uv.texpage().semi_transparency_mode());
+                    stat.set_texpage_depth(uv.texpage().depth());
+
+                    if psx.gpu.environment.double_vram {
+                        stat.set_texpage_y_base_2(uv.texpage().y_base_2());
+                    } else {
+                        stat.set_texpage_y_base_2(u1::new(0));
                     }
 
-                    debug!(
-                        psx.loggers.gpu,
-                        "vertex: {:?}",
-                        VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-                    );
+                    uv
+                } else {
+                    VertexUVPacket::from_bits(0)
+                };
 
-                    if cmd.textured() {
-                        let uv =
-                            VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+                let vertex_b = Vertex {
+                    color: if cmd.textured() {
+                        textured_color
+                    } else {
+                        vertex_b_rgba
+                    },
+                    x: vertex_b_xy.x(),
+                    y: vertex_b_xy.y(),
+                    u: vertex_b_uv.u(),
+                    v: vertex_b_uv.v(),
+                    padding: 0,
+                };
 
-                        debug!(psx.loggers.gpu, "u: {:?} v: {:?}", uv.u(), uv.v());
+                let vertex_c_rgba = if cmd.shading_mode() == ShadingMode::Gouraud {
+                    let color =
+                        VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-                        if index == 0 {
-                            debug!(psx.loggers.gpu, "clut: {:?}", uv.clut());
-                        } else if index == 1 {
-                            debug!(psx.loggers.gpu, "page: {:?} ", uv.texpage());
+                    Rgba {
+                        r: color.color_r(),
+                        g: color.color_g(),
+                        b: color.color_b(),
+                        a: 255,
+                    }
+                } else {
+                    base_color
+                };
 
-                            let stat = &mut psx.gpu.status;
-                            stat.set_texpage_x_base(uv.texpage().x_base());
-                            stat.set_texpage_y_base(uv.texpage().y_base());
-                            stat.set_semi_transparency_mode(uv.texpage().semi_transparency_mode());
-                            stat.set_texpage_depth(uv.texpage().depth());
+                let vertex_c_xy =
+                    VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-                            if psx.gpu.environment.double_vram {
-                                stat.set_texpage_y_base_2(uv.texpage().y_base_2());
-                            } else {
-                                stat.set_texpage_y_base_2(u1::new(0));
-                            }
+                let vertex_c_uv = if cmd.textured() {
+                    VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
+                } else {
+                    VertexUVPacket::from_bits(0)
+                };
+
+                let vertex_c = Vertex {
+                    color: if cmd.textured() {
+                        textured_color
+                    } else {
+                        vertex_c_rgba
+                    },
+                    x: vertex_c_xy.x(),
+                    y: vertex_c_xy.y(),
+                    u: vertex_c_uv.u(),
+                    v: vertex_c_uv.v(),
+                    padding: 0,
+                };
+
+                self.sender
+                    .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                        vertices: [vertex_a, vertex_b, vertex_c],
+                        shading_mode: ShadingMode::Flat,
+                    }))
+                    .unwrap();
+
+                if cmd.polygon_mode() == PolygonMode::Rectangle {
+                    let vertex_d_rgba = if cmd.shading_mode() == ShadingMode::Gouraud {
+                        let color =
+                            VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                        Rgba {
+                            r: color.color_r(),
+                            g: color.color_g(),
+                            b: color.color_b(),
+                            a: 255,
                         }
-                    }
+                    } else {
+                        base_color
+                    };
+
+                    let vertex_d_xy =
+                        VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+                    let vertex_d_uv = if cmd.textured() {
+                        VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
+                    } else {
+                        VertexUVPacket::from_bits(0)
+                    };
+
+                    let vertex_d = Vertex {
+                        color: if cmd.textured() {
+                            textured_color
+                        } else {
+                            vertex_d_rgba
+                        },
+                        x: vertex_d_xy.x(),
+                        y: vertex_d_xy.y(),
+                        u: vertex_d_uv.u(),
+                        v: vertex_d_uv.v(),
+                        padding: 0,
+                    };
+
+                    self.sender
+                        .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                            vertices: [vertex_b, vertex_d, vertex_c],
+                            shading_mode: ShadingMode::Flat,
+                        }))
+                        .unwrap();
                 }
             }
             RenderingOpcode::CpuToVramBlit => {

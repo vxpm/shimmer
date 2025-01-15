@@ -49,7 +49,7 @@ impl Tab for Screen {
     }
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
-        let (rect, _) = ui.allocate_exact_size(egui::Vec2::splat(300.0), egui::Sense::click());
+        let (rect, _) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click());
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RendererCallback {

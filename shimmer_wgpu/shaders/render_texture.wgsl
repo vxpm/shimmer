@@ -22,7 +22,7 @@ fn vs_main(@builtin(vertex_index) index: u32) -> VertexOut {
     var out: VertexOut;
 
     out.uv = vertex_uvs[index];
-    out.clip_position = vec4<f32>(vertex_positions[index], 0.0, 0.0);
+    out.clip_position = vec4<f32>(vertex_positions[index], 1.0, 1.0);
 
     return out;
 }
@@ -34,5 +34,10 @@ var tex_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    return textureSample(tex, tex_sampler, in.uv);
+    var color = textureSample(tex, tex_sampler, in.uv);
+    if color.a == 0 {
+        color = vec4<f32>(0.2, 0.0, 0.0, 1.0);
+    }
+
+    return color;
 }
