@@ -140,6 +140,10 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }
                 Event::VSync => {
+                    self.psx
+                        .gpu
+                        .status
+                        .set_interlace_odd(!self.psx.gpu.status.interlace_odd());
                     self.psx.interrupts.status.request(Interrupt::VBlank);
                     self.psx
                         .scheduler

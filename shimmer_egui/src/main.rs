@@ -73,9 +73,10 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let (mut psx, receiver) = Emulator::with_bios(bios, root_logger);
+        let (mut emulator, receiver) = Emulator::with_bios(bios, root_logger);
         let renderer = Arc::new(Mutex::new(Renderer::new(
             receiver,
+            log_family.logger("wgpu-renderer", tinylog::Level::Trace),
             &render_state.device,
             &render_state.queue,
             render_state.target_format.clone().into(),
@@ -84,11 +85,11 @@ impl ExclusiveState {
         if let Some(rom) = sideload_rom {
             use shimmer_core::binrw::BinReaderExt;
             let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
-            psx.psx_mut().memory.sideload = Some(exe);
+            emulator.psx_mut().memory.sideload = Some(exe);
         }
 
         Self {
-            psx,
+            psx: emulator,
             renderer,
             timing: Timing {
                 running_timer: Timer::new(),

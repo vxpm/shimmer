@@ -72,20 +72,19 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    /// Trigger an exception.
-    fn trigger_exception(&mut self, exception: Exception) {
-        let (exception_ocurred_at, next_would_be) = (
-            self.current_addr.value(),
-            self.psx.cpu.instr_delay_slot().1.value(),
-        );
-
-        let in_branch_delay = exception_ocurred_at.wrapping_add(4) != next_would_be;
+    fn trigger_exception_at(
+        &mut self,
+        address: Address,
+        delay_slot: Address,
+        exception: Exception,
+    ) {
+        let in_branch_delay = address.value().wrapping_add(4) != delay_slot.value();
         self.psx.cop0.regs.write(
             Reg::COP0_EPC,
             if in_branch_delay {
-                exception_ocurred_at.wrapping_sub(4)
+                address.value().wrapping_sub(4)
             } else {
-                exception_ocurred_at
+                address.value()
             },
         );
 
@@ -93,8 +92,8 @@ impl<'ctx> Interpreter<'ctx> {
             self.psx.loggers.cpu,
             "triggered exception {:?} at {} (next would be: {})",
             exception,
-            Address(exception_ocurred_at),
-            Address(next_would_be);
+            address,
+            delay_slot;
             in_branch_delay = in_branch_delay,
         );
 
@@ -128,6 +127,16 @@ impl<'ctx> Interpreter<'ctx> {
         };
 
         self.psx.cpu.regs.pc = exception_handler.value();
+    }
+
+    /// Trigger an exception. This method should only be used inside instruction methods - if
+    /// triggering an exception somewhere else, use [`trigger_exception_at`].
+    fn trigger_exception(&mut self, exception: Exception) {
+        self.trigger_exception_at(
+            self.current_addr,
+            self.psx.cpu.instr_delay_slot.1,
+            exception,
+        );
     }
 
     fn check_interrupts(&mut self) -> bool {
@@ -351,8 +360,12 @@ impl<'ctx> Interpreter<'ctx> {
                 self.psx.cop0.regs.write(load.reg, load.value);
             }
 
-            self.trigger_exception(Exception::AddressErrorLoad);
-            return 2;
+            self.trigger_exception_at(
+                self.psx.cpu.instr_delay_slot.1,
+                Address(self.psx.cpu.regs.pc),
+                Exception::AddressErrorLoad,
+            );
+            return DEFAULT_CYCLE_COUNT;
         };
 
         let (current_instr, current_addr) = std::mem::replace(
@@ -371,7 +384,7 @@ impl<'ctx> Interpreter<'ctx> {
         let cycles = if !self.check_interrupts() {
             self.exec(current_instr)
         } else {
-            2
+            DEFAULT_CYCLE_COUNT
         };
 
         if let Some(load) = self.pending_load {
@@ -380,6 +393,17 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some(load) = pending_load_cop0 {
             self.psx.cop0.regs.write(load.reg, load.value);
+        }
+
+        if let Some(physical) = pc.physical()
+            && physical.region() == Some(Region::ScratchPad)
+        {
+            self.trigger_exception_at(
+                self.psx.cpu.instr_delay_slot.1,
+                Address(self.psx.cpu.regs.pc),
+                Exception::BusErrorInstruction,
+            );
+            return DEFAULT_CYCLE_COUNT;
         }
 
         cycles
