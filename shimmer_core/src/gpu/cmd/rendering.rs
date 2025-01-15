@@ -55,11 +55,11 @@ pub enum ShadingMode {
 #[derive(Debug)]
 pub struct VertexColorPacket {
     #[bits(0..8)]
-    color_r: u8,
+    pub color_r: u8,
     #[bits(8..16)]
-    color_g: u8,
+    pub color_g: u8,
     #[bits(16..24)]
-    color_b: u8,
+    pub color_b: u8,
 }
 
 /// A vertex position packet.

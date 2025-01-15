@@ -77,6 +77,8 @@ impl ExclusiveState {
         let renderer = Arc::new(Mutex::new(Renderer::new(
             receiver,
             &wgpu_render_state.device,
+            &wgpu_render_state.queue,
+            wgpu_render_state.target_format.clone().into(),
         )));
 
         if let Some(rom) = sideload_rom {

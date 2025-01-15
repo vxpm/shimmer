@@ -14,7 +14,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
     out.color = vec4<f32>(in.rgba);
-    out.clip_position = vec4<f32>(f32(in.xy.x) / 1024.0, f32(in.xy.y) / 512.0, 0.0, 0.0);
+    out.clip_position = vec4<f32>(f32(in.xy.x) / 1024.0, f32(in.xy.y) / 512.0, 0.0, 1.0);
     out.clip_position = 2 * out.clip_position - vec4<f32>(1.0, 1.0, 0.0, 0.0);
 
     return out;
