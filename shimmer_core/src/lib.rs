@@ -22,6 +22,7 @@ mod util;
 use cpu::cop0;
 use interrupts::Interrupt;
 use scheduler::{Event, Scheduler};
+use std::sync::mpsc::Receiver;
 use tinylog::Logger;
 
 pub use binrw;
@@ -72,14 +73,15 @@ pub struct Emulator {
     psx: PSX,
 
     /// The GPU command interpreter.
-    gpu_state_machine: gpu::Interpreter,
+    gpu_interpreter: gpu::Interpreter,
     /// The DMA executor.
     dma_executor: dma::Executor,
 }
 
 impl Emulator {
     /// Creates a new [`Emulator`].
-    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> Self {
+    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> (Self, Receiver<gpu::renderer::Action>) {
+        let (gpu_interpreter, receiver) = gpu::Interpreter::new();
         let mut e = Self {
             psx: PSX {
                 scheduler: Scheduler::default(),
@@ -94,14 +96,14 @@ impl Emulator {
                 gpu: gpu::Gpu::default(),
             },
             dma_executor: dma::Executor::default(),
-            gpu_state_machine: gpu::Interpreter::default(),
+            gpu_interpreter,
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
         e.psx.scheduler.schedule(Event::VSync, 0);
         e.psx.scheduler.schedule(Event::Timer2, 0);
 
-        e
+        (e, receiver)
     }
 
     /// Returns a reference to the state of the system.
@@ -148,7 +150,7 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Timer2, cycles);
                 }
                 Event::Gpu => {
-                    self.gpu_state_machine.exec_queued(&mut self.psx);
+                    self.gpu_interpreter.exec_queued(&mut self.psx);
                 }
                 Event::DmaUpdate => {
                     self.dma_executor.update(&mut self.psx);

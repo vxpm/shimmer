@@ -8,7 +8,7 @@ use crate::{
                 VertexPositionPacket, VertexUVPacket,
             },
         },
-        interpreter::{Interpreter, InterpreterInner},
+        interpreter::{Inner, Interpreter},
     },
     scheduler::Event,
 };
@@ -121,7 +121,7 @@ impl Interpreter {
                 let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
                 debug!(psx.loggers.gpu, "starting CPU to VRAM blit"; dest = dest.clone(), size = size.clone());
-                self.0 = InterpreterInner::CpuToVramBlit { _dest: dest, size };
+                self.inner = Inner::CpuToVramBlit { _dest: dest, size };
 
                 psx.gpu.status.set_ready_to_send_vram(true);
                 psx.scheduler.schedule(Event::DmaUpdate, 0);
@@ -188,7 +188,7 @@ impl Interpreter {
                     }
                     LineMode::Poly => {
                         debug!(psx.loggers.gpu, "starting polyline mode",);
-                        self.0 = InterpreterInner::PolyLine { cmd, received: 0 };
+                        self.inner = Inner::PolyLine { cmd, received: 0 };
                     }
                 }
             }

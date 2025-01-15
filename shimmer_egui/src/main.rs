@@ -14,6 +14,7 @@ use eframe::{
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::Emulator;
+use shimmer_wgpu::Renderer;
 use std::{
     sync::{
         Arc,
@@ -49,6 +50,7 @@ struct Controls {
 /// State shared between the GUI and emulation threads that is locked behind a mutex.
 struct ExclusiveState {
     psx: Emulator,
+    renderer: Arc<Mutex<Renderer>>,
     timing: Timing,
     controls: Controls,
 
@@ -57,7 +59,7 @@ struct ExclusiveState {
 }
 
 impl ExclusiveState {
-    fn new(bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(cc: &eframe::CreationContext, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -70,7 +72,13 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let mut psx = Emulator::with_bios(bios, root_logger);
+        let (mut psx, receiver) = Emulator::with_bios(bios, root_logger);
+        let wgpu_render_state = cc.wgpu_render_state.as_ref().unwrap();
+        let renderer = Arc::new(Mutex::new(Renderer::new(
+            receiver,
+            &wgpu_render_state.device,
+        )));
+
         if let Some(rom) = sideload_rom {
             use shimmer_core::binrw::BinReaderExt;
             let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
@@ -79,6 +87,7 @@ impl ExclusiveState {
 
         Self {
             psx,
+            renderer,
             timing: Timing {
                 running_timer: Timer::new(),
                 emulated_time: Duration::ZERO,
@@ -109,10 +118,10 @@ struct State {
 }
 
 impl State {
-    fn new(bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(cc: &eframe::CreationContext, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         Self {
             bios: bios.clone(),
-            exclusive: Mutex::new(ExclusiveState::new(bios, sideload_rom)),
+            exclusive: Mutex::new(ExclusiveState::new(cc, bios, sideload_rom)),
             shared: Default::default(),
         }
     }
@@ -126,14 +135,14 @@ struct App {
 }
 
 impl App {
-    fn new(_ctx: &eframe::CreationContext<'_>, cli: Cli) -> Self {
+    fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
         let bios_path = cli.args.bios.clone().unwrap_or("resources/BIOS.BIN".into());
         let bios = std::fs::read(bios_path).expect("bios file exists");
 
         let rom_path = cli.args.input.clone();
         let rom = rom_path.map(|path| std::fs::read(path).expect("rom file exists"));
 
-        let state = Arc::new(State::new(bios, rom));
+        let state = Arc::new(State::new(cc, bios, rom));
 
         let parker = Parker::new();
         let unparker = parker.unparker().clone();
@@ -298,11 +307,11 @@ impl eframe::App for App {
         }
 
         if reset {
-            let old = std::mem::replace(
-                &mut *exclusive,
-                ExclusiveState::new(self.state.bios.clone(), None),
-            );
-            exclusive.controls.breakpoints = old.controls.breakpoints;
+            // let old = std::mem::replace(
+            //     &mut *exclusive,
+            //     ExclusiveState::new(self.state.bios.clone(), None),
+            // );
+            // exclusive.controls.breakpoints = old.controls.breakpoints;
         }
 
         let to_add = {
