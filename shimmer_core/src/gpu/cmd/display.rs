@@ -8,7 +8,7 @@ use bitos::{
 
 /// A display enable command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DisplayEnableCmd {
     #[bits(0)]
     pub disabled: bool,
@@ -16,7 +16,7 @@ pub struct DisplayEnableCmd {
 
 /// A DMA direction command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DmaDirectionCmd {
     #[bits(0..2)]
     pub direction: DmaDirection,
@@ -24,7 +24,7 @@ pub struct DmaDirectionCmd {
 
 /// A display area command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DisplayAreaCmd {
     #[bits(0..10)]
     pub x: u10,
@@ -34,7 +34,7 @@ pub struct DisplayAreaCmd {
 
 /// A horizontal display range command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HorizontalDisplayRangeCmd {
     #[bits(0..12)]
     pub x1: u12,
@@ -44,7 +44,7 @@ pub struct HorizontalDisplayRangeCmd {
 
 /// A horizontal display range command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VerticalDisplayRangeCmd {
     #[bits(0..10)]
     pub y1: u10,
@@ -54,7 +54,7 @@ pub struct VerticalDisplayRangeCmd {
 
 /// A horizontal display range command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DisplayModeCmd {
     #[bits(0..2)]
     pub horizontal_resolution: HorizontalResolution,
@@ -73,7 +73,7 @@ pub struct DisplayModeCmd {
 }
 
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VramSizeCmd {
     #[bits(0)]
     pub double: bool,

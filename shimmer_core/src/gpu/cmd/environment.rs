@@ -41,7 +41,7 @@ pub enum CompressionMode {
 }
 
 #[bitos(12)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TexPage {
     #[bits(0..4)]
     pub x_base: u4,
@@ -57,7 +57,7 @@ pub struct TexPage {
 
 /// A drawing settings command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DrawingSettingsCmd {
     #[bits(0..12)]
     pub texpage: TexPage,
@@ -75,7 +75,7 @@ pub struct DrawingSettingsCmd {
 
 /// A texture window settings command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureWindowSettingsCmd {
     #[bits(0..5)]
     tex_window_mask_x: u5,
@@ -89,7 +89,7 @@ pub struct TextureWindowSettingsCmd {
 
 /// A drawing area corner command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DrawingAreaCornerCmd {
     #[bits(0..10)]
     x: u10,
