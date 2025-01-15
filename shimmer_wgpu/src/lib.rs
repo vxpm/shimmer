@@ -6,6 +6,7 @@ use shimmer_core::gpu::{
     renderer::{self, Action, Rgba},
 };
 use std::sync::mpsc::Receiver;
+use tinylog::{Logger, debug};
 use zerocopy::IntoBytes;
 
 fn triangle_vertex_layout() -> wgpu::VertexBufferLayout<'static> {
@@ -65,6 +66,16 @@ impl BindGroupLayouts {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
                     count: None,
                 },
             ],
@@ -183,6 +194,7 @@ impl Pipelines {
 
 pub struct Renderer {
     receiver: Receiver<Action>,
+    logger: Logger,
 
     shaders: Shaders,
     pipelines: Pipelines,
@@ -192,6 +204,7 @@ pub struct Renderer {
     render_display_view: wgpu::TextureView,
     render_display_sampler: wgpu::Sampler,
     render_display_bind_group: wgpu::BindGroup,
+    render_display_coordinates_buf: wgpu::Buffer,
 
     /// VRAM as a 1024x512 RGBA8 texture. This is useful for rendering, but requires intermediate
     /// buffers for bliting.
@@ -201,6 +214,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(
         receiver: Receiver<Action>,
+        logger: Logger,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         screen_target_format: wgpu::ColorTargetState,
@@ -257,14 +271,22 @@ impl Renderer {
 
         let render_display_view = vram.create_view(&wgpu::TextureViewDescriptor::default());
         let render_display_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
+
+        let render_display_coordinates_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("render display coordinates"),
+            size: 4,
+            usage: wgpu::BufferUsages::UNIFORM,
+            mapped_at_creation: false,
+        });
+
         let render_display_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("render display bind group"),
             layout: &bind_group_layouts.render_display,
@@ -277,11 +299,21 @@ impl Renderer {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&render_display_sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &render_display_coordinates_buf,
+                        offset: 0,
+                        size: None,
+                    }),
+                },
             ],
         });
 
         Self {
             receiver,
+            logger,
+
             shaders,
             pipelines,
             display_area: DisplayAreaCmd::from_bits(0),
@@ -289,6 +321,7 @@ impl Renderer {
             render_display_view,
             render_display_sampler,
             render_display_bind_group,
+            render_display_coordinates_buf,
 
             vram,
         }
@@ -304,6 +337,12 @@ impl Renderer {
                 Action::DisplayArea(_) => (),
                 Action::CopyToVram(_) => (),
                 Action::DrawUntexturedTriangle(triangle) => {
+                    debug!(
+                        self.logger,
+                        "rendering untextured triangle: {:#?}",
+                        triangle.clone()
+                    );
+
                     // copy vertices into a buffer
                     let triangle_vertex_buf = device.create_buffer(&wgpu::BufferDescriptor {
                         label: Some("triangle"),

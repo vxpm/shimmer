@@ -3,6 +3,7 @@ use std::sync::mpsc::Receiver;
 use parking_lot::Mutex;
 use shimmer_core::{Emulator, gpu::renderer::Action};
 use shimmer_wgpu::Renderer;
+use tinylog::Logger;
 use winit::{event::WindowEvent, window::Window};
 
 pub struct State<'a> {
@@ -65,7 +66,13 @@ impl<'a> State<'a> {
             desired_maximum_frame_latency: 2,
         };
 
-        let renderer = Renderer::new(receiver, &device, &queue, surface_format.into());
+        let renderer = Renderer::new(
+            receiver,
+            Logger::dummy(),
+            &device,
+            &queue,
+            surface_format.into(),
+        );
 
         Self {
             window,
