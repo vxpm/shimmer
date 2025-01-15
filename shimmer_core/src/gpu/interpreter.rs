@@ -1,7 +1,12 @@
 mod display;
 mod rendering;
 
-use super::cmd::{DisplayCommand, RenderingCommand, rendering::LineCmd};
+use std::sync::mpsc::{Receiver, Sender};
+
+use super::{
+    cmd::{DisplayCommand, RenderingCommand, rendering::LineCmd},
+    renderer::{Action, CopyToVram},
+};
 use crate::{
     PSX,
     gpu::cmd::rendering::{
@@ -9,10 +14,11 @@ use crate::{
     },
     scheduler::Event,
 };
+use bitos::integer::u10;
 use tinylog::debug;
 
 #[derive(Debug, Default)]
-enum InterpreterInner {
+enum Inner {
     #[default]
     Idle,
     /// Waiting for enough data to complete a CPU to VRAM blit
@@ -27,13 +33,27 @@ enum InterpreterInner {
 }
 
 /// A GPU packet interpreter.
-#[derive(Debug, Default)]
-pub struct Interpreter(InterpreterInner);
+#[derive(Debug)]
+pub struct Interpreter {
+    inner: Inner,
+    sender: Sender<Action>,
+}
 
 impl Interpreter {
+    pub fn new() -> (Self, Receiver<Action>) {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        (
+            Self {
+                inner: Inner::default(),
+                sender,
+            },
+            receiver,
+        )
+    }
+
     fn exec_queued_render(&mut self, psx: &mut PSX) {
-        match &mut self.0 {
-            InterpreterInner::Idle => {
+        match &mut self.inner {
+            Inner::Idle => {
                 if let Some(packet) = psx.gpu.render_queue.front() {
                     let cmd = RenderingCommand::from_bits(*packet);
                     if psx.gpu.render_queue.len() <= cmd.args() {
@@ -51,25 +71,41 @@ impl Interpreter {
                     self.exec_queued_render(psx);
                 }
             }
-            InterpreterInner::CpuToVramBlit { _dest, size } => {
-                let packets = (size.width() * size.height() + 1) / 2;
-                if psx.gpu.render_queue.len() < packets as usize {
+            Inner::CpuToVramBlit { _dest, size } => {
+                let count = (size.width() * size.height() + 1) / 2;
+                if psx.gpu.render_queue.len() < count as usize {
                     return;
                 }
 
-                for _ in 0..packets {
-                    // TODO: perform blit
-                    let _packet = psx.gpu.render_queue.pop_front().unwrap();
+                let mut data = Vec::with_capacity(count as usize * 4);
+                for _ in 0..count {
+                    data.extend(
+                        psx.gpu
+                            .render_queue
+                            .pop_front()
+                            .unwrap()
+                            .to_le_bytes()
+                            .into_iter(),
+                    );
                 }
 
-                self.0 = InterpreterInner::Idle;
+                self.sender
+                    .send(Action::CopyToVram(CopyToVram {
+                        x: u10::new(_dest.x() * 2),
+                        y: u10::new(_dest.y()),
+                        width: u10::new(size.width() * 2),
+                        data,
+                    }))
+                    .unwrap();
+
+                self.inner = Inner::Idle;
 
                 psx.gpu.status.set_ready_to_send_vram(false);
                 psx.scheduler.schedule(Event::DmaUpdate, 0);
 
                 self.exec_queued_render(psx);
             }
-            InterpreterInner::PolyLine { cmd, received } => {
+            Inner::PolyLine { cmd, received } => {
                 let Some(front) = psx.gpu.render_queue.front() else {
                     return;
                 };
@@ -77,7 +113,7 @@ impl Interpreter {
                 if *received >= 2 && (front & 0xF000_F000 == 0x5000_5000) {
                     debug!(psx.loggers.gpu, "exiting polyline mode",);
                     psx.gpu.render_queue.pop_front();
-                    self.0 = InterpreterInner::Idle;
+                    self.inner = Inner::Idle;
                     self.exec_queued_render(psx);
                     return;
                 }

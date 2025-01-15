@@ -1,0 +1,19 @@
+[package]
+name = "shimmer_wgpu"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+bitos = { workspace = true }
+
+[dependencies]
+shimmer_core = { path = "../shimmer_core" }
+bitos.workspace = true
+bytesize.workspace = true
+easyerr.workspace = true
+tinylog.workspace = true
+zerocopy.workspace = true
+wgpu = "23.0"

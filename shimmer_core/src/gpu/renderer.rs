@@ -4,21 +4,26 @@ use super::cmd::{
     rendering::ShadingMode,
 };
 use bitos::integer::{i11, u10};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Rgb {
+#[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
+#[repr(C)]
+pub struct Rgba {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+    pub a: u8,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
+#[repr(C)]
 pub struct Vertex {
+    pub color: Rgba,
     pub x: i11,
     pub y: i11,
     pub u: u8,
     pub v: u8,
-    pub color: Rgb,
+    pub padding: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +36,7 @@ pub struct UntexturedTriangle {
 pub struct CopyToVram {
     pub x: u10,
     pub y: u10,
+    pub width: u10,
     pub data: Vec<u8>,
 }
 
