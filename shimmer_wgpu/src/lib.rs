@@ -329,6 +329,21 @@ impl Renderer {
 
     pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::CommandBuffer {
         let mut encoder = device.create_command_encoder(&Default::default());
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("untextured triangle rendering"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.render_display_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
         while let Ok(action) = self.receiver.try_recv() {
             match action {
                 Action::Reset => (),
@@ -354,21 +369,6 @@ impl Renderer {
                     queue.write_buffer(&triangle_vertex_buf, 0, triangle.vertices.as_bytes());
                     queue.submit([]);
 
-                    let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("untextured triangle rendering"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &self.render_display_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Load,
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-
                     render_pass.set_pipeline(&self.pipelines.flat_untextured_triangle);
                     render_pass.set_vertex_buffer(0, triangle_vertex_buf.slice(..));
                     render_pass.draw(0..3, 0..1);
@@ -376,6 +376,7 @@ impl Renderer {
             }
         }
 
+        std::mem::drop(render_pass);
         encoder.finish()
     }
 
