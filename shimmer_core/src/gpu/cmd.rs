@@ -192,11 +192,10 @@ impl RenderingCommand {
                     PolygonMode::Triangle => 3,
                     PolygonMode::Rectangle => 4,
                 };
-                let colors = vertices
-                    * match cmd.shading_mode() {
-                        ShadingMode::Flat => 0,
-                        ShadingMode::Gouraud => 1,
-                    };
+                let colors = match cmd.shading_mode() {
+                    ShadingMode::Flat => 0,
+                    ShadingMode::Gouraud => vertices - 1,
+                };
                 let uvs = vertices * usize::from(cmd.textured());
 
                 vertices + colors + uvs

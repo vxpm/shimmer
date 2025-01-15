@@ -76,7 +76,7 @@ impl Interpreter {
             RenderingOpcode::Polygon => {
                 let cmd = cmd.polygon_cmd();
                 for index in 0..cmd.polygon_mode().vertices() {
-                    if cmd.shading_mode() == ShadingMode::Gouraud {
+                    if index != 0 && cmd.shading_mode() == ShadingMode::Gouraud {
                         debug!(
                             psx.loggers.gpu,
                             "gouraud: {:?}",

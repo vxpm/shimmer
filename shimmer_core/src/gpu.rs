@@ -1,6 +1,8 @@
 //! Items related to the GPU of the PSX.
 
 pub mod cmd;
+pub mod renderer;
+
 mod interpreter;
 
 use crate::cpu;
