@@ -9,6 +9,7 @@ use cli::Cli;
 use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, menu},
+    egui_wgpu::RenderState,
     epaint::Rounding,
 };
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
@@ -59,7 +60,7 @@ struct ExclusiveState {
 }
 
 impl ExclusiveState {
-    fn new(cc: &eframe::CreationContext, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(render_state: &RenderState, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -73,12 +74,11 @@ impl ExclusiveState {
         let root_logger = log_family.logger("psx", level);
 
         let (mut psx, receiver) = Emulator::with_bios(bios, root_logger);
-        let wgpu_render_state = cc.wgpu_render_state.as_ref().unwrap();
         let renderer = Arc::new(Mutex::new(Renderer::new(
             receiver,
-            &wgpu_render_state.device,
-            &wgpu_render_state.queue,
-            wgpu_render_state.target_format.clone().into(),
+            &render_state.device,
+            &render_state.queue,
+            render_state.target_format.clone().into(),
         )));
 
         if let Some(rom) = sideload_rom {
@@ -120,10 +120,10 @@ struct State {
 }
 
 impl State {
-    fn new(cc: &eframe::CreationContext, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(render_state: &RenderState, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
         Self {
             bios: bios.clone(),
-            exclusive: Mutex::new(ExclusiveState::new(cc, bios, sideload_rom)),
+            exclusive: Mutex::new(ExclusiveState::new(render_state, bios, sideload_rom)),
             shared: Default::default(),
         }
     }
@@ -144,7 +144,11 @@ impl App {
         let rom_path = cli.args.input.clone();
         let rom = rom_path.map(|path| std::fs::read(path).expect("rom file exists"));
 
-        let state = Arc::new(State::new(cc, bios, rom));
+        let state = Arc::new(State::new(
+            cc.wgpu_render_state.as_ref().unwrap(),
+            bios,
+            rom,
+        ));
 
         let parker = Parker::new();
         let unparker = parker.unparker().clone();
@@ -309,11 +313,15 @@ impl eframe::App for App {
         }
 
         if reset {
-            // let old = std::mem::replace(
-            //     &mut *exclusive,
-            //     ExclusiveState::new(self.state.bios.clone(), None),
-            // );
-            // exclusive.controls.breakpoints = old.controls.breakpoints;
+            let old = std::mem::replace(
+                &mut *exclusive,
+                ExclusiveState::new(
+                    _frame.wgpu_render_state().unwrap(),
+                    self.state.bios.clone(),
+                    None,
+                ),
+            );
+            exclusive.controls.breakpoints = old.controls.breakpoints;
         }
 
         let to_add = {
