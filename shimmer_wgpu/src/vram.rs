@@ -1,6 +1,8 @@
 use crate::texture::TextureBundle;
-use shimmer_core::gpu::renderer::Rgba;
 use zerocopy::IntoBytes;
+
+pub const VRAM_WIDTH: usize = 1024;
+pub const VRAM_HEIGHT: usize = 512;
 
 pub struct Vram {
     texture: TextureBundle,
@@ -8,15 +10,15 @@ pub struct Vram {
 
 impl Vram {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
-        let data = vec![Rgba::new(0, 0, 0); 1024 * 512];
+        let data = vec![0u16; VRAM_WIDTH * VRAM_HEIGHT];
         let texture = TextureBundle::new(
             device,
             queue,
             &wgpu::TextureDescriptor {
                 label: Some("psx vram"),
                 size: wgpu::Extent3d {
-                    width: 512,
-                    height: 256,
+                    width: VRAM_WIDTH as u32,
+                    height: VRAM_HEIGHT as u32,
                     depth_or_array_layers: 1,
                 },
                 usage: wgpu::TextureUsages::COPY_SRC
@@ -26,7 +28,7 @@ impl Vram {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Uint,
+                format: wgpu::TextureFormat::R16Uint,
                 view_formats: &[],
             },
             data.as_bytes(),

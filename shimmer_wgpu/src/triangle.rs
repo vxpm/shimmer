@@ -40,7 +40,7 @@ impl TriangleRenderer {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8Uint,
+                    format: wgpu::TextureFormat::R16Uint,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
