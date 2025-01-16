@@ -1,11 +1,17 @@
 use crate::{Context, texture::TextureBundleView};
+use bitos::integer::{u9, u10};
+use shimmer_core::gpu::{HorizontalResolution, VerticalResolution};
 use wgpu::util::DeviceExt;
+use zerocopy::IntoBytes;
 
 pub struct DisplayRenderer {
     pipeline: wgpu::RenderPipeline,
 
-    texbundle_view: TextureBundleView,
+    _texbundle_view: TextureBundleView,
     texbundle_view_bg: wgpu::BindGroup,
+
+    top_left: [u16; 2],
+    dimensions: [u16; 2],
 
     display_area: wgpu::Buffer,
     display_area_bg: wgpu::BindGroup,
@@ -24,7 +30,7 @@ impl DisplayRenderer {
                     label: Some("display"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
@@ -90,7 +96,7 @@ impl DisplayRenderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("display coordinates"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                contents: &[0, 0, 0, 0, 0, 0, 0, 0],
+                contents: &[0u32, 0u32, 0u32, 0u32].as_bytes(),
             });
 
         let texbundle_view_bg = texbundle_view.bind_group(&ctx.device, texbundle_view_bg_layout);
@@ -110,12 +116,32 @@ impl DisplayRenderer {
         Self {
             pipeline,
 
-            texbundle_view,
+            _texbundle_view: texbundle_view,
             texbundle_view_bg,
+
+            top_left: [0; 2],
+            dimensions: [0; 2],
 
             display_area,
             display_area_bg,
         }
+    }
+
+    pub fn set_display_top_left(&mut self, ctx: &Context, x: u10, y: u9) {
+        self.top_left = [x.value(), y.value()];
+        ctx.queue
+            .write_buffer(&self.display_area, 0, &self.top_left.as_bytes());
+    }
+
+    pub fn set_display_dimensions(
+        &mut self,
+        ctx: &Context,
+        horizontal: HorizontalResolution,
+        vertical: VerticalResolution,
+    ) {
+        self.dimensions = [horizontal.value(), vertical.value()];
+        ctx.queue
+            .write_buffer(&self.display_area, 4, &self.dimensions.as_bytes());
     }
 
     pub fn render(&self, pass: &mut wgpu::RenderPass) {

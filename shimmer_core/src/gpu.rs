@@ -24,11 +24,31 @@ pub enum HorizontalResolution {
     R640,
 }
 
+impl HorizontalResolution {
+    pub fn value(&self) -> u16 {
+        match self {
+            Self::R256 => 256,
+            Self::R320 => 320,
+            Self::R512 => 512,
+            Self::R640 => 640,
+        }
+    }
+}
+
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VerticalResolution {
     R240,
     R480,
+}
+
+impl VerticalResolution {
+    pub fn value(&self) -> u16 {
+        match self {
+            Self::R240 => 240,
+            Self::R480 => 480,
+        }
+    }
 }
 
 #[bitos(1)]

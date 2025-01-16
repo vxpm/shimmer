@@ -13,11 +13,13 @@ use vram::Vram;
 use wgpu::util::DeviceExt;
 use zerocopy::IntoBytes;
 
+/// Configuration for the renderer.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub display_tex_format: wgpu::TextureFormat,
 }
 
+/// A context for the renderer: WGPU utilities and it's config.
 struct Context {
     device: Arc<wgpu::Device>,
     queue: Arc<wgpu::Queue>,
@@ -148,8 +150,29 @@ impl Inner {
         match action {
             Action::Reset => (),
             Action::DrawSettings(_) => (),
-            Action::DisplayMode(_) => (),
-            Action::DisplayArea(_) => (),
+            Action::DisplayMode(mode) => {
+                debug!(
+                    self.logger,
+                    "display dimensions";
+                    horizontal = mode.horizontal_resolution(),
+                    vertical = mode.vertical_resolution(),
+                );
+                self.display_renderer.set_display_dimensions(
+                    &self.ctx,
+                    mode.horizontal_resolution(),
+                    mode.vertical_resolution(),
+                );
+            }
+            Action::DisplayArea(area) => {
+                debug!(
+                    self.logger,
+                    "display top left";
+                    x = area.x(),
+                    y = area.y(),
+                );
+                self.display_renderer
+                    .set_display_top_left(&self.ctx, area.x(), area.y());
+            }
             Action::CopyToVram(copy) => {
                 debug!(
                     self.logger,

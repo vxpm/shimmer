@@ -15,22 +15,11 @@ pub struct RendererCallback {
 impl CallbackTrait for RendererCallback {
     fn paint(
         &self,
-        info: egui::PaintCallbackInfo,
+        _info: egui::PaintCallbackInfo,
         render_pass: &mut eframe::wgpu::RenderPass<'static>,
-        callback_resources: &egui_wgpu::CallbackResources,
+        _callback_resources: &egui_wgpu::CallbackResources,
     ) {
         self.renderer.lock().render(render_pass);
-    }
-
-    fn prepare(
-        &self,
-        device: &eframe::wgpu::Device,
-        queue: &eframe::wgpu::Queue,
-        _screen_descriptor: &egui_wgpu::ScreenDescriptor,
-        _egui_encoder: &mut eframe::wgpu::CommandEncoder,
-        _callback_resources: &mut egui_wgpu::CallbackResources,
-    ) -> Vec<eframe::wgpu::CommandBuffer> {
-        Vec::new()
     }
 }
 
