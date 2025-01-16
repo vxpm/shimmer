@@ -13,15 +13,19 @@ use vram::Vram;
 use wgpu::util::DeviceExt;
 use zerocopy::IntoBytes;
 
+pub struct Config {
+    pub display_tex_format: wgpu::TextureFormat,
+}
+
 struct Context {
-    display_tex_format: wgpu::TextureFormat,
+    config: Config,
     texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
 }
 
 impl Context {
-    pub fn new(display_tex_format: wgpu::TextureFormat) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
-            display_tex_format,
+            config,
             texbundle_view_layout: Default::default(),
         }
     }
@@ -44,13 +48,13 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(
-        receiver: Receiver<Action>,
-        logger: Logger,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        display_target_format: wgpu::TextureFormat,
+        receiver: Receiver<Action>,
+        logger: Logger,
+        config: Config,
     ) -> Self {
-        let context = Context::new(display_target_format);
+        let context = Context::new(config);
         let vram = Vram::new(device, queue);
         let triangle_renderer = TriangleRenderer::new(device);
         let display_renderer =

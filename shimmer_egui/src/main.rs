@@ -74,12 +74,15 @@ impl ExclusiveState {
         let root_logger = log_family.logger("psx", level);
 
         let (mut emulator, receiver) = Emulator::with_bios(bios, root_logger);
+        let renderer_config = shimmer_wgpu::Config {
+            display_tex_format: render_state.target_format,
+        };
         let renderer = Arc::new(Mutex::new(Renderer::new(
-            receiver,
-            log_family.logger("wgpu-renderer", tinylog::Level::Trace),
             &render_state.device,
             &render_state.queue,
-            render_state.target_format.clone().into(),
+            receiver,
+            log_family.logger("wgpu-renderer", tinylog::Level::Trace),
+            renderer_config,
         )));
 
         if let Some(rom) = sideload_rom {
