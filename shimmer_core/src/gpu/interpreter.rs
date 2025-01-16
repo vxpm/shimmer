@@ -91,9 +91,10 @@ impl Interpreter {
 
                 self.sender
                     .send(Action::CopyToVram(CopyToVram {
-                        x: u10::new(_dest.x() * 2),
+                        x: u10::new(_dest.x()),
                         y: u10::new(_dest.y()),
-                        width: u10::new(size.width() * 2),
+                        width: u10::new(size.width()),
+                        height: u10::new(size.height()),
                         data,
                     }))
                     .unwrap();
