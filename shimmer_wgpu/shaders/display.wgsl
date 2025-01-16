@@ -34,14 +34,16 @@ var tex_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    var x = in.uv.x * 512.0;
-    var y = in.uv.y * 256.0;
+    var x = in.uv.x * 1024.0;
+    var y = in.uv.y * 512.0;
+    var pos = vec2<u32>(u32(x), u32(y));
 
-    // assume 16 bit (rgb555a1) mode
-    var data = textureLoad(tex, vec2<u32>(u32(x), u32(y)), 0);
+    // assume 16 bit (rgb5m) mode
+    var data = textureLoad(tex, pos, 0);
     var r = data.r & 0x1Fu;
-    var g = (data.g & 0x1Fu);
-    var b = (data.b & 0x1Fu);
+    var g = (data.r & (0x1Fu << 5)) >> 5;
+    var b = (data.r & (0x1Fu << 10)) >> 10;
+
     var color = vec4<f32>(
         f32(r) / 32.0,
         f32(g) / 32.0,

@@ -9,7 +9,7 @@ use crate::{
             },
         },
         interpreter::{Inner, Interpreter},
-        renderer::{Action, Rgba, UntexturedTriangle, Vertex},
+        renderer::{Action, Rgba8, UntexturedTriangle, Vertex},
     },
     scheduler::Event,
 };
@@ -76,13 +76,13 @@ impl Interpreter {
             },
             RenderingOpcode::Polygon => {
                 let cmd = cmd.polygon_cmd();
-                let textured_color = Rgba {
+                let textured_color = Rgba8 {
                     r: 0,
                     g: 0,
                     b: 180,
                     a: 255,
                 };
-                let base_color = Rgba {
+                let base_color = Rgba8 {
                     r: cmd.color_r(),
                     g: cmd.color_g(),
                     b: cmd.color_b(),
@@ -115,7 +115,7 @@ impl Interpreter {
                     let color =
                         VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-                    Rgba {
+                    Rgba8 {
                         r: color.color_r(),
                         g: color.color_g(),
                         b: color.color_b(),
@@ -167,7 +167,7 @@ impl Interpreter {
                     let color =
                         VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-                    Rgba {
+                    Rgba8 {
                         r: color.color_r(),
                         g: color.color_g(),
                         b: color.color_b(),
@@ -211,7 +211,7 @@ impl Interpreter {
                         let color =
                             VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-                        Rgba {
+                        Rgba8 {
                             r: color.color_r(),
                             g: color.color_g(),
                             b: color.color_b(),

@@ -6,29 +6,40 @@ use super::cmd::{
 use bitos::integer::{i11, u10};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
+/// Full 32-bit RGBA color.
 #[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
 #[repr(C)]
-pub struct Rgba {
+pub struct Rgba8 {
     pub r: u8,
     pub g: u8,
     pub b: u8,
     pub a: u8,
 }
 
-impl Rgba {
-    pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b, a: 255 }
-    }
-
-    pub fn with_alpha(r: u8, g: u8, b: u8, a: u8) -> Self {
-        Self { r, g, b, a }
-    }
-}
+// impl Rgba8 {
+//     pub fn new(r: u8, g: u8, b: u8) -> Self {
+//         Self { r, g, b, a: 255 }
+//     }
+//
+//     pub fn with_alpha(r: u8, g: u8, b: u8, a: u8) -> Self {
+//         Self { r, g, b, a }
+//     }
+//
+//     pub fn to_rgb5m(&self) -> Rgb5m {
+//         let r = self.r
+//         Rgb5m(r | g | b | m);
+//     }
+// }
+//
+// /// 16-bit RGB color + 1-bit mask.
+// #[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
+// #[repr(C)]
+// pub struct Rgb5m(u16);
 
 #[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
 #[repr(C)]
 pub struct Vertex {
-    pub color: Rgba,
+    pub color: Rgba8,
     pub x: i11,
     pub y: i11,
     pub u: u8,

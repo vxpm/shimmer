@@ -32,11 +32,11 @@ fn vs_main(in: VertexIn) -> VertexOut {
 }
 
 @fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<u32> {
+fn fs_main(in: VertexOut) -> @location(0) u32 {
     var r = norm_to_u5(in.rgba.r);
     var g = norm_to_u5(in.rgba.g);
     var b = norm_to_u5(in.rgba.b);
-    var color = vec4<u32>(r, g, b, 255);
+    var color = r | (g << 5) | (b << 10);
 
     return color;
 }

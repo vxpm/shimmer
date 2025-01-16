@@ -77,7 +77,6 @@ impl ExclusiveState {
         let renderer_config = shimmer_wgpu::Config {
             display_tex_format: render_state.target_format,
         };
-        dbg!(&renderer_config);
 
         let renderer = Arc::new(Mutex::new(Renderer::new(
             &render_state.device,
