@@ -3,6 +3,7 @@ use wgpu::util::DeviceExt;
 
 #[derive(Debug)]
 struct TextureBundleViewInner {
+    sample_type: wgpu::TextureSampleType,
     view: wgpu::TextureView,
     sampler: wgpu::Sampler,
 }
@@ -12,7 +13,10 @@ pub struct TextureBundleView(Arc<TextureBundleViewInner>);
 
 impl TextureBundleView {
     /// Returns a bind group layout for [`TextureBundleView`]s.
-    pub fn bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    pub fn bind_group_layout(
+        device: &wgpu::Device,
+        sample_type: wgpu::TextureSampleType,
+    ) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("texture bundle view"),
             entries: &[
@@ -22,7 +26,7 @@ impl TextureBundleView {
                     ty: wgpu::BindingType::Texture {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        sample_type,
                     },
                     count: None,
                 },
@@ -42,7 +46,7 @@ impl TextureBundleView {
         layout: &wgpu::BindGroupLayout,
     ) -> wgpu::BindGroup {
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("render display bind group"),
+            label: Some("texture bind group"),
             layout: &layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -55,6 +59,10 @@ impl TextureBundleView {
                 },
             ],
         })
+    }
+
+    pub fn sample_type(&self) -> wgpu::TextureSampleType {
+        self.0.sample_type
     }
 
     pub fn view(&self) -> &wgpu::TextureView {
@@ -91,9 +99,14 @@ impl TextureBundle {
             ..Default::default()
         });
 
+        let sample_type = descriptor.format.sample_type(None, None).unwrap();
         Self {
             texture,
-            view: TextureBundleView(Arc::new(TextureBundleViewInner { view, sampler })),
+            view: TextureBundleView(Arc::new(TextureBundleViewInner {
+                sample_type,
+                view,
+                sampler,
+            })),
         }
     }
 

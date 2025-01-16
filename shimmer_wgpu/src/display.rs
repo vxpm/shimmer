@@ -14,6 +14,10 @@ pub struct DisplayRenderer {
 impl DisplayRenderer {
     pub fn new(device: &wgpu::Device, ctx: &Context, texbundle_view: TextureBundleView) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/display.wgsl"));
+
+        let texbundle_view_bg_layout =
+            ctx.texbundle_view_layout(device, texbundle_view.sample_type());
+
         let coordinates_bg_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("display"),
@@ -31,12 +35,15 @@ impl DisplayRenderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("display"),
-            bind_group_layouts: &[ctx.texbundle_view_layout(device), &coordinates_bg_layout],
+            bind_group_layouts: &[
+                ctx.texbundle_view_layout(device, texbundle_view.sample_type()),
+                &coordinates_bg_layout,
+            ],
             push_constant_ranges: &[],
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("render display"),
+            label: Some("display"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -49,7 +56,7 @@ impl DisplayRenderer {
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: ctx.config.display_tex_format,
-                    blend: Some(wgpu::BlendState::REPLACE),
+                    blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
                 compilation_options: Default::default(),
@@ -79,9 +86,7 @@ impl DisplayRenderer {
             contents: &[0, 0, 0, 0, 0, 0, 0, 0],
         });
 
-        let texbundle_view_bg =
-            texbundle_view.bind_group(device, ctx.texbundle_view_layout(device));
-
+        let texbundle_view_bg = texbundle_view.bind_group(device, texbundle_view_bg_layout);
         let display_area_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("display coordinates"),
             layout: &coordinates_bg_layout,
