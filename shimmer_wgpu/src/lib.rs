@@ -6,7 +6,7 @@ mod vram;
 
 use display::DisplayRenderer;
 use shimmer_core::gpu::renderer::Action;
-use std::sync::{OnceLock, mpsc::Receiver};
+use std::sync::{Arc, OnceLock, mpsc::Receiver};
 use tinylog::{Logger, debug};
 use triangle::TriangleRenderer;
 use vram::Vram;
@@ -19,40 +19,55 @@ pub struct Config {
 }
 
 struct Context {
+    device: Arc<wgpu::Device>,
+    queue: Arc<wgpu::Queue>,
+
     config: Config,
     float_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
     uint_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
 }
 
 impl Context {
-    pub fn new(config: Config) -> Self {
+    fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>, config: Config) -> Self {
         Self {
+            device,
+            queue,
+
             config,
             float_texbundle_view_layout: Default::default(),
             uint_texbundle_view_layout: Default::default(),
         }
     }
 
-    pub fn texbundle_view_layout(
+    fn texbundle_view_layout(
         &self,
-        device: &wgpu::Device,
         sample_type: wgpu::TextureSampleType,
     ) -> &wgpu::BindGroupLayout {
         match sample_type {
-            wgpu::TextureSampleType::Float { filterable: _ } => self
-                .float_texbundle_view_layout
-                .get_or_init(|| texture::TextureBundleView::bind_group_layout(device, sample_type)),
+            wgpu::TextureSampleType::Float { filterable: _ } => {
+                self.float_texbundle_view_layout.get_or_init(|| {
+                    texture::TextureBundleView::bind_group_layout(self.device(), sample_type)
+                })
+            }
             wgpu::TextureSampleType::Depth => todo!(),
             wgpu::TextureSampleType::Sint => todo!(),
-            wgpu::TextureSampleType::Uint => self
-                .uint_texbundle_view_layout
-                .get_or_init(|| texture::TextureBundleView::bind_group_layout(device, sample_type)),
+            wgpu::TextureSampleType::Uint => self.uint_texbundle_view_layout.get_or_init(|| {
+                texture::TextureBundleView::bind_group_layout(self.device(), sample_type)
+            }),
         }
+    }
+
+    fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    fn queue(&self) -> &wgpu::Queue {
+        &self.queue
     }
 }
 
 pub struct Renderer {
-    context: Context,
+    ctx: Context,
     receiver: Receiver<Action>,
     logger: Logger,
 
@@ -63,20 +78,19 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        device: Arc<wgpu::Device>,
+        queue: Arc<wgpu::Queue>,
         receiver: Receiver<Action>,
         logger: Logger,
         config: Config,
     ) -> Self {
-        let context = Context::new(config);
-        let vram = Vram::new(device, queue);
-        let triangle_renderer = TriangleRenderer::new(device);
-        let display_renderer =
-            DisplayRenderer::new(device, &context, vram.texture_bundle().view().clone());
+        let ctx = Context::new(device, queue, config);
+        let vram = Vram::new(&ctx);
+        let triangle_renderer = TriangleRenderer::new(&ctx);
+        let display_renderer = DisplayRenderer::new(&ctx, vram.texture_bundle().view().clone());
 
         Self {
-            context,
+            ctx,
             receiver,
             logger,
 
@@ -86,7 +100,10 @@ impl Renderer {
         }
     }
 
-    pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::CommandBuffer {
+    pub fn prepare(&mut self, _: &wgpu::Device, _: &wgpu::Queue) -> wgpu::CommandBuffer {
+        let device = self.ctx.device();
+        let queue = self.ctx.queue();
+
         let mut encoder = device.create_command_encoder(&Default::default());
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("shimmer_wgpu render pass"),
@@ -112,12 +129,9 @@ impl Renderer {
                 Action::CopyToVram(copy) => {
                     debug!(
                         self.logger,
-                        "copying to vram: x={}, y={}, width={}, height={}, data_len={}",
-                        copy.x.value(),
-                        copy.y.value(),
-                        copy.width.value(),
-                        copy.height.value(),
-                        copy.data.len(),
+                        "copying to vram";
+                        coords = (copy.x.value(), copy.y.value()),
+                        dimensions = (copy.width.value(), copy.height.value())
                     );
 
                     queue.write_texture(
@@ -148,8 +162,9 @@ impl Renderer {
                 Action::DrawUntexturedTriangle(triangle) => {
                     debug!(
                         self.logger,
-                        "rendering untextured triangle: {:#?}",
-                        triangle.clone()
+                        "rendering untextured triangle";
+                        vertices = triangle.vertices,
+                        shading_mode = triangle.shading_mode,
                     );
 
                     // copy vertices into a buffer

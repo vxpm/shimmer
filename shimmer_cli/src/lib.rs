@@ -1,7 +1,6 @@
-use std::sync::mpsc::Receiver;
+use std::sync::{Arc, mpsc::Receiver};
 
-use parking_lot::Mutex;
-use shimmer_core::{Emulator, gpu::renderer::Action};
+use shimmer_core::gpu::renderer::Action;
 use shimmer_wgpu::{Config, Renderer};
 use tinylog::Logger;
 use winit::{event::WindowEvent, window::Window};
@@ -9,8 +8,8 @@ use winit::{event::WindowEvent, window::Window};
 pub struct State<'a> {
     pub window: &'a Window,
     pub surface: wgpu::Surface<'a>,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    pub device: Arc<wgpu::Device>,
+    pub queue: Arc<wgpu::Queue>,
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub renderer: Renderer,
@@ -69,7 +68,16 @@ impl<'a> State<'a> {
         let renderer_config = Config {
             display_tex_format: surface_format.into(),
         };
-        let renderer = Renderer::new(&device, &queue, receiver, Logger::dummy(), renderer_config);
+
+        let device = Arc::new(device);
+        let queue = Arc::new(queue);
+        let renderer = Renderer::new(
+            device.clone(),
+            queue.clone(),
+            receiver,
+            Logger::dummy(),
+            renderer_config,
+        );
 
         Self {
             window,
@@ -95,7 +103,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
         todo!()
     }
 

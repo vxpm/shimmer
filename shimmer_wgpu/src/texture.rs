@@ -68,10 +68,6 @@ impl TextureBundleView {
     pub fn view(&self) -> &wgpu::TextureView {
         &self.0.view
     }
-
-    pub fn sampler(&self) -> &wgpu::Sampler {
-        &self.0.sampler
-    }
 }
 
 pub struct TextureBundle {
