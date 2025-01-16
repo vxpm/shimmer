@@ -3,6 +3,7 @@ use crate::{
     gpu::{
         Interpreter, Status,
         cmd::{DisplayCommand, DisplayOpcode},
+        renderer::Action,
     },
     scheduler::Event,
 };
@@ -29,6 +30,8 @@ impl Interpreter {
                 stat.set_vertical_interlace(settings.vertical_interlace());
                 stat.set_force_horizontal_368(settings.force_horizontal_368());
                 stat.set_flip_screen_x(settings.flip_screen_x());
+
+                self.sender.send(Action::DisplayMode(settings)).unwrap();
             }
             DisplayOpcode::DmaDirection => {
                 let cmd = cmd.dma_direction_cmd();
@@ -39,6 +42,8 @@ impl Interpreter {
                 let settings = cmd.display_area_cmd();
                 psx.gpu.display.area_start_x = settings.x();
                 psx.gpu.display.area_start_y = settings.y();
+
+                self.sender.send(Action::DisplayArea(settings)).unwrap();
             }
             DisplayOpcode::HorizontalDisplayRange => {
                 let settings = cmd.horizontal_display_range_cmd();
