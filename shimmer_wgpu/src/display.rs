@@ -1,4 +1,5 @@
 use crate::{Context, texture::TextureBundleView};
+use wgpu::util::DeviceExt;
 
 pub struct DisplayRenderer {
     pipeline: wgpu::RenderPipeline,
@@ -6,8 +7,8 @@ pub struct DisplayRenderer {
     texbundle_view: TextureBundleView,
     texbundle_view_bg: wgpu::BindGroup,
 
-    coordinates: wgpu::Buffer,
-    coordinates_bg: wgpu::BindGroup,
+    display_area: wgpu::Buffer,
+    display_area_bg: wgpu::BindGroup,
 }
 
 impl DisplayRenderer {
@@ -47,7 +48,7 @@ impl DisplayRenderer {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: ctx.display_tex_format,
+                    format: ctx.config.display_tex_format,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -72,23 +73,22 @@ impl DisplayRenderer {
             cache: None,
         });
 
-        let coordinates = device.create_buffer(&wgpu::BufferDescriptor {
+        let display_area = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("display coordinates"),
-            size: 4,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
+            contents: &[0, 0, 0, 0, 0, 0, 0, 0],
         });
 
         let texbundle_view_bg =
             texbundle_view.bind_group(device, ctx.texbundle_view_layout(device));
 
-        let coordinates_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let display_area_bg = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("display coordinates"),
             layout: &coordinates_bg_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &coordinates,
+                    buffer: &display_area,
                     offset: 0,
                     size: None,
                 }),
@@ -101,15 +101,15 @@ impl DisplayRenderer {
             texbundle_view,
             texbundle_view_bg,
 
-            coordinates,
-            coordinates_bg,
+            display_area,
+            display_area_bg,
         }
     }
 
     pub fn render(&self, pass: &mut wgpu::RenderPass) {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.texbundle_view_bg, &[]);
-        pass.set_bind_group(1, &self.coordinates_bg, &[]);
+        pass.set_bind_group(1, &self.display_area_bg, &[]);
         pass.draw(0..4, 0..1);
     }
 }
