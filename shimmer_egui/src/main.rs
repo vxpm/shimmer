@@ -78,9 +78,11 @@ impl ExclusiveState {
             display_tex_format: render_state.target_format,
         };
 
+        let device = Arc::clone(&render_state.device);
+        let queue = Arc::clone(&render_state.queue);
         let renderer = Arc::new(Mutex::new(Renderer::new(
-            &render_state.device,
-            &render_state.queue,
+            device,
+            queue,
             receiver,
             log_family.logger("wgpu-renderer", tinylog::Level::Trace),
             renderer_config,

@@ -1,4 +1,4 @@
-use crate::texture::TextureBundle;
+use crate::{Context, texture::TextureBundle};
 use zerocopy::IntoBytes;
 
 pub const VRAM_WIDTH: usize = 1024;
@@ -9,11 +9,11 @@ pub struct Vram {
 }
 
 impl Vram {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+    pub fn new(ctx: &Context) -> Self {
         let data = vec![0u16; VRAM_WIDTH * VRAM_HEIGHT];
         let texture = TextureBundle::new(
-            device,
-            queue,
+            ctx.device(),
+            ctx.queue(),
             &wgpu::TextureDescriptor {
                 label: Some("psx vram"),
                 size: wgpu::Extent3d {
