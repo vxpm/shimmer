@@ -86,7 +86,7 @@ impl Renderer {
         }
     }
 
-    pub fn prepare(&mut self, device: &wgpu::Device, _queue: &wgpu::Queue) -> wgpu::CommandBuffer {
+    pub fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> wgpu::CommandBuffer {
         let mut encoder = device.create_command_encoder(&Default::default());
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("shimmer_wgpu render pass"),
@@ -109,7 +109,42 @@ impl Renderer {
                 Action::DrawSettings(_) => (),
                 Action::DisplayMode(_) => (),
                 Action::DisplayArea(_) => (),
-                Action::CopyToVram(_) => (),
+                Action::CopyToVram(copy) => {
+                    debug!(
+                        self.logger,
+                        "copying to vram: x={}, y={}, width={}, height={}, data_len={}",
+                        copy.x.value(),
+                        copy.y.value(),
+                        copy.width.value(),
+                        copy.height.value(),
+                        copy.data.len(),
+                    );
+
+                    queue.write_texture(
+                        wgpu::ImageCopyTexture {
+                            texture: self.vram.texture_bundle().texture(),
+                            mip_level: 0,
+                            origin: wgpu::Origin3d {
+                                x: copy.x.value() as u32,
+                                y: copy.y.value() as u32,
+                                z: 0,
+                            },
+                            aspect: Default::default(),
+                        },
+                        &copy.data,
+                        wgpu::ImageDataLayout {
+                            offset: 0,
+                            bytes_per_row: Some(copy.width.value() as u32 * 2),
+                            rows_per_image: Some(copy.height.value() as u32),
+                        },
+                        wgpu::Extent3d {
+                            width: copy.width.value() as u32,
+                            height: copy.height.value() as u32,
+                            depth_or_array_layers: 1,
+                        },
+                    );
+                    queue.submit([]);
+                }
                 Action::DrawUntexturedTriangle(triangle) => {
                     debug!(
                         self.logger,

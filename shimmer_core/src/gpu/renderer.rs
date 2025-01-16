@@ -58,6 +58,7 @@ pub struct CopyToVram {
     pub x: u10,
     pub y: u10,
     pub width: u10,
+    pub height: u10,
     pub data: Vec<u8>,
 }
 

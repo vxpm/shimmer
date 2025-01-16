@@ -11,10 +11,10 @@ var<private> vertex_positions: array<vec2<f32>, 4> = array<vec2<f32>, 4>(
 );
 
 var<private> vertex_uvs: array<vec2<f32>, 4> = array<vec2<f32>, 4>(
-    vec2<f32>(0.0, 1.0),
     vec2<f32>(0.0, 0.0),
-    vec2<f32>(1.0, 1.0),
+    vec2<f32>(0.0, 1.0),
     vec2<f32>(1.0, 0.0),
+    vec2<f32>(1.0, 1.0),
 );
 
 @vertex

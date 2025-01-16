@@ -23,7 +23,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
     var pos = vec2<f32>(
         to_signed_range(f32(in.xy.x) / 1024.0),
-        to_signed_range(f32(in.xy.y) / 512.0)
+        -to_signed_range(f32(in.xy.y) / 512.0)
     );
     out.clip_position = vec4<f32>(pos, 0.0, 1.0);
     out.rgba = vec4<f32>(in.rgba) / 255.0;
