@@ -15,6 +15,16 @@ pub struct Rgba {
     pub a: u8,
 }
 
+impl Rgba {
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b, a: 255 }
+    }
+
+    pub fn with_alpha(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
 #[repr(C)]
 pub struct Vertex {
