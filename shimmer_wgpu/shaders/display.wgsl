@@ -28,16 +28,26 @@ fn vs_main(@builtin(vertex_index) index: u32) -> VertexOut {
 }
 
 @group(0) @binding(0)
-var tex: texture_2d<f32>;
+var tex: texture_2d<u32>;
 @group(0) @binding(1)
 var tex_sampler: sampler;
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    var color = textureSample(tex, tex_sampler, in.uv);
-    if color.a == 0 {
-        color = vec4<f32>(0.2, 0.0, 0.0, 1.0);
-    }
+    var x = in.uv.x * 512.0;
+    var y = in.uv.y * 256.0;
+
+    // assume 16 bit (rgb555a1) mode
+    var data = textureLoad(tex, vec2<u32>(u32(x), u32(y)), 0);
+    var r = data.r & 0x1Fu;
+    var g = (data.g & 0x1Fu);
+    var b = (data.b & 0x1Fu);
+    var color = vec4<f32>(
+        f32(r) / 32.0,
+        f32(g) / 32.0,
+        f32(b) / 32.0,
+        1.0,
+    );
 
     return color;
 }

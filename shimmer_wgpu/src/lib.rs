@@ -13,26 +13,41 @@ use vram::Vram;
 use wgpu::util::DeviceExt;
 use zerocopy::IntoBytes;
 
+#[derive(Debug, Clone)]
 pub struct Config {
     pub display_tex_format: wgpu::TextureFormat,
 }
 
 struct Context {
     config: Config,
-    texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
+    float_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
+    uint_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
 }
 
 impl Context {
     pub fn new(config: Config) -> Self {
         Self {
             config,
-            texbundle_view_layout: Default::default(),
+            float_texbundle_view_layout: Default::default(),
+            uint_texbundle_view_layout: Default::default(),
         }
     }
 
-    pub fn texbundle_view_layout(&self, device: &wgpu::Device) -> &wgpu::BindGroupLayout {
-        self.texbundle_view_layout
-            .get_or_init(|| texture::TextureBundleView::bind_group_layout(device))
+    pub fn texbundle_view_layout(
+        &self,
+        device: &wgpu::Device,
+        sample_type: wgpu::TextureSampleType,
+    ) -> &wgpu::BindGroupLayout {
+        match sample_type {
+            wgpu::TextureSampleType::Float { filterable: _ } => self
+                .float_texbundle_view_layout
+                .get_or_init(|| texture::TextureBundleView::bind_group_layout(device, sample_type)),
+            wgpu::TextureSampleType::Depth => todo!(),
+            wgpu::TextureSampleType::Sint => todo!(),
+            wgpu::TextureSampleType::Uint => self
+                .uint_texbundle_view_layout
+                .get_or_init(|| texture::TextureBundleView::bind_group_layout(device, sample_type)),
+        }
     }
 }
 

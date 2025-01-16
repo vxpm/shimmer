@@ -15,8 +15,8 @@ impl Vram {
             &wgpu::TextureDescriptor {
                 label: Some("psx vram"),
                 size: wgpu::Extent3d {
-                    width: 1024,
-                    height: 512,
+                    width: 512,
+                    height: 256,
                     depth_or_array_layers: 1,
                 },
                 usage: wgpu::TextureUsages::COPY_SRC
@@ -26,7 +26,7 @@ impl Vram {
                 mip_level_count: 1,
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8Unorm,
+                format: wgpu::TextureFormat::Rgba8Uint,
                 view_formats: &[],
             },
             data.as_bytes(),
