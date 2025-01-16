@@ -12,8 +12,8 @@ impl Vram {
     pub fn new(ctx: &Context) -> Self {
         let data = vec![0u16; VRAM_WIDTH * VRAM_HEIGHT];
         let texture = TextureBundle::new(
-            ctx.device(),
-            ctx.queue(),
+            &ctx.device,
+            &ctx.queue,
             &wgpu::TextureDescriptor {
                 label: Some("psx vram"),
                 size: wgpu::Extent3d {

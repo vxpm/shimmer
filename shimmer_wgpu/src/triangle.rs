@@ -22,18 +22,18 @@ pub struct TriangleRenderer {
 impl TriangleRenderer {
     pub fn new(ctx: &Context) -> Self {
         let shader = ctx
-            .device()
+            .device
             .create_shader_module(wgpu::include_wgsl!("../shaders/flat.wgsl"));
-        let pipeline_layout =
-            ctx.device()
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("triangle"),
-                    bind_group_layouts: &[],
-                    push_constant_ranges: &[],
-                });
+        let pipeline_layout = ctx
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("triangle"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
 
         let pipeline = ctx
-            .device()
+            .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("triangle"),
                 layout: Some(&pipeline_layout),
