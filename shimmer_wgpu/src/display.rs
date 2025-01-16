@@ -13,12 +13,13 @@ pub struct DisplayRenderer {
 
 impl DisplayRenderer {
     pub fn new(ctx: &Context, texbundle_view: TextureBundleView) -> Self {
-        let device = ctx.device();
-        let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/display.wgsl"));
+        let shader = ctx
+            .device
+            .create_shader_module(wgpu::include_wgsl!("../shaders/display.wgsl"));
 
         let texbundle_view_bg_layout = ctx.texbundle_view_layout(texbundle_view.sample_type());
         let coordinates_bg_layout =
-            ctx.device()
+            ctx.device
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: Some("display"),
                     entries: &[wgpu::BindGroupLayoutEntry {
@@ -33,19 +34,19 @@ impl DisplayRenderer {
                     }],
                 });
 
-        let pipeline_layout =
-            ctx.device()
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("display"),
-                    bind_group_layouts: &[
-                        ctx.texbundle_view_layout(texbundle_view.sample_type()),
-                        &coordinates_bg_layout,
-                    ],
-                    push_constant_ranges: &[],
-                });
+        let pipeline_layout = ctx
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("display"),
+                bind_group_layouts: &[
+                    ctx.texbundle_view_layout(texbundle_view.sample_type()),
+                    &coordinates_bg_layout,
+                ],
+                push_constant_ranges: &[],
+            });
 
         let pipeline = ctx
-            .device()
+            .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("display"),
                 layout: Some(&pipeline_layout),
@@ -85,15 +86,15 @@ impl DisplayRenderer {
             });
 
         let display_area = ctx
-            .device()
+            .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("display coordinates"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 contents: &[0, 0, 0, 0, 0, 0, 0, 0],
             });
 
-        let texbundle_view_bg = texbundle_view.bind_group(ctx.device(), texbundle_view_bg_layout);
-        let display_area_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+        let texbundle_view_bg = texbundle_view.bind_group(&ctx.device, texbundle_view_bg_layout);
+        let display_area_bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("display coordinates"),
             layout: &coordinates_bg_layout,
             entries: &[wgpu::BindGroupEntry {

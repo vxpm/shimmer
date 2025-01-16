@@ -30,7 +30,7 @@ impl CallbackTrait for RendererCallback {
         _egui_encoder: &mut eframe::wgpu::CommandEncoder,
         _callback_resources: &mut egui_wgpu::CallbackResources,
     ) -> Vec<eframe::wgpu::CommandBuffer> {
-        vec![self.renderer.lock().prepare(device, queue)]
+        Vec::new()
     }
 }
 
