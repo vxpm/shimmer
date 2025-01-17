@@ -77,9 +77,9 @@ pub struct VertexPositionPacket {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Clut {
     #[bits(0..6)]
-    x_by_16: u6,
+    pub x_by_16: u6,
     #[bits(6..15)]
-    y: u9,
+    pub y: u9,
 }
 
 /// A vertex UV packet.
