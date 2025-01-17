@@ -103,7 +103,7 @@ impl Region {
 /// A physical memory address. This is a thin wrapper around a [`u32`], with the extra guarantee
 /// that it's in the `0x0000_0000..0x2000_0000` range (512 MiB).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub struct PhysicalAddress(u32);
 
 impl std::fmt::Display for PhysicalAddress {
