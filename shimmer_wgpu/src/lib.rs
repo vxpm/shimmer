@@ -81,15 +81,17 @@ impl Inner {
     ) -> Self {
         let ctx = Context::new(device, queue, config);
         let vram = Vram::new(&ctx);
-        let triangle_renderer = TriangleRenderer::new(&ctx);
-        let display_renderer = DisplayRenderer::new(&ctx, vram.texture_bundle().view().clone());
+        let triangle_renderer =
+            TriangleRenderer::new(&ctx, vram.back_texture_bundle().view().clone());
+        let display_renderer =
+            DisplayRenderer::new(&ctx, vram.front_texture_bundle().view().clone());
 
         let mut encoder = ctx.device.create_command_encoder(&Default::default());
         let pass = encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &vram.texture_bundle().view().view(),
+                    view: &vram.front_texture_bundle().view().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -129,7 +131,7 @@ impl Inner {
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.vram.texture_bundle().view().view(),
+                    view: &self.vram.front_texture_bundle().view().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -182,7 +184,7 @@ impl Inner {
                 self.flush();
                 self.ctx.queue.write_texture(
                     wgpu::ImageCopyTexture {
-                        texture: self.vram.texture_bundle().texture(),
+                        texture: self.vram.front_texture_bundle().texture(),
                         mip_level: 0,
                         origin: wgpu::Origin3d {
                             x: copy.x.value() as u32,
@@ -213,18 +215,17 @@ impl Inner {
                     texpage = triangle.texpage,
                 );
 
-                // copy vertices into a buffer
-                let buffer =
-                    self.ctx
-                        .device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("triangle"),
-                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                            contents: triangle.vertices.as_bytes(),
-                        });
+                self.flush();
+                self.vram.sync(&self.ctx);
 
                 let pass = self.current_pass.as_mut().unwrap();
-                self.triangle_renderer.render(pass, buffer.slice(..));
+                self.triangle_renderer.render_textured(
+                    &self.ctx,
+                    pass,
+                    triangle.vertices,
+                    triangle.clut,
+                    triangle.texpage,
+                );
             }
             Action::DrawUntexturedTriangle(triangle) => {
                 debug!(
@@ -233,18 +234,9 @@ impl Inner {
                     vertices = triangle.vertices,
                 );
 
-                // copy vertices into a buffer
-                let buffer =
-                    self.ctx
-                        .device
-                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                            label: Some("triangle"),
-                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                            contents: triangle.vertices.as_bytes(),
-                        });
-
                 let pass = self.current_pass.as_mut().unwrap();
-                self.triangle_renderer.render(pass, buffer.slice(..));
+                self.triangle_renderer
+                    .render(&self.ctx, pass, triangle.vertices);
             }
         }
     }
