@@ -41,7 +41,7 @@ pub enum CompressionMode {
 }
 
 #[bitos(12)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TexPage {
     #[bits(0..4)]
     pub x_base: u4,

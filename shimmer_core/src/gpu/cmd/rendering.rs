@@ -55,11 +55,11 @@ pub enum ShadingMode {
 #[derive(Debug)]
 pub struct VertexColorPacket {
     #[bits(0..8)]
-    pub color_r: u8,
+    pub r: u8,
     #[bits(8..16)]
-    pub color_g: u8,
+    pub g: u8,
     #[bits(16..24)]
-    pub color_b: u8,
+    pub b: u8,
 }
 
 /// A vertex position packet.
@@ -74,7 +74,7 @@ pub struct VertexPositionPacket {
 
 /// CLUT information of a textured vertex.
 #[bitos(16)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Clut {
     #[bits(0..6)]
     x_by_16: u6,
@@ -84,7 +84,7 @@ pub struct Clut {
 
 /// A vertex UV packet.
 #[bitos(32)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VertexUVPacket {
     #[bits(0..8)]
     pub u: u8,
@@ -129,11 +129,11 @@ impl PolygonMode {
 #[derive(Debug)]
 pub struct PolygonCmd {
     #[bits(0..8)]
-    pub color_r: u8,
+    pub r: u8,
     #[bits(8..16)]
-    pub color_g: u8,
+    pub g: u8,
     #[bits(16..24)]
-    pub color_b: u8,
+    pub b: u8,
     #[bits(24)]
     pub texture_mode: TextureMode,
     #[bits(25)]

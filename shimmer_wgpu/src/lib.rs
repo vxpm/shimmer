@@ -148,30 +148,28 @@ impl Inner {
 
     fn exec(&mut self, action: Action) {
         match action {
-            Action::Reset => (),
-            Action::DrawSettings(_) => (),
-            Action::DisplayMode(mode) => {
+            Action::SetDisplayResolution(resolution) => {
                 debug!(
                     self.logger,
-                    "display dimensions";
-                    horizontal = mode.horizontal_resolution(),
-                    vertical = mode.vertical_resolution(),
+                    "display resolution";
+                    horizontal = resolution.horizontal,
+                    vertical = resolution.vertical,
                 );
-                self.display_renderer.set_display_dimensions(
+                self.display_renderer.set_display_resolution(
                     &self.ctx,
-                    mode.horizontal_resolution(),
-                    mode.vertical_resolution(),
+                    resolution.horizontal,
+                    resolution.vertical,
                 );
             }
-            Action::DisplayArea(area) => {
+            Action::SetDisplayTopLeft(top_left) => {
                 debug!(
                     self.logger,
                     "display top left";
-                    x = area.x(),
-                    y = area.y(),
+                    x = top_left.x,
+                    y = top_left.y,
                 );
                 self.display_renderer
-                    .set_display_top_left(&self.ctx, area.x(), area.y());
+                    .set_display_top_left(&self.ctx, top_left.x, top_left.y);
             }
             Action::CopyToVram(copy) => {
                 debug!(
@@ -211,7 +209,6 @@ impl Inner {
                     self.logger,
                     "rendering untextured triangle";
                     vertices = triangle.vertices,
-                    shading_mode = triangle.shading_mode,
                 );
 
                 // copy vertices into a buffer
