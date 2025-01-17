@@ -1,20 +1,22 @@
 mod display;
 mod rendering;
 
-use std::sync::mpsc::{Receiver, Sender};
-
-use super::{
-    cmd::{DisplayCommand, RenderingCommand, rendering::LineCmd},
-    renderer::{Action, CopyToVram},
-};
 use crate::{
     PSX,
-    gpu::cmd::rendering::{
-        CoordPacket, ShadingMode, SizePacket, VertexColorPacket, VertexPositionPacket,
+    gpu::{
+        cmd::{
+            DisplayCommand, RenderingCommand,
+            rendering::{
+                CoordPacket, LineCmd, ShadingMode, SizePacket, VertexColorPacket,
+                VertexPositionPacket,
+            },
+        },
+        renderer::{Action, CopyToVram},
     },
     scheduler::Event,
 };
 use bitos::integer::u10;
+use std::sync::mpsc::{Receiver, Sender};
 use tinylog::debug;
 
 #[derive(Debug, Default)]
@@ -23,7 +25,7 @@ enum Inner {
     Idle,
     /// Waiting for enough data to complete a CPU to VRAM blit
     CpuToVramBlit {
-        _dest: CoordPacket,
+        dest: CoordPacket,
         size: SizePacket,
     },
     PolyLine {
@@ -71,7 +73,7 @@ impl Interpreter {
                     self.exec_queued_render(psx);
                 }
             }
-            Inner::CpuToVramBlit { _dest, size } => {
+            Inner::CpuToVramBlit { dest: _dest, size } => {
                 let count = (size.width() * size.height() + 1) / 2;
                 if psx.gpu.render_queue.len() < count as usize {
                     return;

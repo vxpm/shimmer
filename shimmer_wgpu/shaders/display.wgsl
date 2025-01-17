@@ -61,6 +61,5 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
     // normalize colors
     var norm = vec4<f32>(vec3<f32>(rgb5) / 32.0, 1.0);
-
     return norm;
 }

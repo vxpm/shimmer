@@ -171,8 +171,8 @@ pub struct EnvironmentState {
 /// Display configuration of the GPU.
 #[derive(Debug, Default)]
 pub struct DisplayState {
-    pub area_start_x: u10,
-    pub area_start_y: u9,
+    pub top_left_x: u10,
+    pub top_left_y: u9,
 
     pub horizontal_range: Range<u12>,
     pub vertical_range: Range<u10>,

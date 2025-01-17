@@ -12,13 +12,13 @@ pub use executor::Executor;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Channel {
-    MdecIn = 0,
-    MdecOut = 1,
-    GPU = 2,
-    CDROM = 3,
-    SPU = 4,
-    PIO = 5,
-    OTC = 6,
+    MdecIn,
+    MdecOut,
+    GPU,
+    CDROM,
+    SPU,
+    PIO,
+    OTC,
 }
 
 impl Channel {
@@ -41,9 +41,9 @@ impl Channel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferDirection {
     /// Copying from some source in the device to a destination address in RAM (the channel base).
-    DeviceToRam = 0x0,
+    DeviceToRam,
     /// Copying from a source address in RAM (the channel base) to some destination in the device.
-    RamToDevice = 0x1,
+    RamToDevice,
 }
 
 /// The direction of data in a DMA transfer.
@@ -51,9 +51,9 @@ pub enum TransferDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataDirection {
     /// The address of the data to be transferred increases.
-    Forward = 0x0,
+    Forward,
     /// The address of the data to be transferred decreases.
-    Backward = 0x1,
+    Backward,
 }
 
 /// Modes a transfer can be executed in.
@@ -61,11 +61,11 @@ pub enum DataDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferMode {
     /// Data is transferred all at once.
-    Burst = 0x0,
+    Burst,
     /// Data is transferred block by block.
-    Slice = 0x1,
+    Slice,
     /// Data is transferred through a linked list of data nodes.
-    LinkedList = 0x2,
+    LinkedList,
 }
 
 /// Contains the base memory address of a DMA channel.
@@ -189,9 +189,9 @@ impl Control {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChannelInterruptMode {
     /// The interrupt occurs only when the entire transfer completes.
-    OnCompletion = 0x0,
+    OnCompletion,
     /// The interrupt occurs for every slice and linked-list transfer.
-    OnBlock = 0x1,
+    OnBlock,
 }
 
 /// Configuration of the DMA controller regarding interrupts.

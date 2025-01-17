@@ -133,7 +133,7 @@ impl DisplayRenderer {
             .write_buffer(&self.display_area, 0, &self.top_left.as_bytes());
     }
 
-    pub fn set_display_dimensions(
+    pub fn set_display_resolution(
         &mut self,
         ctx: &Context,
         horizontal: HorizontalResolution,

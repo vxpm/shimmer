@@ -1,3 +1,5 @@
+//! Commands of the GPU.
+
 pub mod display;
 pub mod environment;
 pub mod rendering;
@@ -49,6 +51,7 @@ pub enum EnvironmentOpcode {
     MaskSettings = 0x6,
 }
 
+/// The primary opcode of a [`DisplayCommand`].
 #[bitos(6)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayOpcode {
