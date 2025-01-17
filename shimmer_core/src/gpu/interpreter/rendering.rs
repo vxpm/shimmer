@@ -3,19 +3,38 @@ use crate::{
     gpu::{
         cmd::{
             EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
-            environment::TexPage,
             rendering::{
-                Clut, CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
+                CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
                 VertexColorPacket, VertexPositionPacket, VertexUVPacket,
             },
         },
         interpreter::{Inner, Interpreter},
-        renderer::{Action, Rgba8, UntexturedTriangle, Vertex},
+        renderer::{Action, Rgba8, TexturedTriangle, UntexturedTriangle, Vertex},
     },
     scheduler::Event,
 };
 use bitos::integer::u1;
 use tinylog::{debug, error, warn};
+
+#[derive(Default)]
+struct VertexPackets {
+    color: VertexColorPacket,
+    position: VertexPositionPacket,
+    uv: VertexUVPacket,
+}
+
+impl VertexPackets {
+    fn to_vertex(&self) -> Vertex {
+        Vertex {
+            color: Rgba8::new(self.color.r(), self.color.g(), self.color.b()),
+            x: self.position.x(),
+            y: self.position.y(),
+            u: self.uv.u(),
+            v: self.uv.v(),
+            _padding: 0,
+        }
+    }
+}
 
 impl Interpreter {
     fn exec_quick_rect_fill(&mut self, psx: &mut PSX, _: RenderingCommand) {
@@ -34,78 +53,101 @@ impl Interpreter {
 
     fn exec_polygon(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.polygon_cmd();
-        let base_color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
+        let base_color_packet = VertexColorPacket::default()
+            .with_r(cmd.r())
+            .with_g(cmd.g())
+            .with_b(cmd.b());
 
-        let mut clut = Clut::default();
-        let mut texpage = TexPage::default();
-        let mut vertex = |i| {
-            let color = if i == 0 || cmd.shading_mode() == ShadingMode::Flat {
-                base_color
+        let mut vertex = |skip_color| {
+            let color = if skip_color || cmd.shading_mode() == ShadingMode::Flat {
+                base_color_packet
             } else {
-                let color = VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
-                Rgba8::new(color.r(), color.g(), color.b())
+                VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
             };
 
             let position =
                 VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
             let uv = if cmd.textured() {
-                let uv = VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
-
-                match i {
-                    0 => {
-                        clut = uv.clut();
-                    }
-                    1 => {
-                        texpage = uv.texpage();
-
-                        let stat = &mut psx.gpu.status;
-                        stat.set_texpage_x_base(texpage.x_base());
-                        stat.set_texpage_y_base(texpage.y_base());
-                        stat.set_semi_transparency_mode(texpage.semi_transparency_mode());
-                        stat.set_texpage_depth(texpage.depth());
-
-                        if psx.gpu.environment.double_vram {
-                            stat.set_texpage_y_base_2(texpage.y_base_2());
-                        } else {
-                            stat.set_texpage_y_base_2(u1::new(0));
-                        }
-                    }
-                    _ => (),
-                }
-
-                uv
+                VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
             } else {
                 VertexUVPacket::default()
             };
 
-            Vertex {
+            VertexPackets {
                 color,
-                x: position.x(),
-                y: position.y(),
-                u: uv.u(),
-                v: uv.v(),
-                _padding: 0,
+                position,
+                uv,
             }
         };
 
-        let vertex_a = vertex(0);
-        let vertex_b = vertex(1);
-        let vertex_c = vertex(2);
+        let vertex_a = vertex(true);
+        let vertex_b = vertex(false);
+        let vertex_c = vertex(false);
+        let vertex_d = if cmd.polygon_mode() == PolygonMode::Rectangle {
+            vertex(false)
+        } else {
+            VertexPackets::default()
+        };
 
-        self.sender
-            .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
-                vertices: [vertex_a, vertex_b, vertex_c],
-            }))
-            .unwrap();
+        let clut = vertex_a.uv.clut();
+        let texpage = vertex_b.uv.texpage();
 
-        if cmd.polygon_mode() == PolygonMode::Rectangle {
-            let vertex_d = vertex(3);
+        let tri_1 = [
+            vertex_a.to_vertex(),
+            vertex_b.to_vertex(),
+            vertex_c.to_vertex(),
+        ];
+        let tri_2 = [
+            vertex_b.to_vertex(),
+            vertex_d.to_vertex(),
+            vertex_c.to_vertex(),
+        ];
+
+        if cmd.textured() {
+            let stat = &mut psx.gpu.status;
+            stat.set_texpage_x_base(texpage.x_base());
+            stat.set_texpage_y_base(texpage.y_base());
+            stat.set_semi_transparency_mode(texpage.semi_transparency_mode());
+            stat.set_texpage_depth(texpage.depth());
+
+            if psx.gpu.environment.double_vram {
+                stat.set_texpage_y_base_2(texpage.y_base_2());
+            } else {
+                stat.set_texpage_y_base_2(u1::new(0));
+            }
+
             self.sender
-                .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
-                    vertices: [vertex_b, vertex_d, vertex_c],
+                .send(Action::DrawTexturedTriangle(TexturedTriangle {
+                    vertices: tri_1,
+                    clut,
+                    texpage,
                 }))
                 .unwrap();
+
+            if cmd.polygon_mode() == PolygonMode::Rectangle {
+                self.sender
+                    .send(Action::DrawTexturedTriangle(TexturedTriangle {
+                        vertices: tri_2,
+                        clut,
+                        texpage,
+                    }))
+                    .unwrap();
+            }
+        } else {
+            self.sender
+                .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                    vertices: tri_1,
+                }))
+                .unwrap();
+
+            if cmd.polygon_mode() == PolygonMode::Rectangle {
+                self.sender
+                    .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                        vertices: tri_2,
+                    }))
+                    .unwrap();
+            }
         }
     }
 

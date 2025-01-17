@@ -1,6 +1,9 @@
 //! The rendering interface for renderer implementations.
 
-use super::{HorizontalResolution, VerticalResolution};
+use super::{
+    HorizontalResolution, VerticalResolution,
+    cmd::{environment::TexPage, rendering::Clut},
+};
 use bitos::integer::{i11, u9, u10};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
@@ -42,6 +45,8 @@ pub struct UntexturedTriangle {
 #[derive(Debug, Clone)]
 pub struct TexturedTriangle {
     pub vertices: [Vertex; 3],
+    pub clut: Clut,
+    pub texpage: TexPage,
 }
 
 /// A data copy to VRAM.
@@ -80,4 +85,5 @@ pub enum Action {
 
     // Draw stuff
     DrawUntexturedTriangle(UntexturedTriangle),
+    DrawTexturedTriangle(TexturedTriangle),
 }

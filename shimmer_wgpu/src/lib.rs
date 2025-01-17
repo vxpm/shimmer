@@ -204,6 +204,28 @@ impl Inner {
                     },
                 );
             }
+            Action::DrawTexturedTriangle(triangle) => {
+                debug!(
+                    self.logger,
+                    "rendering textured triangle";
+                    vertices = triangle.vertices,
+                    clut = triangle.clut,
+                    texpage = triangle.texpage,
+                );
+
+                // copy vertices into a buffer
+                let buffer =
+                    self.ctx
+                        .device
+                        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                            label: Some("triangle"),
+                            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                            contents: triangle.vertices.as_bytes(),
+                        });
+
+                let pass = self.current_pass.as_mut().unwrap();
+                self.triangle_renderer.render(pass, buffer.slice(..));
+            }
             Action::DrawUntexturedTriangle(triangle) => {
                 debug!(
                     self.logger,
