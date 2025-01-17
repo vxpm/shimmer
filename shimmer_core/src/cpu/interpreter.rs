@@ -18,7 +18,7 @@ use crate::{
         instr::{CoOpcode, Opcode, SpecialOpcode},
     },
     kernel,
-    mem::{Address, Region},
+    mem::{Address, Region, io},
     util::cold_path,
 };
 use tinylog::{debug, error, info, warn};
@@ -396,7 +396,9 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         if let Some(physical) = pc.physical()
-            && physical.region() == Some(Region::ScratchPad)
+            && (physical.region() == Some(Region::ScratchPad)
+                || physical == io::Reg::InterruptStatus.address()
+                || physical == io::Reg::InterruptMask.address())
         {
             self.trigger_exception_at(
                 self.psx.cpu.instr_delay_slot.1,

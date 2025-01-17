@@ -1,6 +1,6 @@
 //! Items related to memory mapped IO.
 
-use super::Address;
+use super::{Address, PhysicalAddress};
 use crate::dma::Channel;
 use strum::VariantArray;
 
@@ -258,7 +258,7 @@ pub enum Reg {
 
 impl Reg {
     /// Returns the address and the width of this register.
-    pub const fn address_and_width(self) -> (Address, usize) {
+    pub const fn address_and_width(self) -> (PhysicalAddress, usize) {
         let (addr, width) = match self {
             // Memory Control 1
             Reg::Expansion1Base => (0x1F80_1000, 4),
@@ -507,12 +507,12 @@ impl Reg {
             Reg::Post => (0x1F80_2041, 1),
         };
 
-        (Address(addr), width)
+        (PhysicalAddress(addr), width)
     }
 
     /// Returns the address of this register.
     #[inline(always)]
-    pub const fn address(self) -> Address {
+    pub const fn address(self) -> PhysicalAddress {
         self.address_and_width().0
     }
 
