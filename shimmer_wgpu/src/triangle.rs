@@ -38,15 +38,14 @@ enum TexturedKind {
     Untextured,
 }
 
-#[repr(C, align(8))]
 #[derive(Debug, Clone, IntoBytes, Immutable)]
-struct TexturedInfo {
+#[repr(C)]
+struct Extra {
     kind: TexturedKind,
     clut_x: u32,
     clut_y: u32,
     texpage_x: u32,
     texpage_y: u32,
-    _padding: u32,
 }
 
 pub struct TriangleRenderer {
@@ -56,8 +55,8 @@ pub struct TriangleRenderer {
 
     back_vram_bg: wgpu::BindGroup,
 
-    texture_info_bg_layout: wgpu::BindGroupLayout,
-    untextured_texture_info_bg: wgpu::BindGroup,
+    extra_bg_layout: wgpu::BindGroupLayout,
+    untextured_extra_bg: wgpu::BindGroup,
 }
 
 impl TriangleRenderer {
@@ -67,10 +66,10 @@ impl TriangleRenderer {
             .create_shader_module(wgpu::include_wgsl!("../shaders/triangle.wgsl"));
 
         let back_vram_bg_layout = ctx.texbundle_bind_group_layout::<R16Uint>();
-        let texture_info_bg_layout =
+        let extra_bg_layout =
             ctx.device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label: Some("textured triangle info"),
+                    label: Some("textured triangle extra"),
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::FRAGMENT,
@@ -84,41 +83,39 @@ impl TriangleRenderer {
                 });
 
         let back_vram_bg = ctx.texbundle_bind_group(&back_vram);
-        let untextured_info = ctx
+        let untextured_extra = ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangle info"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                contents: TexturedInfo {
+                contents: Extra {
                     kind: TexturedKind::Untextured,
                     clut_x: 0,
                     clut_y: 0,
                     texpage_x: 0,
                     texpage_y: 0,
-                    _padding: 0,
                 }
                 .as_bytes(),
             });
 
-        let untextured_texture_info_bg =
-            ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("textured triangle info"),
-                layout: &texture_info_bg_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &untextured_info,
-                        offset: 0,
-                        size: None,
-                    }),
-                }],
-            });
+        let untextured_extra_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("textured triangle info"),
+            layout: &extra_bg_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &untextured_extra,
+                    offset: 0,
+                    size: None,
+                }),
+            }],
+        });
 
         let pipeline_layout =
             ctx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("triangle"),
-                    bind_group_layouts: &[back_vram_bg_layout, &texture_info_bg_layout],
+                    bind_group_layouts: &[back_vram_bg_layout, &extra_bg_layout],
                     push_constant_ranges: &[],
                 });
 
@@ -169,8 +166,8 @@ impl TriangleRenderer {
 
             back_vram_bg,
 
-            texture_info_bg_layout,
-            untextured_texture_info_bg,
+            extra_bg_layout,
+            untextured_extra_bg,
         }
     }
 
@@ -187,7 +184,7 @@ impl TriangleRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, vertices.slice(..));
         pass.set_bind_group(0, &self.back_vram_bg, &[]);
-        pass.set_bind_group(1, &self.untextured_texture_info_bg, &[]);
+        pass.set_bind_group(1, &self.untextured_extra_bg, &[]);
         pass.draw(0..3, 0..1);
     }
 
@@ -208,8 +205,8 @@ impl TriangleRenderer {
                 contents: triangle.as_bytes(),
             });
 
-        // copy textured info into a buffer
-        let textured_info = TexturedInfo {
+        // copy extra into a buffer
+        let extra = Extra {
             kind: match texpage.depth() {
                 TexPageDepth::Nibble => TexturedKind::Nibble,
                 TexPageDepth::Byte => TexturedKind::Byte,
@@ -220,34 +217,36 @@ impl TriangleRenderer {
             clut_y: clut.y().value() as u32,
             texpage_x: texpage.x_base().value() as u32,
             texpage_y: texpage.y_base().value() as u32,
-            _padding: 0,
         };
 
-        let textured_info = ctx
+        let extra = ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("textured triangle info"),
+                label: Some("textured triangle extra"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                contents: textured_info.as_bytes(),
+                contents: extra.as_bytes(),
             });
 
-        let textured_info_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("textured triangle info"),
-            layout: &self.texture_info_bg_layout,
+        let extra_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("textured triangle extra"),
+            layout: &self.extra_bg_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &textured_info,
+                    buffer: &extra,
                     offset: 0,
                     size: None,
                 }),
             }],
         });
 
+        // let extra = Box::leak(Box::new(extra));
+        // let extra_bg = Box::leak(Box::new(extra_bg));
+
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, vertices.slice(..));
         pass.set_bind_group(0, &self.back_vram_bg, &[]);
-        pass.set_bind_group(1, &textured_info_bg, &[]);
+        pass.set_bind_group(1, &extra_bg, &[]);
         pass.draw(0..3, 0..1);
     }
 }
