@@ -1,68 +1,21 @@
+mod context;
 mod display;
 mod texture;
 mod triangle;
 mod util;
 mod vram;
 
+pub use context::Config;
+use context::Context;
 use display::DisplayRenderer;
 use shimmer_core::gpu::renderer::Action;
-use std::sync::{Arc, Mutex, OnceLock, mpsc::Receiver};
+use std::sync::{Arc, Mutex, mpsc::Receiver};
 use tinylog::{Logger, debug};
 use triangle::TriangleRenderer;
 use vram::Vram;
-use wgpu::util::DeviceExt;
-use zerocopy::IntoBytes;
-
-/// Configuration for the renderer.
-#[derive(Debug, Clone)]
-pub struct Config {
-    pub display_tex_format: wgpu::TextureFormat,
-}
-
-/// A context for the renderer: WGPU utilities and it's config.
-struct Context {
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
-
-    config: Config,
-    float_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
-    uint_texbundle_view_layout: OnceLock<wgpu::BindGroupLayout>,
-}
-
-impl Context {
-    fn new(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>, config: Config) -> Self {
-        Self {
-            device,
-            queue,
-
-            config,
-            float_texbundle_view_layout: Default::default(),
-            uint_texbundle_view_layout: Default::default(),
-        }
-    }
-
-    fn texbundle_view_layout(
-        &self,
-        sample_type: wgpu::TextureSampleType,
-    ) -> &wgpu::BindGroupLayout {
-        match sample_type {
-            wgpu::TextureSampleType::Float { filterable: _ } => {
-                self.float_texbundle_view_layout.get_or_init(|| {
-                    texture::TextureBundleView::bind_group_layout(&self.device, sample_type)
-                })
-            }
-            wgpu::TextureSampleType::Depth => todo!(),
-            wgpu::TextureSampleType::Sint => todo!(),
-            wgpu::TextureSampleType::Uint => self.uint_texbundle_view_layout.get_or_init(|| {
-                texture::TextureBundleView::bind_group_layout(&self.device, sample_type)
-            }),
-        }
-    }
-}
 
 struct Inner {
-    ctx: Context,
-    logger: Logger,
+    ctx: Arc<Context>,
 
     vram: Vram,
     triangle_renderer: TriangleRenderer,
@@ -79,19 +32,20 @@ impl Inner {
         logger: Logger,
         config: Config,
     ) -> Self {
-        let ctx = Context::new(device, queue, config);
-        let vram = Vram::new(&ctx);
-        let triangle_renderer =
-            TriangleRenderer::new(&ctx, vram.back_texture_bundle().view().clone());
-        let display_renderer =
-            DisplayRenderer::new(&ctx, vram.front_texture_bundle().view().clone());
+        let ctx = Arc::new(Context::new(device, queue, config, logger));
 
-        let mut encoder = ctx.device.create_command_encoder(&Default::default());
+        let vram = Vram::new(ctx.clone());
+        let triangle_renderer =
+            TriangleRenderer::new(ctx.clone(), vram.back_texture_bundle().clone());
+        let display_renderer =
+            DisplayRenderer::new(ctx.clone(), vram.front_texture_bundle().clone());
+
+        let mut encoder = ctx.device().create_command_encoder(&Default::default());
         let pass = encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &vram.front_texture_bundle().view().view(),
+                    view: &vram.front_texture_bundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -106,7 +60,6 @@ impl Inner {
 
         Self {
             ctx,
-            logger,
 
             vram,
             triangle_renderer,
@@ -123,15 +76,18 @@ impl Inner {
 
         // finish encoder & submit
         let current_encoder = self.current_encoder.take().unwrap();
-        self.ctx.queue.submit([current_encoder.finish()]);
+        self.ctx.queue().submit([current_encoder.finish()]);
 
         // create new encoder & pass
-        let mut encoder = self.ctx.device.create_command_encoder(&Default::default());
+        let mut encoder = self
+            .ctx
+            .device()
+            .create_command_encoder(&Default::default());
         let pass = encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.vram.front_texture_bundle().view().view(),
+                    view: &self.vram.front_texture_bundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -152,37 +108,34 @@ impl Inner {
         match action {
             Action::SetDisplayResolution(resolution) => {
                 debug!(
-                    self.logger,
+                    self.ctx.logger(),
                     "display resolution";
                     horizontal = resolution.horizontal,
                     vertical = resolution.vertical,
                 );
-                self.display_renderer.set_display_resolution(
-                    &self.ctx,
-                    resolution.horizontal,
-                    resolution.vertical,
-                );
+                self.display_renderer
+                    .set_display_resolution(resolution.horizontal, resolution.vertical);
             }
             Action::SetDisplayTopLeft(top_left) => {
                 debug!(
-                    self.logger,
+                    self.ctx.logger(),
                     "display top left";
                     x = top_left.x,
                     y = top_left.y,
                 );
                 self.display_renderer
-                    .set_display_top_left(&self.ctx, top_left.x, top_left.y);
+                    .set_display_top_left(top_left.x, top_left.y);
             }
             Action::CopyToVram(copy) => {
                 debug!(
-                    self.logger,
+                    self.ctx.logger(),
                     "copying to vram";
                     coords = (copy.x.value(), copy.y.value()),
                     dimensions = (copy.width.value(), copy.height.value())
                 );
 
                 self.flush();
-                self.ctx.queue.write_texture(
+                self.ctx.queue().write_texture(
                     wgpu::ImageCopyTexture {
                         texture: self.vram.front_texture_bundle().texture(),
                         mip_level: 0,
@@ -208,7 +161,7 @@ impl Inner {
             }
             Action::DrawTexturedTriangle(triangle) => {
                 debug!(
-                    self.logger,
+                    self.ctx.logger(),
                     "rendering textured triangle";
                     vertices = triangle.vertices,
                     clut = triangle.clut,
@@ -229,7 +182,7 @@ impl Inner {
             }
             Action::DrawUntexturedTriangle(triangle) => {
                 debug!(
-                    self.logger,
+                    self.ctx.logger(),
                     "rendering untextured triangle";
                     vertices = triangle.vertices,
                 );
