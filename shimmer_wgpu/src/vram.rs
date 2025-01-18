@@ -1,20 +1,25 @@
-use crate::{Context, texture::TextureBundle};
+use std::sync::Arc;
+
+use crate::{
+    Context,
+    context::texture::{R16Uint, TextureBundle},
+};
 use zerocopy::IntoBytes;
 
 pub const VRAM_WIDTH: usize = 1024;
 pub const VRAM_HEIGHT: usize = 512;
 
 pub struct Vram {
-    back: TextureBundle,
-    front: TextureBundle,
+    ctx: Arc<Context>,
+
+    back: TextureBundle<R16Uint>,
+    front: TextureBundle<R16Uint>,
 }
 
 impl Vram {
-    pub fn new(ctx: &Context) -> Self {
+    pub fn new(ctx: Arc<Context>) -> Self {
         let data = vec![0u16; VRAM_WIDTH * VRAM_HEIGHT];
-        let back = TextureBundle::new(
-            &ctx.device,
-            &ctx.queue,
+        let back = ctx.create_texbundle(
             &wgpu::TextureDescriptor {
                 label: Some("psx vram back buffer"),
                 size: wgpu::Extent3d {
@@ -34,9 +39,7 @@ impl Vram {
             data.as_bytes(),
         );
 
-        let front = TextureBundle::new(
-            &ctx.device,
-            &ctx.queue,
+        let front = ctx.create_texbundle(
             &wgpu::TextureDescriptor {
                 label: Some("psx vram front buffer"),
                 size: wgpu::Extent3d {
@@ -57,19 +60,19 @@ impl Vram {
             data.as_bytes(),
         );
 
-        Self { back, front }
+        Self { ctx, back, front }
     }
 
-    pub fn back_texture_bundle(&self) -> &TextureBundle {
+    pub fn back_texture_bundle(&self) -> &TextureBundle<R16Uint> {
         &self.back
     }
 
-    pub fn front_texture_bundle(&self) -> &TextureBundle {
+    pub fn front_texture_bundle(&self) -> &TextureBundle<R16Uint> {
         &self.front
     }
 
     pub fn sync(&self, ctx: &Context) {
-        let mut encoder = ctx.device.create_command_encoder(&Default::default());
+        let mut encoder = ctx.device().create_command_encoder(&Default::default());
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
                 texture: self.front.texture(),
@@ -90,6 +93,6 @@ impl Vram {
             },
         );
 
-        ctx.queue.submit([encoder.finish()]);
+        ctx.queue().submit([encoder.finish()]);
     }
 }

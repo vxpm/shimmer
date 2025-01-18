@@ -1,4 +1,3 @@
-use crate::{Context, texture::TextureBundleView};
 use shimmer_core::gpu::{
     self,
     cmd::{
@@ -7,8 +6,14 @@ use shimmer_core::gpu::{
     },
     renderer::Vertex,
 };
+use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
+
+use crate::context::{
+    Context,
+    texture::{R16Uint, TextureBundle},
+};
 
 fn vertex_layout() -> wgpu::VertexBufferLayout<'static> {
     const ATTRS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
@@ -45,23 +50,25 @@ struct TexturedInfo {
 }
 
 pub struct TriangleRenderer {
+    ctx: Arc<Context>,
+
     pipeline: wgpu::RenderPipeline,
 
-    texture_bg: wgpu::BindGroup,
+    back_vram_bg: wgpu::BindGroup,
 
-    textured_info_bg_layout: wgpu::BindGroupLayout,
-    untextured_info_bg: wgpu::BindGroup,
+    texture_info_bg_layout: wgpu::BindGroupLayout,
+    untextured_texture_info_bg: wgpu::BindGroup,
 }
 
 impl TriangleRenderer {
-    pub fn new(ctx: &Context, texture: TextureBundleView) -> Self {
+    pub fn new(ctx: Arc<Context>, back_vram: TextureBundle<R16Uint>) -> Self {
         let shader = ctx
-            .device
+            .device()
             .create_shader_module(wgpu::include_wgsl!("../shaders/triangle.wgsl"));
 
-        let texture_bg_layout = ctx.texbundle_view_layout(wgpu::TextureSampleType::Uint);
-        let textured_info_bg_layout =
-            ctx.device
+        let back_vram_bg_layout = ctx.texbundle_bind_group_layout::<R16Uint>();
+        let texture_info_bg_layout =
+            ctx.device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label: Some("textured triangle info"),
                     entries: &[wgpu::BindGroupLayoutEntry {
@@ -76,10 +83,9 @@ impl TriangleRenderer {
                     }],
                 });
 
-        let texture_bg = texture.bind_group(&ctx.device, texture_bg_layout);
-
+        let back_vram_bg = ctx.texbundle_bind_group(&back_vram);
         let untextured_info = ctx
-            .device
+            .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangle info"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -94,32 +100,30 @@ impl TriangleRenderer {
                 .as_bytes(),
             });
 
-        let untextured_info_bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("textured triangle info"),
-            layout: &textured_info_bg_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &untextured_info,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        });
-
-        let pipeline_layout = ctx
-            .device
-            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("triangle"),
-                bind_group_layouts: &[
-                    ctx.texbundle_view_layout(wgpu::TextureSampleType::Uint),
-                    &textured_info_bg_layout,
-                ],
-                push_constant_ranges: &[],
+        let untextured_texture_info_bg =
+            ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("textured triangle info"),
+                layout: &texture_info_bg_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &untextured_info,
+                        offset: 0,
+                        size: None,
+                    }),
+                }],
             });
 
+        let pipeline_layout =
+            ctx.device()
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("triangle"),
+                    bind_group_layouts: &[back_vram_bg_layout, &texture_info_bg_layout],
+                    push_constant_ranges: &[],
+                });
+
         let pipeline = ctx
-            .device
+            .device()
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("triangle"),
                 layout: Some(&pipeline_layout),
@@ -159,19 +163,21 @@ impl TriangleRenderer {
             });
 
         Self {
+            ctx,
+
             pipeline,
 
-            texture_bg,
+            back_vram_bg,
 
-            textured_info_bg_layout,
-            untextured_info_bg,
+            texture_info_bg_layout,
+            untextured_texture_info_bg,
         }
     }
 
     pub fn render(&self, ctx: &Context, pass: &mut wgpu::RenderPass, triangle: [Vertex; 3]) {
         // copy vertices into a buffer
         let vertices = ctx
-            .device
+            .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangle vertices"),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -180,8 +186,8 @@ impl TriangleRenderer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, vertices.slice(..));
-        pass.set_bind_group(0, &self.texture_bg, &[]);
-        pass.set_bind_group(1, &self.untextured_info_bg, &[]);
+        pass.set_bind_group(0, &self.back_vram_bg, &[]);
+        pass.set_bind_group(1, &self.untextured_texture_info_bg, &[]);
         pass.draw(0..3, 0..1);
     }
 
@@ -195,7 +201,7 @@ impl TriangleRenderer {
     ) {
         // copy vertices into a buffer
         let vertices = ctx
-            .device
+            .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("textured triangle vertices"),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
@@ -218,16 +224,16 @@ impl TriangleRenderer {
         };
 
         let textured_info = ctx
-            .device
+            .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("textured triangle info"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 contents: textured_info.as_bytes(),
             });
 
-        let textured_info_bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let textured_info_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("textured triangle info"),
-            layout: &self.textured_info_bg_layout,
+            layout: &self.texture_info_bg_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
@@ -240,7 +246,7 @@ impl TriangleRenderer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, vertices.slice(..));
-        pass.set_bind_group(0, &self.texture_bg, &[]);
+        pass.set_bind_group(0, &self.back_vram_bg, &[]);
         pass.set_bind_group(1, &textured_info_bg, &[]);
         pass.draw(0..3, 0..1);
     }
