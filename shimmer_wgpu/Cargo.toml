@@ -15,5 +15,5 @@ bitos.workspace = true
 bytesize.workspace = true
 easyerr.workspace = true
 tinylog.workspace = true
+wgpu.workspace = true
 zerocopy.workspace = true
-wgpu = "23.0"

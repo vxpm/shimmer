@@ -7,11 +7,11 @@ edition = "2024"
 shimmer_core = { path = "../shimmer_core" }
 shimmer_wgpu = { path = "../shimmer_wgpu" }
 tinylog.workspace = true
+wgpu.workspace = true
 
 clap = { version = "4.5", features = ["derive"] }
 crossbeam = "0.8"
 env_logger = "0.11"
 parking_lot = "0.12"
 pollster = "0.4"
-wgpu = "23.0"
 winit = { version = "0.29", features = ["rwh_05"] }
