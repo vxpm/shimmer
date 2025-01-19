@@ -215,8 +215,8 @@ impl TriangleRenderer {
             },
             clut_x: clut.x_by_16().value() as u32 * 16,
             clut_y: clut.y().value() as u32,
-            texpage_x: texpage.x_base().value() as u32,
-            texpage_y: texpage.y_base().value() as u32,
+            texpage_x: texpage.x_base().value() as u32 * 64,
+            texpage_y: texpage.y_base().value() as u32 * 256,
         };
 
         let extra = ctx
