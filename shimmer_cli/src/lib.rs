@@ -41,7 +41,7 @@ impl<'a> State<'a> {
                     label: None,
                     memory_hints: Default::default(),
                 },
-                None, // Trace path
+                None,
             )
             .await
             .unwrap();
@@ -50,7 +50,7 @@ impl<'a> State<'a> {
         let surface_format = surface_caps
             .formats
             .iter()
-            .find(|f| f.is_srgb())
+            .find(|f| !f.is_srgb())
             .copied()
             .unwrap_or(surface_caps.formats[0]);
 

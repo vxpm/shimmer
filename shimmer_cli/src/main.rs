@@ -2,6 +2,7 @@ use shimmer_cli::State;
 use shimmer_core::Emulator;
 use tinylog::Logger;
 use winit::{
+    dpi::LogicalSize,
     event::*,
     event_loop::EventLoop,
     keyboard::{KeyCode, PhysicalKey},
@@ -23,7 +24,10 @@ async fn run() {
     });
 
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_inner_size(LogicalSize::new(640 * 2, 480 * 2))
+        .build(&event_loop)
+        .unwrap();
     let mut state = State::new(&window, receiver).await;
 
     event_loop
