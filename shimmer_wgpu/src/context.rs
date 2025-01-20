@@ -69,7 +69,7 @@ impl Context {
                 .create_texture_with_data(&self.queue, descriptor, Default::default(), data);
         let view = texture.create_view(&Default::default());
         let sampler = self.device.create_sampler(&wgpu::SamplerDescriptor {
-            label: descriptor.label.clone(),
+            label: descriptor.label,
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
             address_mode_w: wgpu::AddressMode::Repeat,
