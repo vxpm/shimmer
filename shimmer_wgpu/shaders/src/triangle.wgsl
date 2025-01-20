@@ -59,6 +59,12 @@ const dither: mat4x4f = mat4x4f(
     3.0, -1.0, 2.0, -2.0,
 ) / 255.0;
 
+fn dither_norm_rgba(coords: vec2u, value: vec4f) -> vec4f {
+    var noise = vec3f(dither[coords.x % 4][coords.y % 4]);
+    var dithered = clamp(value + vec4f(noise, 0.0), vec4f(0.0), vec4f(1.0));
+    return dithered;
+}
+
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) u32 {
     var config = configs[in.config_index];
@@ -110,9 +116,7 @@ fn fs_main(in: VertexOut) -> @location(0) u32 {
         }
         case TEXKIND_NONE {
             if config.shading == SHADING_GOURAUD {
-                var noise = vec3f(dither[vram_coords.x % 4][vram_coords.y % 4]);
-                var dithered = clamp(in.rgba + vec4f(noise, 0.0), vec4f(0.0), vec4f(1.0));
-                color = unorm_rgba_to_rgb5m(dithered);
+                color = unorm_rgba_to_rgb5m(dither_norm_rgba(vram_coords, in.rgba));
             } else {
                 color = unorm_rgba_to_rgb5m(in.rgba);
             }
