@@ -8,16 +8,36 @@ mod vram;
 pub use context::Config;
 use context::Context;
 use display::DisplayRenderer;
-use shimmer_core::gpu::renderer::Action;
+use shimmer_core::gpu::renderer::{Action, Vertex};
 use std::sync::{Arc, Mutex, mpsc::Receiver};
 use tinylog::{Logger, debug};
 use triangle::TriangleRenderer;
+use util::{Dimensions, Point, Rect};
 use vram::Vram;
+
+fn triangle_bounding_rect(vertices: &[Vertex; 3]) -> Rect {
+    let mut min_x = u16::MAX;
+    let mut max_x = u16::MIN;
+    let mut min_y = u16::MAX;
+    let mut max_y = u16::MIN;
+
+    for vertex in vertices {
+        min_x = min_x.min(vertex.x.value().clamp(0, i16::MAX) as u16);
+        max_x = max_x.max(vertex.x.value().clamp(0, i16::MAX) as u16);
+
+        min_y = min_y.min(vertex.y.value().clamp(0, i16::MAX) as u16);
+        max_y = max_y.max(vertex.y.value().clamp(0, i16::MAX) as u16);
+    }
+
+    Rect::from_extremes(Point::new(min_x, min_y), Point::new(max_x, max_y))
+}
 
 struct Inner {
     ctx: Arc<Context>,
 
     vram: Vram,
+    vram_dirty: vram::Dirty,
+
     triangle_renderer: TriangleRenderer,
     display_renderer: DisplayRenderer,
 
@@ -35,17 +55,15 @@ impl Inner {
         let ctx = Arc::new(Context::new(device, queue, config, logger));
 
         let vram = Vram::new(ctx.clone());
-        let triangle_renderer =
-            TriangleRenderer::new(ctx.clone(), vram.back_texture_bundle().clone());
-        let display_renderer =
-            DisplayRenderer::new(ctx.clone(), vram.front_texture_bundle().clone());
+        let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle().clone());
+        let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle().clone());
 
         let mut encoder = ctx.device().create_command_encoder(&Default::default());
         let pass = encoder
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &vram.front_texture_bundle().view(),
+                    view: &vram.front_texbundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -62,6 +80,8 @@ impl Inner {
             ctx,
 
             vram,
+            vram_dirty: vram::Dirty::default(),
+
             triangle_renderer,
             display_renderer,
 
@@ -87,7 +107,7 @@ impl Inner {
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.vram.front_texture_bundle().view(),
+                    view: &self.vram.front_texbundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -134,10 +154,16 @@ impl Inner {
                     dimensions = (copy.width.value(), copy.height.value())
                 );
 
+                let rect = Rect::new(
+                    Point::new(copy.x.value(), copy.y.value()),
+                    Dimensions::new(copy.width.value(), copy.height.value()),
+                );
+                self.vram_dirty.mark(rect);
+
                 self.flush();
                 self.ctx.queue().write_texture(
                     wgpu::ImageCopyTexture {
-                        texture: self.vram.front_texture_bundle().texture(),
+                        texture: self.vram.front_texbundle().texture(),
                         mip_level: 0,
                         origin: wgpu::Origin3d {
                             x: copy.x.value() as u32,
@@ -168,8 +194,22 @@ impl Inner {
                     texpage = triangle.texpage,
                 );
 
-                self.flush();
-                self.vram.sync(&self.ctx);
+                let texpage_rect = Rect::new(
+                    Point::new(
+                        triangle.texpage.x_base().value() as u16 * 64,
+                        triangle.texpage.y_base().value() as u16 * 256,
+                    ),
+                    Dimensions::new(64, 256),
+                );
+
+                if self.vram_dirty.is_dirty(texpage_rect) {
+                    self.flush();
+                    self.vram.sync(&self.ctx);
+                    self.vram_dirty.clear();
+                }
+
+                let rect = triangle_bounding_rect(&triangle.vertices);
+                self.vram_dirty.mark(rect);
 
                 let pass = self.current_pass.as_mut().unwrap();
                 self.triangle_renderer.render_textured(
@@ -186,6 +226,9 @@ impl Inner {
                     "rendering untextured triangle";
                     vertices = triangle.vertices,
                 );
+
+                let rect = triangle_bounding_rect(&triangle.vertices);
+                self.vram_dirty.mark(rect);
 
                 let pass = self.current_pass.as_mut().unwrap();
                 self.triangle_renderer

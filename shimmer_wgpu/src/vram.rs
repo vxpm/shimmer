@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{
     Context,
     context::texture::{R16Uint, TextureBundle},
+    util::Rect,
 };
 use zerocopy::IntoBytes;
 
@@ -63,11 +64,11 @@ impl Vram {
         Self { ctx, back, front }
     }
 
-    pub fn back_texture_bundle(&self) -> &TextureBundle<R16Uint> {
+    pub fn back_texbundle(&self) -> &TextureBundle<R16Uint> {
         &self.back
     }
 
-    pub fn front_texture_bundle(&self) -> &TextureBundle<R16Uint> {
+    pub fn front_texbundle(&self) -> &TextureBundle<R16Uint> {
         &self.front
     }
 
@@ -94,5 +95,29 @@ impl Vram {
         );
 
         ctx.queue().submit([encoder.finish()]);
+    }
+}
+
+/// Helper struct for keeping track of dirty VRAM regions.
+#[derive(Debug, Default)]
+pub struct Dirty {
+    rects: Vec<Rect>,
+}
+
+impl Dirty {
+    pub fn mark(&mut self, rect: Rect) {
+        if self.rects.iter().any(|r| r.contains_rect(&rect)) {
+            return;
+        }
+
+        self.rects.push(rect);
+    }
+
+    pub fn clear(&mut self) {
+        self.rects.clear();
+    }
+
+    pub fn is_dirty(&mut self, rect: Rect) -> bool {
+        self.rects.iter().any(|r| r.overlaps(&rect))
     }
 }
