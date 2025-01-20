@@ -1,4 +1,5 @@
 const RGB5M_TRANSPARENT: u32 = 0;
+const RGB5M_PLACEHOLDER: u32 = 0xDEAD;
 
 fn unorm_to_snorm(value: f32) -> f32 {
     return 2.0 * value - 1.0;

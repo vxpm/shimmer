@@ -64,7 +64,7 @@ fn fs_main(in: VertexOut) -> @location(0) u32 {
     var rel_texpage_coords_f32 = vec2f(in.uv.x, in.uv.y) * f32(TEXPAGE_LEN - 1u);
     var rel_texpage_coords = vec2u(round(rel_texpage_coords_f32));
 
-    var color = 0xDEADu;
+    var color: u32;
     switch config.texkind {
         case TEXKIND_LUT4 {
             var texel_coords = texpage_base_coords + rel_texpage_coords / vec2u(4, 1);
@@ -108,7 +108,8 @@ fn fs_main(in: VertexOut) -> @location(0) u32 {
             color = unorm_rgba_to_rgb5m(dithered);
         }
         default: {
-            color = 0xBABEu;
+            // shouldn't ever happen!
+            color = RGB5M_PLACEHOLDER;
         }
     }
 
