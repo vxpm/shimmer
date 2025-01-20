@@ -60,7 +60,7 @@ pub struct TriangleRenderer {
 }
 
 impl TriangleRenderer {
-    pub fn new(ctx: Arc<Context>, back_vram: TextureBundle<R16Uint>) -> Self {
+    pub fn new(ctx: Arc<Context>, back_vram: &TextureBundle<R16Uint>) -> Self {
         let shader = ctx
             .device()
             .create_shader_module(wgpu::include_wgsl!("../shaders/built/triangle.wgsl"));
@@ -82,7 +82,7 @@ impl TriangleRenderer {
                     }],
                 });
 
-        let back_vram_bg = ctx.texbundle_bind_group(&back_vram);
+        let back_vram_bg = ctx.texbundle_bind_group(back_vram);
         let untextured_extra = ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -171,9 +171,10 @@ impl TriangleRenderer {
         }
     }
 
-    pub fn render(&self, ctx: &Context, pass: &mut wgpu::RenderPass, triangle: [Vertex; 3]) {
+    pub fn render(&self, pass: &mut wgpu::RenderPass, triangle: [Vertex; 3]) {
         // copy vertices into a buffer
-        let vertices = ctx
+        let vertices = self
+            .ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("triangle vertices"),
@@ -190,14 +191,14 @@ impl TriangleRenderer {
 
     pub fn render_textured(
         &self,
-        ctx: &Context,
         pass: &mut wgpu::RenderPass,
         triangle: [Vertex; 3],
         clut: Clut,
         texpage: TexPage,
     ) {
         // copy vertices into a buffer
-        let vertices = ctx
+        let vertices = self
+            .ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("textured triangle vertices"),
@@ -219,7 +220,8 @@ impl TriangleRenderer {
             texpage_y: u32::from(texpage.y_base().value()) * 256,
         };
 
-        let extra = ctx
+        let extra = self
+            .ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("textured triangle extra"),
@@ -227,18 +229,21 @@ impl TriangleRenderer {
                 contents: extra.as_bytes(),
             });
 
-        let extra_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("textured triangle extra"),
-            layout: &self.extra_bg_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &extra,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        });
+        let extra_bg = self
+            .ctx
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("textured triangle extra"),
+                layout: &self.extra_bg_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &extra,
+                        offset: 0,
+                        size: None,
+                    }),
+                }],
+            });
 
         // let extra = Box::leak(Box::new(extra));
         // let extra_bg = Box::leak(Box::new(extra_bg));
