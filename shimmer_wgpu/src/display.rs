@@ -28,7 +28,7 @@ impl DisplayRenderer {
     pub fn new(ctx: Arc<Context>, texbundle: TextureBundle<R16Uint>) -> Self {
         let shader = ctx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("../shaders/display.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("../shaders/built/display.wgsl"));
 
         let texbundle_bg_layout = ctx.texbundle_bind_group_layout::<R16Uint>();
         let coordinates_bg_layout =

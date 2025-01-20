@@ -63,7 +63,7 @@ impl TriangleRenderer {
     pub fn new(ctx: Arc<Context>, back_vram: TextureBundle<R16Uint>) -> Self {
         let shader = ctx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("../shaders/triangle.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("../shaders/built/triangle.wgsl"));
 
         let back_vram_bg_layout = ctx.texbundle_bind_group_layout::<R16Uint>();
         let extra_bg_layout =
