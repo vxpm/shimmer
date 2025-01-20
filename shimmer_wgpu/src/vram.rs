@@ -72,8 +72,11 @@ impl Vram {
         &self.front
     }
 
-    pub fn sync(&self, ctx: &Context) {
-        let mut encoder = ctx.device().create_command_encoder(&Default::default());
+    pub fn sync(&self) {
+        let mut encoder = self
+            .ctx
+            .device()
+            .create_command_encoder(&Default::default());
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
                 texture: self.front.texture(),
@@ -94,7 +97,7 @@ impl Vram {
             },
         );
 
-        ctx.queue().submit([encoder.finish()]);
+        self.ctx.queue().submit([encoder.finish()]);
     }
 }
 
@@ -106,7 +109,7 @@ pub struct Dirty {
 
 impl Dirty {
     pub fn mark(&mut self, rect: Rect) {
-        if self.rects.iter().any(|r| r.contains_rect(&rect)) {
+        if self.rects.iter().any(|r| r.contains_rect(rect)) {
             return;
         }
 
@@ -118,6 +121,6 @@ impl Dirty {
     }
 
     pub fn is_dirty(&mut self, rect: Rect) -> bool {
-        self.rects.iter().any(|r| r.overlaps(&rect))
+        self.rects.iter().any(|r| r.overlaps(rect))
     }
 }

@@ -14,7 +14,6 @@ pub struct DisplayRenderer {
 
     pipeline: wgpu::RenderPipeline,
 
-    texbundle: TextureBundle<R16Uint>,
     texbundle_bg: wgpu::BindGroup,
 
     top_left: [u16; 2],
@@ -25,7 +24,7 @@ pub struct DisplayRenderer {
 }
 
 impl DisplayRenderer {
-    pub fn new(ctx: Arc<Context>, texbundle: TextureBundle<R16Uint>) -> Self {
+    pub fn new(ctx: Arc<Context>, texbundle: &TextureBundle<R16Uint>) -> Self {
         let shader = ctx
             .device()
             .create_shader_module(wgpu::include_wgsl!("../shaders/built/display.wgsl"));
@@ -103,7 +102,7 @@ impl DisplayRenderer {
                 contents: [0u32, 0u32, 0u32, 0u32].as_bytes(),
             });
 
-        let texbundle_bg = ctx.texbundle_bind_group(&texbundle);
+        let texbundle_bg = ctx.texbundle_bind_group(texbundle);
         let display_area_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("display coordinates"),
             layout: &coordinates_bg_layout,
@@ -122,7 +121,6 @@ impl DisplayRenderer {
 
             pipeline,
 
-            texbundle,
             texbundle_bg,
 
             top_left: [0; 2],
@@ -146,6 +144,7 @@ impl DisplayRenderer {
         vertical: VerticalResolution,
     ) {
         self.dimensions = [1024, 512];
+        self.dimensions = [horizontal.value(), vertical.value()];
         self.ctx
             .queue()
             .write_buffer(&self.display_area, 4, self.dimensions.as_bytes());

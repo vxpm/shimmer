@@ -55,8 +55,8 @@ impl Inner {
         let ctx = Arc::new(Context::new(device, queue, config, logger));
 
         let vram = Vram::new(ctx.clone());
-        let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle().clone());
-        let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle().clone());
+        let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle());
+        let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle());
 
         let mut encoder = ctx.device().create_command_encoder(&Default::default());
         let pass = encoder
@@ -204,7 +204,7 @@ impl Inner {
 
                 if self.vram_dirty.is_dirty(texpage_rect) {
                     self.flush();
-                    self.vram.sync(&self.ctx);
+                    self.vram.sync();
                     self.vram_dirty.clear();
                 }
 
@@ -213,7 +213,6 @@ impl Inner {
 
                 let pass = self.current_pass.as_mut().unwrap();
                 self.triangle_renderer.render_textured(
-                    &self.ctx,
                     pass,
                     triangle.vertices,
                     triangle.clut,
@@ -231,26 +230,7 @@ impl Inner {
                 self.vram_dirty.mark(rect);
 
                 let pass = self.current_pass.as_mut().unwrap();
-                self.triangle_renderer
-                    .render(&self.ctx, pass, triangle.vertices);
-            }
-        }
-    }
-}
-
-fn render_thread(inner: Arc<Mutex<Inner>>, receiver: Receiver<Action>) {
-    loop {
-        let Ok(action) = receiver.recv() else {
-            // sender has been dropped
-            return;
-        };
-
-        {
-            let mut renderer = inner.lock().unwrap();
-            renderer.exec(action);
-
-            while let Ok(action) = receiver.try_recv() {
-                renderer.exec(action);
+                self.triangle_renderer.render(pass, triangle.vertices);
             }
         }
     }
@@ -272,7 +252,23 @@ impl Renderer {
         let inner = Arc::new(Mutex::new(Inner::new(device, queue, logger, config)));
         let _thread_handle = std::thread::spawn({
             let inner = inner.clone();
-            move || render_thread(inner, receiver)
+            move || {
+                loop {
+                    let Ok(action) = receiver.recv() else {
+                        // sender has been dropped
+                        return;
+                    };
+
+                    {
+                        let mut renderer = inner.lock().unwrap();
+                        renderer.exec(action);
+
+                        while let Ok(action) = receiver.try_recv() {
+                            renderer.exec(action);
+                        }
+                    }
+                }
+            }
         });
 
         Self {

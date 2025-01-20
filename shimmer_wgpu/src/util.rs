@@ -54,7 +54,7 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub const fn bottom_right(&self) -> Point {
+    pub const fn bottom_right(self) -> Point {
         Point {
             x: self.top_left.x + self.dimensions.width,
             y: self.top_left.y + self.dimensions.height,
@@ -62,7 +62,7 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub const fn inclusive_bottom_right(&self) -> Option<Point> {
+    pub const fn inclusive_bottom_right(self) -> Option<Point> {
         if self.is_empty() {
             None
         } else {
@@ -74,12 +74,12 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub const fn is_empty(&self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.dimensions.width == 0 || self.dimensions.height == 0
     }
 
     #[inline(always)]
-    pub const fn contains(&self, point: Point) -> bool {
+    pub const fn contains(self, point: Point) -> bool {
         (self.top_left.x <= point.x)
             && (point.x < self.top_left.x + self.dimensions.width)
             && (self.top_left.y <= point.y)
@@ -87,7 +87,7 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub const fn contains_rect(&self, other: &Rect) -> bool {
+    pub const fn contains_rect(self, other: Rect) -> bool {
         let Some(other_bottom_right) = other.inclusive_bottom_right() else {
             return false;
         };
@@ -99,17 +99,17 @@ impl Rect {
     }
 
     #[inline(always)]
-    pub const fn is_completely_below(&self, other: &Rect) -> bool {
+    pub const fn is_completely_below(self, other: Rect) -> bool {
         self.top_left.y >= other.bottom_right().y
     }
 
     #[inline(always)]
-    pub const fn is_completely_to_the_right(&self, other: &Rect) -> bool {
+    pub const fn is_completely_to_the_right(self, other: Rect) -> bool {
         self.top_left.x >= other.bottom_right().x
     }
 
     #[inline(always)]
-    pub const fn overlaps(&self, other: &Rect) -> bool {
+    pub const fn overlaps(self, other: Rect) -> bool {
         !(self.is_empty()
             || other.is_empty()
             || self.is_completely_below(other)
