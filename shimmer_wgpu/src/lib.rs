@@ -40,9 +40,6 @@ struct Inner {
 
     triangle_renderer: TriangleRenderer,
     display_renderer: DisplayRenderer,
-
-    current_encoder: Option<wgpu::CommandEncoder>,
-    current_pass: Option<wgpu::RenderPass<'static>>,
 }
 
 impl Inner {
@@ -58,24 +55,6 @@ impl Inner {
         let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle());
         let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle());
 
-        let mut encoder = ctx.device().create_command_encoder(&Default::default());
-        let pass = encoder
-            .begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("shimmer_wgpu render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: vram.front_texbundle().view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            })
-            .forget_lifetime();
-
         Self {
             ctx,
 
@@ -84,44 +63,37 @@ impl Inner {
 
             triangle_renderer,
             display_renderer,
-
-            current_encoder: Some(encoder),
-            current_pass: Some(pass),
         }
     }
 
     fn flush(&mut self) {
-        // finish pass
-        self.current_pass.take().unwrap();
-
-        // finish encoder & submit
-        let current_encoder = self.current_encoder.take().unwrap();
-        self.ctx.queue().submit([current_encoder.finish()]);
-
-        // create new encoder & pass
         let mut encoder = self
             .ctx
             .device()
             .create_command_encoder(&Default::default());
-        let pass = encoder
-            .begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("shimmer_wgpu render pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: self.vram.front_texbundle().view(),
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            })
-            .forget_lifetime();
 
-        self.current_encoder = Some(encoder);
-        self.current_pass = Some(pass);
+        {
+            let mut pass = encoder
+                .begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("shimmer_wgpu render pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: self.vram.front_texbundle().view(),
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                })
+                .forget_lifetime();
+
+            self.triangle_renderer.draw(&mut pass);
+        }
+
+        self.ctx.queue().submit([encoder.finish()]);
     }
 
     fn exec(&mut self, action: Action) {
@@ -133,6 +105,7 @@ impl Inner {
                     horizontal = resolution.horizontal,
                     vertical = resolution.vertical,
                 );
+
                 self.display_renderer
                     .set_display_resolution(resolution.horizontal, resolution.vertical);
             }
@@ -143,6 +116,7 @@ impl Inner {
                     x = top_left.x,
                     y = top_left.y,
                 );
+
                 self.display_renderer
                     .set_display_top_left(top_left.x, top_left.y);
             }
@@ -160,7 +134,6 @@ impl Inner {
                 );
                 self.vram_dirty.mark(rect);
 
-                self.flush();
                 self.ctx.queue().write_texture(
                     wgpu::ImageCopyTexture {
                         texture: self.vram.front_texbundle().texture(),
@@ -210,10 +183,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-
-                let pass = self.current_pass.as_mut().unwrap();
-                self.triangle_renderer.render_textured(
-                    pass,
+                self.triangle_renderer.push_textured(
                     triangle.vertices,
                     triangle.clut,
                     triangle.texpage,
@@ -228,9 +198,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-
-                let pass = self.current_pass.as_mut().unwrap();
-                self.triangle_renderer.render(pass, triangle.vertices);
+                self.triangle_renderer.push(triangle.vertices);
             }
         }
     }
