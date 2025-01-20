@@ -7,7 +7,6 @@ use eframe::{
     egui::{self, RichText, Ui},
     epaint::Color32,
 };
-use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use shimmer_core::{
     cpu::instr::{Args, ImmKind, Instruction, RegSource},
     mem::Address,
@@ -43,7 +42,6 @@ pub struct InstructionViewer {
     target_view: u32,
     follow_next: bool,
     old_next: u32,
-    commonmark_cache: CommonMarkCache,
 }
 
 impl InstructionViewer {
@@ -168,7 +166,7 @@ impl InstructionViewer {
             let mnemonic_response =
                 ui.label(RichText::new(mnemonic).color(MNEMONIC_COLOR).monospace());
             mnemonic_response.on_hover_ui(|ui| {
-                CommonMarkViewer::new().show(ui, &mut self.commonmark_cache, description);
+                ui.label(description);
             });
         });
 
@@ -254,7 +252,6 @@ impl Tab for InstructionViewer {
             target_text: String::from("BFC00000"),
             follow_next: true,
             old_next: 0,
-            commonmark_cache: CommonMarkCache::default(),
         }
     }
 

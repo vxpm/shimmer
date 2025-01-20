@@ -7,22 +7,17 @@ use eframe::{
     egui::{self, RichText, Ui, style::ScrollStyle},
     epaint::Color32,
 };
-use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use shimmer_core::cpu::{FREQUENCY, Reg};
 use strum::VariantArray;
 
-pub struct SystemControl {
-    commonmark_cache: CommonMarkCache,
-}
+pub struct SystemControl {}
 
 impl Tab for SystemControl {
     fn new(_: u64) -> Self
     where
         Self: Sized,
     {
-        Self {
-            commonmark_cache: CommonMarkCache::default(),
-        }
+        Self {}
     }
 
     fn title(&mut self) -> egui::WidgetText {
@@ -118,11 +113,7 @@ impl Tab for SystemControl {
                                 let response =
                                     ui.label(name.monospace().color(Color32::LIGHT_BLUE));
                                 response.on_hover_ui(|ui| {
-                                    CommonMarkViewer::new().show(
-                                        ui,
-                                        &mut self.commonmark_cache,
-                                        description,
-                                    );
+                                    ui.label(description);
                                 });
 
                                 ui.label(
