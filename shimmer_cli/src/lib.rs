@@ -66,7 +66,7 @@ impl<'a> State<'a> {
         };
 
         let renderer_config = Config {
-            display_tex_format: surface_format.into(),
+            display_tex_format: surface_format,
         };
 
         let device = Arc::new(device);
@@ -91,7 +91,7 @@ impl<'a> State<'a> {
     }
 
     pub fn window(&self) -> &Window {
-        &self.window
+        self.window
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {

@@ -213,10 +213,10 @@ impl TriangleRenderer {
                 TexPageDepth::Full => TexturedKind::Full,
                 TexPageDepth::Reserved => TexturedKind::Untextured,
             },
-            clut_x: clut.x_by_16().value() as u32 * 16,
-            clut_y: clut.y().value() as u32,
-            texpage_x: texpage.x_base().value() as u32 * 64,
-            texpage_y: texpage.y_base().value() as u32 * 256,
+            clut_x: u32::from(clut.x_by_16().value()) * 16,
+            clut_y: u32::from(clut.y().value()),
+            texpage_x: u32::from(texpage.x_base().value()) * 64,
+            texpage_y: u32::from(texpage.y_base().value()) * 256,
         };
 
         let extra = ctx

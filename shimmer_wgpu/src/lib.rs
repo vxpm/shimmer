@@ -63,7 +63,7 @@ impl Inner {
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &vram.front_texbundle().view(),
+                    view: vram.front_texbundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -107,7 +107,7 @@ impl Inner {
             .begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("shimmer_wgpu render pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.vram.front_texbundle().view(),
+                    view: self.vram.front_texbundle().view(),
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
@@ -166,8 +166,8 @@ impl Inner {
                         texture: self.vram.front_texbundle().texture(),
                         mip_level: 0,
                         origin: wgpu::Origin3d {
-                            x: copy.x.value() as u32,
-                            y: copy.y.value() as u32,
+                            x: u32::from(copy.x.value()),
+                            y: u32::from(copy.y.value()),
                             z: 0,
                         },
                         aspect: Default::default(),
@@ -175,12 +175,12 @@ impl Inner {
                     &copy.data,
                     wgpu::ImageDataLayout {
                         offset: 0,
-                        bytes_per_row: Some(copy.width.value() as u32 * 2),
-                        rows_per_image: Some(copy.height.value() as u32),
+                        bytes_per_row: Some(u32::from(copy.width.value()) * 2),
+                        rows_per_image: Some(u32::from(copy.height.value())),
                     },
                     wgpu::Extent3d {
-                        width: copy.width.value() as u32,
-                        height: copy.height.value() as u32,
+                        width: u32::from(copy.width.value()),
+                        height: u32::from(copy.height.value()),
                         depth_or_array_layers: 1,
                     },
                 );
@@ -196,8 +196,8 @@ impl Inner {
 
                 let texpage_rect = Rect::new(
                     Point::new(
-                        triangle.texpage.x_base().value() as u16 * 64,
-                        triangle.texpage.y_base().value() as u16 * 256,
+                        u16::from(triangle.texpage.x_base().value()) * 64,
+                        u16::from(triangle.texpage.y_base().value()) * 256,
                     ),
                     Dimensions::new(64, 256),
                 );

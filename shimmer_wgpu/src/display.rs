@@ -100,7 +100,7 @@ impl DisplayRenderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("display coordinates"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                contents: &[0u32, 0u32, 0u32, 0u32].as_bytes(),
+                contents: [0u32, 0u32, 0u32, 0u32].as_bytes(),
             });
 
         let texbundle_bg = ctx.texbundle_bind_group(&texbundle);
@@ -137,7 +137,7 @@ impl DisplayRenderer {
         self.top_left = [x.value(), y.value()];
         self.ctx
             .queue()
-            .write_buffer(&self.display_area, 0, &self.top_left.as_bytes());
+            .write_buffer(&self.display_area, 0, self.top_left.as_bytes());
     }
 
     pub fn set_display_resolution(
@@ -148,7 +148,7 @@ impl DisplayRenderer {
         self.dimensions = [1024, 512];
         self.ctx
             .queue()
-            .write_buffer(&self.display_area, 4, &self.dimensions.as_bytes());
+            .write_buffer(&self.display_area, 4, self.dimensions.as_bytes());
     }
 
     pub fn render(&self, pass: &mut wgpu::RenderPass) {
