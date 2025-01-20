@@ -11,6 +11,7 @@ const SHADING_FLAT: u32 = 0;
 const SHADING_GOURAUD: u32 = 1;
 
 struct VertexIn {
+    @builtin(vertex_index) index: u32,
     @location(0) rgba: vec4<u32>,
     @location(1) xy: vec2<i32>,
     @location(2) uv: vec2<u32>,
@@ -20,6 +21,7 @@ struct VertexOut {
     @builtin(position) position: vec4<f32>,
     @location(0) rgba: vec4<f32>,
     @location(1) uv: vec2<f32>,
+    @location(2) config_index: u32,
 };
 
 struct Config {
@@ -41,12 +43,13 @@ fn vs_main(in: VertexIn) -> VertexOut {
     out.position = vec4<f32>(pos, 0.0, 1.0);
     out.rgba = vec4<f32>(in.rgba) / 255.0;
     out.uv = vec2<f32>(in.uv) / 255.0;
+    out.config_index = in.index / 3;
 
     return out;
 }
 
 @group(0) @binding(0) var vram: texture_2d<u32>;
-@group(1) @binding(0) var<uniform> config: Config;
+@group(1) @binding(0) var<storage, read> configs: array<Config>;
 
 const dither: mat4x4f = mat4x4f(
     -4.0, 0.0, -3.0, 1.0,
@@ -57,6 +60,8 @@ const dither: mat4x4f = mat4x4f(
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) u32 {
+    var config = configs[in.config_index];
+
     var vram_coords = vec2u(u32(in.position.x), u32(in.position.y));
     var clut_coords = vec2u(config.clut_x, config.clut_y);
     var texpage_base_coords = vec2u(config.texpage_x, config.texpage_y);

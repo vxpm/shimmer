@@ -144,7 +144,7 @@ impl DisplayRenderer {
         vertical: VerticalResolution,
     ) {
         self.dimensions = [1024, 512];
-        self.dimensions = [horizontal.value(), vertical.value()];
+        // self.dimensions = [horizontal.value(), vertical.value()];
         self.ctx
             .queue()
             .write_buffer(&self.display_area, 4, self.dimensions.as_bytes());
