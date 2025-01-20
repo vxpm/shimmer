@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::tab::{Context, Tab};
 use eframe::{
-    egui::{self, Ui},
+    egui::{self, Ui, Vec2},
     egui_wgpu::{self, CallbackTrait},
 };
 use parking_lot::Mutex;
@@ -38,7 +38,20 @@ impl Tab for Screen {
     }
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
-        let (rect, _) = ui.allocate_exact_size(ui.available_size(), egui::Sense::click());
+        let rect = if ui.available_width() < ui.available_height() {
+            ui.allocate_exact_size(
+                Vec2::new(ui.available_width(), ui.available_width() / 1.333),
+                egui::Sense::click(),
+            )
+            .0
+        } else {
+            ui.allocate_exact_size(
+                Vec2::new(ui.available_height() * 1.333, ui.available_height()),
+                egui::Sense::click(),
+            )
+            .0
+        };
+
         ui.painter().add(egui_wgpu::Callback::new_paint_callback(
             rect,
             RendererCallback {
