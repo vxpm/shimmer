@@ -120,6 +120,7 @@ impl Interpreter {
             self.sender
                 .send(Action::DrawTexturedTriangle(TexturedTriangle {
                     vertices: tri_1,
+                    shading: cmd.shading_mode(),
                     clut,
                     texpage,
                 }))
@@ -129,6 +130,7 @@ impl Interpreter {
                 self.sender
                     .send(Action::DrawTexturedTriangle(TexturedTriangle {
                         vertices: tri_2,
+                        shading: cmd.shading_mode(),
                         clut,
                         texpage,
                     }))
@@ -138,6 +140,7 @@ impl Interpreter {
             self.sender
                 .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
                     vertices: tri_1,
+                    shading: cmd.shading_mode(),
                 }))
                 .unwrap();
 
@@ -145,6 +148,7 @@ impl Interpreter {
                 self.sender
                     .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
                         vertices: tri_2,
+                        shading: cmd.shading_mode(),
                     }))
                     .unwrap();
             }

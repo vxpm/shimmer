@@ -2,10 +2,10 @@
 
 const TEXPAGE_LEN: u32 = 256;
 
-const TEXKIND_LUT4: u32 = 0;
-const TEXKIND_LUT8: u32 = 1;
-const TEXKIND_FULL: u32 = 2;
-const TEXKIND_NONE: u32 = 3;
+const TEXKIND_NONE: u32 = 0;
+const TEXKIND_LUT4: u32 = 1;
+const TEXKIND_LUT8: u32 = 2;
+const TEXKIND_FULL: u32 = 3;
 
 const SHADING_FLAT: u32 = 0;
 const SHADING_GOURAUD: u32 = 1;
@@ -26,6 +26,7 @@ struct VertexOut {
 
 struct Config {
     texkind: u32,
+    shading: u32,
     clut_x: u32,
     clut_y: u32,
     texpage_x: u32,
@@ -108,9 +109,13 @@ fn fs_main(in: VertexOut) -> @location(0) u32 {
             }
         }
         case TEXKIND_NONE {
-            var noise = vec3f(dither[vram_coords.x % 4][vram_coords.y % 4]);
-            var dithered = clamp(in.rgba + vec4f(noise, 0.0), vec4f(0.0), vec4f(1.0));
-            color = unorm_rgba_to_rgb5m(dithered);
+            if config.shading == SHADING_GOURAUD {
+                var noise = vec3f(dither[vram_coords.x % 4][vram_coords.y % 4]);
+                var dithered = clamp(in.rgba + vec4f(noise, 0.0), vec4f(0.0), vec4f(1.0));
+                color = unorm_rgba_to_rgb5m(dithered);
+            } else {
+                color = unorm_rgba_to_rgb5m(in.rgba);
+            }
         }
         default: {
             // shouldn't ever happen!

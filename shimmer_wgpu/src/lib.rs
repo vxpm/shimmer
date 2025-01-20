@@ -183,11 +183,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-                self.triangle_renderer.push_textured(
-                    triangle.vertices,
-                    triangle.clut,
-                    triangle.texpage,
-                );
+                self.triangle_renderer.push_textured(triangle);
             }
             Action::DrawUntexturedTriangle(triangle) => {
                 debug!(
@@ -198,7 +194,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-                self.triangle_renderer.push(triangle.vertices);
+                self.triangle_renderer.push(triangle);
             }
         }
     }

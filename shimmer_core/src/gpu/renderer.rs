@@ -2,7 +2,10 @@
 
 use super::{
     HorizontalResolution, VerticalResolution,
-    cmd::{environment::TexPage, rendering::Clut},
+    cmd::{
+        environment::TexPage,
+        rendering::{Clut, ShadingMode},
+    },
 };
 use bitos::integer::{i11, u9, u10};
 use zerocopy::{FromBytes, Immutable, IntoBytes};
@@ -39,12 +42,14 @@ pub struct Vertex {
 #[derive(Debug, Clone)]
 pub struct UntexturedTriangle {
     pub vertices: [Vertex; 3],
+    pub shading: ShadingMode,
 }
 
 /// A textured triangle.
 #[derive(Debug, Clone)]
 pub struct TexturedTriangle {
     pub vertices: [Vertex; 3],
+    pub shading: ShadingMode,
     pub clut: Clut,
     pub texpage: TexPage,
 }
