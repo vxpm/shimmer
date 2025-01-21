@@ -155,7 +155,8 @@ impl TriangleRenderer {
         }
     }
 
-    pub fn push(&mut self, triangle: Triangle) {
+    /// Enqueues the given triangle to be drawn.
+    pub fn enqueue(&mut self, triangle: Triangle) {
         let config = match triangle.texture {
             Some(config) => TriangleConfig {
                 kind: config.texpage.depth().into(),
@@ -175,6 +176,7 @@ impl TriangleRenderer {
         self.configs.push(config);
     }
 
+    /// Draws all queued triangles to the given render pass.
     pub fn draw(&mut self, pass: &mut wgpu::RenderPass) {
         if self.vertices.is_empty() {
             return;

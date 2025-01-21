@@ -1,17 +1,8 @@
 //!include consts
 //!include utils
 
-struct VertexIn {
-    @builtin(vertex_index) index: u32,
-};
-
-struct VertexOut {
-    @builtin(position) position: vec4<f32>,
-    @location(0) rgba: vec4<f32>,
-    @location(1) uv: vec2<f32>,
-};
-
 struct Config {
+    @builtin(vertex_index) index: u32,
     @location(0) rgba: vec4u,
     @location(1) xy: vec2i,
     @location(2) dimensions: vec2u,
@@ -21,25 +12,33 @@ struct Config {
     @location(6) uv: vec2u,
 }
 
+struct VertexOut {
+    @builtin(position) position: vec4<f32>,
+    @location(0) rgba: vec4<f32>,
+    @location(1) uv: vec2<f32>,
+};
+
 const vertex_offset: array<vec2f, 4> = array<vec2f, 4>(
-    vec2<f32>(-1.0, 1.0),
-    vec2<f32>(-1.0, -1.0),
-    vec2<f32>(1.0, 1.0),
-    vec2<f32>(1.0, -1.0),
+    vec2f(-1.0, 1.0),
+    vec2f(-1.0, -1.0),
+    vec2f(1.0, 1.0),
+    vec2f(1.0, -1.0),
 );
 
 @vertex
-fn vs_main(in: VertexIn, config: Config) -> VertexOut {
+fn vs_main(config: Config) -> VertexOut {
     var out: VertexOut;
 
-    var base_pos = vec2f(
-        unorm_to_snorm(f32(config.xy.x) / 1024.0),
-        -unorm_to_snorm(f32(config.xy.y) / 512.0)
+    var top_left = vec2f(f32(config.xy.x), f32(config.xy.y));
+    var vertex_pos = top_left + snorm_to_unorm_vec2(vertex_offset[config.index]) * vec2f(config.dimensions);
+    var snorm_pos = unorm_to_snorm_vec2(vertex_pos / vec2f(1023.0, 511.0));
+
+    out.position = vec4f(
+        snorm_pos.x,
+        -snorm_pos.y,
+        0.0,
+        1.0
     );
-
-    var pos = base_pos + snorm_to_unorm_vec2(vertex_offset[in.index]) * vec2f(config.dimensions);
-
-    out.position = vec4f(pos, 0.0, 1.0);
     out.rgba = vec4f(config.rgba) / 255.0;
     out.uv = vec2f(config.uv) / 255.0;
 
@@ -108,5 +107,7 @@ fn fs_main(in: VertexOut) -> @location(0) u32 {
     //     }
     // }
 
-    return 0xDEADu;
+    // return unorm_rgba_to_rgb5m(in.position);
+    return unorm_rgba_to_rgb5m(in.rgba);
+    // return RGB5M_PLACEHOLDER;
 }
