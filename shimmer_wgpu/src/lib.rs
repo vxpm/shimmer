@@ -186,37 +186,25 @@ impl Inner {
                 );
             }
             Command::DrawTriangle(triangle) => {
-                match triangle.texture {
-                    Some(config) => {
-                        debug!(
-                            self.ctx.logger(),
-                            "rendering textured triangle";
-                            vertices = triangle.vertices,
-                            clut = config.clut,
-                            texpage = config.texpage,
-                        );
+                debug!(
+                    self.ctx.logger(),
+                    "rendering triangle";
+                    triangle = triangle.clone(),
+                );
 
-                        let texpage_rect = Rect::new(
-                            (
-                                u16::from(config.texpage.x_base().value()) * 64,
-                                u16::from(config.texpage.y_base().value()) * 256,
-                            ),
-                            (64, 256),
-                        );
+                if let Some(config) = triangle.texture {
+                    let texpage_rect = Rect::new(
+                        (
+                            u16::from(config.texpage.x_base().value()) * 64,
+                            u16::from(config.texpage.y_base().value()) * 256,
+                        ),
+                        (64, 256),
+                    );
 
-                        if self.vram_dirty.is_dirty(texpage_rect) {
-                            warn!(self.ctx.logger(), "DIRTY: {texpage_rect:?}");
-                            self.flush();
-                            self.vram.sync();
-                            self.vram_dirty.clear();
-                        }
-                    }
-                    None => {
-                        debug!(
-                            self.ctx.logger(),
-                            "rendering untextured triangle";
-                            vertices = triangle.vertices,
-                        );
+                    if self.vram_dirty.is_dirty(texpage_rect) {
+                        self.flush();
+                        self.vram.sync();
+                        self.vram_dirty.clear();
                     }
                 }
 
@@ -228,6 +216,7 @@ impl Inner {
                 debug!(
                     self.ctx.logger(),
                     "rendering rectangle";
+                    rectangle = rectangle.clone()
                 );
 
                 if let Some(config) = rectangle.texture {
