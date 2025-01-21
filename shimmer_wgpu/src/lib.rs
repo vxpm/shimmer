@@ -224,7 +224,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-                self.triangle_renderer.push(triangle);
+                self.triangle_renderer.enqueue(triangle);
             }
             Action::DrawRectangle(rectangle) => {
                 debug!(
@@ -232,7 +232,9 @@ impl Inner {
                     "rendering rectangle";
                 );
 
+                self.flush();
                 self.rectangle_renderer.push(rectangle);
+                self.flush();
             }
         }
     }
