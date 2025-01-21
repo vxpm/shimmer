@@ -192,7 +192,7 @@ impl Executor {
                 psx.scheduler.schedule(Event::Gpu, 0);
             }
             Channel::OTC => (),
-            _ => todo!(),
+            _ => todo!("{:?}", channel),
         }
 
         match progress {

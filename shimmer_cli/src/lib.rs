@@ -1,6 +1,6 @@
 use std::sync::{Arc, mpsc::Receiver};
 
-use shimmer_core::gpu::renderer::Action;
+use shimmer_core::gpu::renderer::Command;
 use shimmer_wgpu::{Config, Renderer};
 use tinylog::Logger;
 use winit::{event::WindowEvent, window::Window};
@@ -16,7 +16,7 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    pub async fn new(window: &'a Window, receiver: Receiver<Action>) -> State<'a> {
+    pub async fn new(window: &'a Window, receiver: Receiver<Command>) -> State<'a> {
         let size = window.inner_size();
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::GL,

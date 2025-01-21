@@ -6,9 +6,6 @@ edition = "2024"
 [lints]
 workspace = true
 
-[dev-dependencies]
-bitos = { workspace = true }
-
 [build-dependencies]
 wgsl_composer = { git = "https://github.com/vxpm/wgsl-composer.git" }
 
@@ -20,3 +17,4 @@ easyerr.workspace = true
 tinylog.workspace = true
 wgpu.workspace = true
 zerocopy.workspace = true
+bitvec = "1"

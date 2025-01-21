@@ -3,7 +3,7 @@ use crate::{
     gpu::{
         Interpreter, Status,
         cmd::{DisplayCommand, DisplayOpcode},
-        renderer::{Action, DisplayResolution, DisplayTopLeft},
+        renderer::{Command, DisplayResolution, DisplayTopLeft},
     },
     scheduler::Event,
 };
@@ -32,7 +32,7 @@ impl Interpreter {
                 stat.set_flip_screen_x(settings.flip_screen_x());
 
                 self.sender
-                    .send(Action::SetDisplayResolution(DisplayResolution {
+                    .send(Command::SetDisplayResolution(DisplayResolution {
                         horizontal: settings.horizontal_resolution(),
                         vertical: settings.vertical_resolution(),
                     }))
@@ -49,7 +49,7 @@ impl Interpreter {
                 psx.gpu.display.top_left_y = settings.y();
 
                 self.sender
-                    .send(Action::SetDisplayTopLeft(DisplayTopLeft {
+                    .send(Command::SetDisplayTopLeft(DisplayTopLeft {
                         x: settings.x(),
                         y: settings.y(),
                     }))

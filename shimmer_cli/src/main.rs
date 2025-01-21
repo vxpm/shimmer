@@ -17,11 +17,14 @@ async fn run() {
         Logger::dummy(),
     );
 
-    std::thread::spawn(move || {
-        loop {
-            emulator.cycle();
-        }
-    });
+    std::thread::Builder::new()
+        .name("emulator thread".to_owned())
+        .spawn(move || {
+            loop {
+                emulator.cycle();
+            }
+        })
+        .unwrap();
 
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()

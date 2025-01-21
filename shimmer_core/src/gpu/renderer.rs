@@ -87,12 +87,15 @@ pub struct DisplayResolution {
     pub vertical: VerticalResolution,
 }
 
-/// A renderer action.
+/// A renderer command.
 #[derive(Debug, Clone)]
-pub enum Action {
+pub enum Command {
     // Configuration
     SetDisplayTopLeft(DisplayTopLeft),
     SetDisplayResolution(DisplayResolution),
+
+    // Control
+    Vsync,
 
     // Copy data
     CopyToVram(CopyToVram),
