@@ -9,11 +9,11 @@ use crate::{
             },
         },
         interpreter::{Inner, Interpreter},
-        renderer::{Action, Rgba8, TexturedTriangle, UntexturedTriangle, Vertex},
+        renderer::{Action, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
     },
     scheduler::Event,
 };
-use bitos::integer::u1;
+use bitos::integer::{u1, u10};
 use tinylog::{debug, error, warn};
 
 #[derive(Default)]
@@ -90,9 +90,6 @@ impl Interpreter {
             VertexPackets::default()
         };
 
-        let clut = vertex_a.uv.clut();
-        let texpage = vertex_b.uv.texpage();
-
         let tri_1 = [
             vertex_a.to_vertex(),
             vertex_b.to_vertex(),
@@ -105,6 +102,10 @@ impl Interpreter {
         ];
 
         if cmd.textured() {
+            let clut = vertex_a.uv.clut();
+            let texpage = vertex_b.uv.texpage();
+            let texture_config = TextureConfig { clut, texpage };
+
             let stat = &mut psx.gpu.status;
             stat.set_texpage_x_base(texpage.x_base());
             stat.set_texpage_y_base(texpage.y_base());
@@ -118,37 +119,37 @@ impl Interpreter {
             }
 
             self.sender
-                .send(Action::DrawTexturedTriangle(TexturedTriangle {
+                .send(Action::DrawTriangle(Triangle {
                     vertices: tri_1,
                     shading: cmd.shading_mode(),
-                    clut,
-                    texpage,
+                    texture: Some(texture_config),
                 }))
                 .unwrap();
 
             if cmd.polygon_mode() == PolygonMode::Rectangle {
                 self.sender
-                    .send(Action::DrawTexturedTriangle(TexturedTriangle {
+                    .send(Action::DrawTriangle(Triangle {
                         vertices: tri_2,
                         shading: cmd.shading_mode(),
-                        clut,
-                        texpage,
+                        texture: Some(texture_config),
                     }))
                     .unwrap();
             }
         } else {
             self.sender
-                .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                .send(Action::DrawTriangle(Triangle {
                     vertices: tri_1,
                     shading: cmd.shading_mode(),
+                    texture: None,
                 }))
                 .unwrap();
 
             if cmd.polygon_mode() == PolygonMode::Rectangle {
                 self.sender
-                    .send(Action::DrawUntexturedTriangle(UntexturedTriangle {
+                    .send(Action::DrawTriangle(Triangle {
                         vertices: tri_2,
                         shading: cmd.shading_mode(),
+                        texture: None,
                     }))
                     .unwrap();
             }
@@ -201,27 +202,43 @@ impl Interpreter {
     fn exec_rectangle(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.rectangle_cmd();
 
-        debug!(
-            psx.loggers.gpu,
-            "top left: {:?}",
-            VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-        );
+        let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
+        let position = VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-        if cmd.textured() {
-            debug!(
-                psx.loggers.gpu,
-                "uv: {:?}",
-                VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-            );
-        }
+        let (uv, texture_config) = if cmd.textured() {
+            let uv = VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+            let config = TextureConfig {
+                clut: uv.clut(),
+                texpage: psx.gpu.status.texpage(),
+            };
 
-        if cmd.rectangle_mode() == RectangleMode::Variable {
-            debug!(
-                psx.loggers.gpu,
-                "size: {:?}",
-                SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-            );
-        }
+            (uv, Some(config))
+        } else {
+            (VertexUVPacket::default(), None)
+        };
+
+        let (width, height) = match cmd.rectangle_mode() {
+            RectangleMode::Variable => {
+                let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+                (size.width(), size.height())
+            }
+            RectangleMode::SinglePixel => (1, 1),
+            RectangleMode::Sprite8 => (8, 8),
+            RectangleMode::Sprite16 => (16, 16),
+        };
+
+        self.sender
+            .send(Action::DrawRectangle(Rectangle {
+                color,
+                x: position.x(),
+                y: position.y(),
+                u: uv.u(),
+                v: uv.v(),
+                width: u10::new(width),
+                height: u10::new(height),
+                texture: texture_config,
+            }))
+            .unwrap();
     }
 
     fn exec_line(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
