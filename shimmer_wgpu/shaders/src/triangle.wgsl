@@ -29,8 +29,8 @@ fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
     var pos = vec2<f32>(
-        unorm_to_snorm(f32(in.xy.x) / 1023.0),
-        -unorm_to_snorm(f32(in.xy.y) / 511.0)
+        unorm_to_snorm(f32(in.xy.x) / 1024.0),
+        -unorm_to_snorm(f32(in.xy.y) / 512.0)
     );
     out.position = vec4<f32>(pos, 0.0, 1.0);
     out.rgba = vec4<f32>(in.rgba) / 255.0;

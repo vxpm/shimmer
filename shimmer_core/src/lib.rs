@@ -80,7 +80,7 @@ pub struct Emulator {
 
 impl Emulator {
     /// Creates a new [`Emulator`].
-    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> (Self, Receiver<gpu::renderer::Action>) {
+    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> (Self, Receiver<gpu::renderer::Command>) {
         let (gpu_interpreter, receiver) = gpu::Interpreter::new();
         let mut e = Self {
             psx: PSX {
@@ -140,10 +140,7 @@ impl Emulator {
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }
                 Event::VSync => {
-                    self.psx
-                        .gpu
-                        .status
-                        .set_interlace_odd(!self.psx.gpu.status.interlace_odd());
+                    self.gpu_interpreter.vsync(&mut self.psx);
                     self.psx.interrupts.status.request(Interrupt::VBlank);
                     self.psx
                         .scheduler

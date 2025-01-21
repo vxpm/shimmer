@@ -3,19 +3,17 @@ mod display;
 mod rectangle;
 mod texture;
 mod triangle;
-mod util;
 mod vram;
 
 pub use context::Config;
 use context::Context;
 use display::DisplayRenderer;
 use rectangle::RectangleRenderer;
-use shimmer_core::gpu::renderer::{Action, Vertex};
+use shimmer_core::gpu::renderer::{Command, Vertex};
 use std::sync::{Arc, Mutex, mpsc::Receiver};
-use tinylog::{Logger, debug};
+use tinylog::{Logger, debug, warn};
 use triangle::TriangleRenderer;
-use util::{Dimensions, Point, Rect};
-use vram::Vram;
+use vram::{Rect, Vram};
 use zerocopy::{Immutable, IntoBytes};
 
 #[derive(Debug, Clone, Copy, IntoBytes, Immutable, Default)]
@@ -53,7 +51,7 @@ fn triangle_bounding_rect(vertices: &[Vertex; 3]) -> Rect {
         max_y = max_y.max(vertex.y.value().clamp(0, i16::MAX) as u16);
     }
 
-    Rect::from_extremes(Point::new(min_x, min_y), Point::new(max_x, max_y))
+    Rect::from_extremes((min_x, min_y), (max_x, max_y))
 }
 
 struct Inner {
@@ -93,42 +91,38 @@ impl Inner {
         }
     }
 
+    /// Flushes all pending rendering actions.
     fn flush(&mut self) {
         let mut encoder = self
             .ctx
             .device()
             .create_command_encoder(&Default::default());
 
-        {
-            let mut pass = encoder
-                .begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("shimmer_wgpu render pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: self.vram.front_texbundle().view(),
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Load,
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                })
-                .forget_lifetime();
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("shimmer_wgpu render pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: self.vram.front_texbundle().view(),
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
-            self.triangle_renderer.draw(&mut pass);
+        self.triangle_renderer.draw(&mut pass);
+        self.rectangle_renderer.draw(&mut pass);
 
-            // TODO: this is wrong... probably need the render pass after all
-            self.rectangle_renderer.draw(&mut pass);
-        }
-
+        std::mem::drop(pass);
         self.ctx.queue().submit([encoder.finish()]);
     }
 
-    fn exec(&mut self, action: Action) {
-        match action {
-            Action::SetDisplayResolution(resolution) => {
+    fn exec(&mut self, command: Command) {
+        match command {
+            Command::SetDisplayResolution(resolution) => {
                 debug!(
                     self.ctx.logger(),
                     "display resolution";
@@ -139,7 +133,7 @@ impl Inner {
                 self.display_renderer
                     .set_display_resolution(resolution.horizontal, resolution.vertical);
             }
-            Action::SetDisplayTopLeft(top_left) => {
+            Command::SetDisplayTopLeft(top_left) => {
                 debug!(
                     self.ctx.logger(),
                     "display top left";
@@ -150,7 +144,10 @@ impl Inner {
                 self.display_renderer
                     .set_display_top_left(top_left.x, top_left.y);
             }
-            Action::CopyToVram(copy) => {
+            Command::Vsync => {
+                self.flush();
+            }
+            Command::CopyToVram(copy) => {
                 debug!(
                     self.ctx.logger(),
                     "copying to vram";
@@ -159,8 +156,8 @@ impl Inner {
                 );
 
                 let rect = Rect::new(
-                    Point::new(copy.x.value(), copy.y.value()),
-                    Dimensions::new(copy.width.value(), copy.height.value()),
+                    (copy.x.value(), copy.y.value()),
+                    (copy.width.value(), copy.height.value()),
                 );
                 self.vram_dirty.mark(rect);
 
@@ -188,7 +185,7 @@ impl Inner {
                     },
                 );
             }
-            Action::DrawTriangle(triangle) => {
+            Command::DrawTriangle(triangle) => {
                 match triangle.texture {
                     Some(config) => {
                         debug!(
@@ -200,14 +197,15 @@ impl Inner {
                         );
 
                         let texpage_rect = Rect::new(
-                            Point::new(
+                            (
                                 u16::from(config.texpage.x_base().value()) * 64,
                                 u16::from(config.texpage.y_base().value()) * 256,
                             ),
-                            Dimensions::new(64, 256),
+                            (64, 256),
                         );
 
                         if self.vram_dirty.is_dirty(texpage_rect) {
+                            warn!(self.ctx.logger(), "DIRTY: {texpage_rect:?}");
                             self.flush();
                             self.vram.sync();
                             self.vram_dirty.clear();
@@ -226,15 +224,37 @@ impl Inner {
                 self.vram_dirty.mark(rect);
                 self.triangle_renderer.enqueue(triangle);
             }
-            Action::DrawRectangle(rectangle) => {
+            Command::DrawRectangle(rectangle) => {
                 debug!(
                     self.ctx.logger(),
                     "rendering rectangle";
                 );
 
-                self.flush();
-                self.rectangle_renderer.push(rectangle);
-                self.flush();
+                if let Some(config) = rectangle.texture {
+                    let texpage_rect = Rect::new(
+                        (
+                            u16::from(config.texpage.x_base().value()) * 64,
+                            u16::from(config.texpage.y_base().value()) * 256,
+                        ),
+                        (64, 256),
+                    );
+
+                    if self.vram_dirty.is_dirty(texpage_rect) {
+                        self.flush();
+                        self.vram.sync();
+                        self.vram_dirty.clear();
+                    }
+                }
+
+                let rect = Rect::new(
+                    (
+                        rectangle.x.value().clamp(0, i16::MAX) as u16,
+                        rectangle.y.value().clamp(0, i16::MAX) as u16,
+                    ),
+                    (rectangle.width.value(), rectangle.height.value()),
+                );
+                self.vram_dirty.mark(rect);
+                self.rectangle_renderer.enqueue(rectangle);
             }
         }
     }
@@ -249,31 +269,34 @@ impl Renderer {
     pub fn new(
         device: Arc<wgpu::Device>,
         queue: Arc<wgpu::Queue>,
-        receiver: Receiver<Action>,
+        receiver: Receiver<Command>,
         logger: Logger,
         config: Config,
     ) -> Self {
         let inner = Arc::new(Mutex::new(Inner::new(device, queue, logger, config)));
-        let _thread_handle = std::thread::spawn({
-            let inner = inner.clone();
-            move || {
-                loop {
-                    let Ok(action) = receiver.recv() else {
-                        // sender has been dropped
-                        return;
-                    };
+        let _thread_handle = std::thread::Builder::new()
+            .name("shimmer_wgpu renderer".to_owned())
+            .spawn({
+                let inner = inner.clone();
+                move || {
+                    loop {
+                        let Ok(command) = receiver.recv() else {
+                            // sender has been dropped
+                            return;
+                        };
 
-                    {
-                        let mut renderer = inner.lock().unwrap();
-                        renderer.exec(action);
+                        {
+                            let mut renderer = inner.lock().unwrap();
+                            renderer.exec(command);
 
-                        while let Ok(action) = receiver.try_recv() {
-                            renderer.exec(action);
+                            while let Ok(action) = receiver.try_recv() {
+                                renderer.exec(action);
+                            }
                         }
                     }
                 }
-            }
-        });
+            })
+            .unwrap();
 
         Self {
             inner,
@@ -282,8 +305,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self, pass: &mut wgpu::RenderPass<'_>) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.flush();
+        let inner = self.inner.lock().unwrap();
         inner.display_renderer.render(pass);
     }
 }

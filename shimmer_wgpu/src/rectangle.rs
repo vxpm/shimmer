@@ -122,7 +122,8 @@ impl RectangleRenderer {
         }
     }
 
-    pub fn push(&mut self, rect: Rectangle) {
+    /// Enqueues the given rectangle to be drawn.
+    pub fn enqueue(&mut self, rect: Rectangle) {
         let config = match rect.texture {
             Some(config) => RectangleConfig {
                 color: rect.color,
@@ -152,22 +153,23 @@ impl RectangleRenderer {
         self.configs.push(config);
     }
 
+    /// Draws the queued rectangles.
     pub fn draw(&mut self, pass: &mut wgpu::RenderPass) {
         if self.configs.is_empty() {
             return;
         }
 
-        let config_buf = self
+        let configs_buf = self
             .ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("triangle configs"),
+                label: Some("rectangle configs"),
                 contents: self.configs.as_bytes(),
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
         pass.set_pipeline(&self.pipeline);
-        pass.set_vertex_buffer(0, config_buf.slice(..));
+        pass.set_vertex_buffer(0, configs_buf.slice(..));
         pass.set_bind_group(0, &self.back_vram_bg, &[]);
         pass.draw(0..4, 0..self.configs.len() as u32);
 

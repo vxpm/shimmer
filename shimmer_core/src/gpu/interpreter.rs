@@ -11,7 +11,7 @@ use crate::{
                 VertexPositionPacket,
             },
         },
-        renderer::{Action, CopyToVram},
+        renderer::{Command, CopyToVram},
     },
     scheduler::Event,
 };
@@ -38,11 +38,11 @@ enum Inner {
 #[derive(Debug)]
 pub struct Interpreter {
     inner: Inner,
-    sender: Sender<Action>,
+    sender: Sender<Command>,
 }
 
 impl Interpreter {
-    pub fn new() -> (Self, Receiver<Action>) {
+    pub fn new() -> (Self, Receiver<Command>) {
         let (sender, receiver) = std::sync::mpsc::channel();
         (
             Self {
@@ -92,7 +92,7 @@ impl Interpreter {
                 }
 
                 self.sender
-                    .send(Action::CopyToVram(CopyToVram {
+                    .send(Command::CopyToVram(CopyToVram {
                         x: u10::new(_dest.x()),
                         y: u10::new(_dest.y()),
                         width: u10::new(size.width()),
@@ -167,5 +167,14 @@ impl Interpreter {
     pub fn exec_queued(&mut self, psx: &mut PSX) {
         self.exec_queued_display(psx);
         self.exec_queued_render(psx);
+    }
+
+    /// Performs a VSync.
+    pub fn vsync(&mut self, psx: &mut PSX) {
+        psx.gpu
+            .status
+            .set_interlace_odd(!psx.gpu.status.interlace_odd());
+
+        self.sender.send(Command::Vsync).unwrap();
     }
 }

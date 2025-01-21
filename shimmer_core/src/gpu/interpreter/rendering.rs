@@ -9,7 +9,7 @@ use crate::{
             },
         },
         interpreter::{Inner, Interpreter},
-        renderer::{Action, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
+        renderer::{Command, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
     },
     scheduler::Event,
 };
@@ -119,7 +119,7 @@ impl Interpreter {
             }
 
             self.sender
-                .send(Action::DrawTriangle(Triangle {
+                .send(Command::DrawTriangle(Triangle {
                     vertices: tri_1,
                     shading: cmd.shading_mode(),
                     texture: Some(texture_config),
@@ -128,7 +128,7 @@ impl Interpreter {
 
             if cmd.polygon_mode() == PolygonMode::Rectangle {
                 self.sender
-                    .send(Action::DrawTriangle(Triangle {
+                    .send(Command::DrawTriangle(Triangle {
                         vertices: tri_2,
                         shading: cmd.shading_mode(),
                         texture: Some(texture_config),
@@ -137,7 +137,7 @@ impl Interpreter {
             }
         } else {
             self.sender
-                .send(Action::DrawTriangle(Triangle {
+                .send(Command::DrawTriangle(Triangle {
                     vertices: tri_1,
                     shading: cmd.shading_mode(),
                     texture: None,
@@ -146,7 +146,7 @@ impl Interpreter {
 
             if cmd.polygon_mode() == PolygonMode::Rectangle {
                 self.sender
-                    .send(Action::DrawTriangle(Triangle {
+                    .send(Command::DrawTriangle(Triangle {
                         vertices: tri_2,
                         shading: cmd.shading_mode(),
                         texture: None,
@@ -228,7 +228,7 @@ impl Interpreter {
         };
 
         self.sender
-            .send(Action::DrawRectangle(Rectangle {
+            .send(Command::DrawRectangle(Rectangle {
                 color,
                 x: position.x(),
                 y: position.y(),

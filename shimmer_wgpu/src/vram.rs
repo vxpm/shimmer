@@ -3,12 +3,12 @@ use std::sync::Arc;
 use crate::{
     Context,
     context::texture::{R16Uint, TextureBundle},
-    util::Rect,
 };
+use bitvec::BitArr;
 use zerocopy::IntoBytes;
 
-pub const VRAM_WIDTH: usize = 1024;
-pub const VRAM_HEIGHT: usize = 512;
+pub const VRAM_WIDTH: u16 = 1024;
+pub const VRAM_HEIGHT: u16 = 512;
 
 pub struct Vram {
     ctx: Arc<Context>,
@@ -19,7 +19,7 @@ pub struct Vram {
 
 impl Vram {
     pub fn new(ctx: Arc<Context>) -> Self {
-        let data = vec![0u16; VRAM_WIDTH * VRAM_HEIGHT];
+        let data = vec![0u16; VRAM_WIDTH as usize * VRAM_HEIGHT as usize];
         let back = ctx.create_texbundle(
             &wgpu::TextureDescriptor {
                 label: Some("psx vram back buffer"),
@@ -77,6 +77,7 @@ impl Vram {
             .ctx
             .device()
             .create_command_encoder(&Default::default());
+
         encoder.copy_texture_to_texture(
             wgpu::ImageCopyTexture {
                 texture: self.front.texture(),
@@ -101,26 +102,90 @@ impl Vram {
     }
 }
 
+const DIRTY_REGION_LEN: u16 = 32;
+type Regions = BitArr!(for ((1024 / DIRTY_REGION_LEN) * (1024 / DIRTY_REGION_LEN)) as usize);
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Rect {
+    top_left: (u16, u16),
+    dimensions: (u16, u16),
+}
+
+impl Rect {
+    pub fn new(top_left: (u16, u16), dimensions: (u16, u16)) -> Self {
+        Self {
+            top_left,
+            dimensions,
+        }
+    }
+
+    pub fn from_extremes(top_left: (u16, u16), bottom_right: (u16, u16)) -> Self {
+        Self {
+            top_left,
+            dimensions: (bottom_right.0 - top_left.0, bottom_right.1 - top_left.1),
+        }
+    }
+}
+
 /// Helper struct for keeping track of dirty VRAM regions.
 #[derive(Debug, Default)]
 pub struct Dirty {
-    rects: Vec<Rect>,
+    regions: Regions,
 }
 
 impl Dirty {
+    /// Marks a rectangular region in VRAM as dirty.
     pub fn mark(&mut self, rect: Rect) {
-        if self.rects.iter().any(|r| r.contains_rect(rect)) {
+        if rect.dimensions.0 == 0 || rect.dimensions.1 == 0 {
             return;
         }
 
-        self.rects.push(rect);
+        let start_x = rect.top_left.0 / DIRTY_REGION_LEN;
+        let end_x = (rect.top_left.0 + rect.dimensions.0 - 1) / DIRTY_REGION_LEN;
+        let start_y = (rect.top_left.1) / DIRTY_REGION_LEN;
+        let end_y = (rect.top_left.1 + rect.dimensions.1 - 1) / DIRTY_REGION_LEN;
+
+        self.regions.set(
+            (start_y * (VRAM_WIDTH / DIRTY_REGION_LEN) + start_x) as usize,
+            true,
+        );
+
+        for y in start_y..=end_y {
+            for x in start_x..=end_x {
+                self.regions
+                    .set((y * (VRAM_WIDTH / DIRTY_REGION_LEN) + x) as usize, true);
+            }
+        }
     }
 
+    /// Unmarks all dirty regions.
     pub fn clear(&mut self) {
-        self.rects.clear();
+        self.regions.fill(false);
     }
 
+    /// Checks whether a given rectangular region in VRAM is dirty.
     pub fn is_dirty(&mut self, rect: Rect) -> bool {
-        self.rects.iter().any(|r| r.overlaps(rect))
+        if rect.dimensions.0 == 0 || rect.dimensions.1 == 0 {
+            return false;
+        }
+
+        let start_x = rect.top_left.0 / DIRTY_REGION_LEN;
+        let end_x = (rect.top_left.0 + rect.dimensions.0 - 1) / DIRTY_REGION_LEN;
+        let start_y = (rect.top_left.1) / DIRTY_REGION_LEN;
+        let end_y = (rect.top_left.1 + rect.dimensions.1 - 1) / DIRTY_REGION_LEN;
+
+        for y in start_y..=end_y {
+            for x in start_x..=end_x {
+                if *self
+                    .regions
+                    .get((y * (VRAM_WIDTH / DIRTY_REGION_LEN) + x) as usize)
+                    .unwrap()
+                {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }

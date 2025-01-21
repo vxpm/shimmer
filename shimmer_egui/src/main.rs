@@ -159,10 +159,14 @@ impl App {
 
         let parker = Parker::new();
         let unparker = parker.unparker().clone();
-        std::thread::spawn({
-            let state = state.clone();
-            || emulation::run(state, parker)
-        });
+
+        std::thread::Builder::new()
+            .name("emulator thread".to_owned())
+            .spawn({
+                let state = state.clone();
+                || emulation::run(state, parker)
+            })
+            .unwrap();
 
         let mut dock: DockState<tab::Instance> = DockState::new(vec![]);
         let mut id = 0;

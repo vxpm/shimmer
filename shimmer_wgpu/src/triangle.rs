@@ -176,9 +176,9 @@ impl TriangleRenderer {
         self.configs.push(config);
     }
 
-    /// Draws all queued triangles to the given render pass.
+    /// Draws the queued triangles.
     pub fn draw(&mut self, pass: &mut wgpu::RenderPass) {
-        if self.vertices.is_empty() {
+        if self.configs.is_empty() {
             return;
         }
 
@@ -191,7 +191,7 @@ impl TriangleRenderer {
                 usage: wgpu::BufferUsages::VERTEX,
             });
 
-        let config_buf = self
+        let configs_buf = self
             .ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -200,7 +200,7 @@ impl TriangleRenderer {
                 usage: wgpu::BufferUsages::STORAGE,
             });
 
-        let config_bg = self
+        let configs_bg = self
             .ctx
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
@@ -209,7 +209,7 @@ impl TriangleRenderer {
                 entries: &[wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                        buffer: &config_buf,
+                        buffer: &configs_buf,
                         offset: 0,
                         size: None,
                     }),
@@ -219,7 +219,7 @@ impl TriangleRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, vertex_buf.slice(..));
         pass.set_bind_group(0, &self.back_vram_bg, &[]);
-        pass.set_bind_group(1, &config_bg, &[]);
+        pass.set_bind_group(1, &configs_bg, &[]);
         pass.draw(0..self.vertices.len() as u32, 0..1);
 
         self.vertices.clear();
