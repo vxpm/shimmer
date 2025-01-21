@@ -1,15 +1,18 @@
 use shimmer_core::gpu::{
     self,
-    cmd::{environment::TexPageDepth, rendering::ShadingMode},
-    renderer::{TexturedTriangle, UntexturedTriangle, Vertex},
+    cmd::rendering::ShadingMode,
+    renderer::{Triangle, Vertex},
 };
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
 
-use crate::context::{
-    Context,
-    texture::{R16Uint, TextureBundle},
+use crate::{
+    TextureKind,
+    context::{
+        Context,
+        texture::{R16Uint, TextureBundle},
+    },
 };
 
 fn vertex_buf_layout() -> wgpu::VertexBufferLayout<'static> {
@@ -23,27 +26,6 @@ fn vertex_buf_layout() -> wgpu::VertexBufferLayout<'static> {
         array_stride: size_of::<gpu::renderer::Vertex>() as u64,
         step_mode: wgpu::VertexStepMode::Vertex,
         attributes: &ATTRS,
-    }
-}
-
-#[derive(Debug, Clone, Copy, IntoBytes, Immutable, Default)]
-#[repr(u32)]
-enum TextureKind {
-    #[default]
-    Untextured,
-    Nibble,
-    Byte,
-    Full,
-}
-
-impl From<TexPageDepth> for TextureKind {
-    fn from(value: TexPageDepth) -> Self {
-        match value {
-            TexPageDepth::Nibble => Self::Nibble,
-            TexPageDepth::Byte => Self::Byte,
-            TexPageDepth::Full => Self::Full,
-            TexPageDepth::Reserved => Self::Full,
-        }
     }
 }
 
@@ -173,22 +155,20 @@ impl TriangleRenderer {
         }
     }
 
-    pub fn push(&mut self, triangle: UntexturedTriangle) {
-        self.vertices.extend(triangle.vertices);
-        self.configs.push(TriangleConfig {
-            shading: triangle.shading.into(),
-            ..Default::default()
-        });
-    }
-
-    pub fn push_textured(&mut self, triangle: TexturedTriangle) {
-        let config = TriangleConfig {
-            kind: triangle.texpage.depth().into(),
-            shading: triangle.shading.into(),
-            clut_x: u32::from(triangle.clut.x_by_16().value()) * 16,
-            clut_y: u32::from(triangle.clut.y().value()),
-            texpage_x: u32::from(triangle.texpage.x_base().value()) * 64,
-            texpage_y: u32::from(triangle.texpage.y_base().value()) * 256,
+    pub fn push(&mut self, triangle: Triangle) {
+        let config = match triangle.texture {
+            Some(config) => TriangleConfig {
+                kind: config.texpage.depth().into(),
+                shading: triangle.shading.into(),
+                clut_x: u32::from(config.clut.x_by_16().value()) * 16,
+                clut_y: u32::from(config.clut.y().value()),
+                texpage_x: u32::from(config.texpage.x_base().value()) * 64,
+                texpage_y: u32::from(config.texpage.y_base().value()) * 256,
+            },
+            None => TriangleConfig {
+                shading: triangle.shading.into(),
+                ..Default::default()
+            },
         };
 
         self.vertices.extend(triangle.vertices);

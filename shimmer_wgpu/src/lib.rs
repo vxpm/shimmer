@@ -1,5 +1,6 @@
 mod context;
 mod display;
+mod rectangle;
 mod texture;
 mod triangle;
 mod util;
@@ -8,12 +9,35 @@ mod vram;
 pub use context::Config;
 use context::Context;
 use display::DisplayRenderer;
+use rectangle::RectangleRenderer;
 use shimmer_core::gpu::renderer::{Action, Vertex};
 use std::sync::{Arc, Mutex, mpsc::Receiver};
 use tinylog::{Logger, debug};
 use triangle::TriangleRenderer;
 use util::{Dimensions, Point, Rect};
 use vram::Vram;
+use zerocopy::{Immutable, IntoBytes};
+
+#[derive(Debug, Clone, Copy, IntoBytes, Immutable, Default)]
+#[repr(u32)]
+enum TextureKind {
+    #[default]
+    Untextured,
+    Nibble,
+    Byte,
+    Full,
+}
+
+impl From<shimmer_core::gpu::cmd::environment::TexPageDepth> for TextureKind {
+    fn from(value: shimmer_core::gpu::cmd::environment::TexPageDepth) -> Self {
+        match value {
+            shimmer_core::gpu::cmd::environment::TexPageDepth::Nibble => Self::Nibble,
+            shimmer_core::gpu::cmd::environment::TexPageDepth::Byte => Self::Byte,
+            shimmer_core::gpu::cmd::environment::TexPageDepth::Full => Self::Full,
+            shimmer_core::gpu::cmd::environment::TexPageDepth::Reserved => Self::Full,
+        }
+    }
+}
 
 fn triangle_bounding_rect(vertices: &[Vertex; 3]) -> Rect {
     let mut min_x = u16::MAX;
@@ -39,6 +63,7 @@ struct Inner {
     vram_dirty: vram::Dirty,
 
     triangle_renderer: TriangleRenderer,
+    rectangle_renderer: RectangleRenderer,
     display_renderer: DisplayRenderer,
 }
 
@@ -53,6 +78,7 @@ impl Inner {
 
         let vram = Vram::new(ctx.clone());
         let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle());
+        let rectangle_renderer = RectangleRenderer::new(ctx.clone(), vram.back_texbundle());
         let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle());
 
         Self {
@@ -62,6 +88,7 @@ impl Inner {
             vram_dirty: vram::Dirty::default(),
 
             triangle_renderer,
+            rectangle_renderer,
             display_renderer,
         }
     }
@@ -91,6 +118,9 @@ impl Inner {
                 .forget_lifetime();
 
             self.triangle_renderer.draw(&mut pass);
+
+            // TODO: this is wrong... probably need the render pass after all
+            self.rectangle_renderer.draw(&mut pass);
         }
 
         self.ctx.queue().submit([encoder.finish()]);
@@ -158,43 +188,51 @@ impl Inner {
                     },
                 );
             }
-            Action::DrawTexturedTriangle(triangle) => {
-                debug!(
-                    self.ctx.logger(),
-                    "rendering textured triangle";
-                    vertices = triangle.vertices,
-                    clut = triangle.clut,
-                    texpage = triangle.texpage,
-                );
+            Action::DrawTriangle(triangle) => {
+                match triangle.texture {
+                    Some(config) => {
+                        debug!(
+                            self.ctx.logger(),
+                            "rendering textured triangle";
+                            vertices = triangle.vertices,
+                            clut = config.clut,
+                            texpage = config.texpage,
+                        );
 
-                let texpage_rect = Rect::new(
-                    Point::new(
-                        u16::from(triangle.texpage.x_base().value()) * 64,
-                        u16::from(triangle.texpage.y_base().value()) * 256,
-                    ),
-                    Dimensions::new(64, 256),
-                );
+                        let texpage_rect = Rect::new(
+                            Point::new(
+                                u16::from(config.texpage.x_base().value()) * 64,
+                                u16::from(config.texpage.y_base().value()) * 256,
+                            ),
+                            Dimensions::new(64, 256),
+                        );
 
-                if self.vram_dirty.is_dirty(texpage_rect) {
-                    self.flush();
-                    self.vram.sync();
-                    self.vram_dirty.clear();
+                        if self.vram_dirty.is_dirty(texpage_rect) {
+                            self.flush();
+                            self.vram.sync();
+                            self.vram_dirty.clear();
+                        }
+                    }
+                    None => {
+                        debug!(
+                            self.ctx.logger(),
+                            "rendering untextured triangle";
+                            vertices = triangle.vertices,
+                        );
+                    }
                 }
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-                self.triangle_renderer.push_textured(triangle);
+                self.triangle_renderer.push(triangle);
             }
-            Action::DrawUntexturedTriangle(triangle) => {
+            Action::DrawRectangle(rectangle) => {
                 debug!(
                     self.ctx.logger(),
-                    "rendering untextured triangle";
-                    vertices = triangle.vertices,
+                    "rendering rectangle";
                 );
 
-                let rect = triangle_bounding_rect(&triangle.vertices);
-                self.vram_dirty.mark(rect);
-                self.triangle_renderer.push(triangle);
+                self.rectangle_renderer.push(rectangle);
             }
         }
     }

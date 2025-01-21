@@ -204,11 +204,11 @@ pub enum RectangleMode {
 #[derive(Debug)]
 pub struct RectangleCmd {
     #[bits(0..8)]
-    pub color_r: u8,
+    pub r: u8,
     #[bits(8..16)]
-    pub color_g: u8,
+    pub g: u8,
     #[bits(16..24)]
-    pub color_b: u8,
+    pub b: u8,
     #[bits(24)]
     pub texture_mode: TextureMode,
     #[bits(25)]

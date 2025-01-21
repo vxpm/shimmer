@@ -10,7 +10,7 @@ use bitos::{
     bitos,
     integer::{u1, u4, u9, u10, u12},
 };
-use cmd::environment::{CompressionMode, SemiTransparencyMode, TexPageDepth};
+use cmd::environment::{CompressionMode, SemiTransparencyMode, TexPage, TexPageDepth};
 use std::{collections::VecDeque, ops::Range};
 
 pub use interpreter::Interpreter;
@@ -151,6 +151,15 @@ impl Status {
             DmaDirection::CpuToGp0 => self.set_dma_request(self.ready_to_receive_block()),
             DmaDirection::GpuToCpu => self.set_dma_request(self.ready_to_send_vram()),
         };
+    }
+
+    pub fn texpage(&self) -> TexPage {
+        TexPage::default()
+            .with_x_base(self.texpage_x_base())
+            .with_y_base(self.texpage_y_base())
+            .with_semi_transparency_mode(self.semi_transparency_mode())
+            .with_depth(self.texpage_depth())
+            .with_y_base_2(self.texpage_y_base_2())
     }
 }
 
