@@ -7,6 +7,7 @@
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
 
+pub mod cdrom;
 pub mod cpu;
 pub mod dma;
 pub mod exe;
@@ -20,7 +21,6 @@ mod scheduler;
 mod util;
 
 use cpu::cop0;
-use interrupts::Interrupt;
 use scheduler::{Event, Scheduler};
 use std::sync::mpsc::Receiver;
 use tinylog::Logger;
@@ -36,6 +36,7 @@ pub struct Loggers {
     pub cpu: Logger,
     pub kernel: Logger,
     pub gpu: Logger,
+    pub cdrom: Logger,
 }
 
 impl Loggers {
@@ -46,6 +47,7 @@ impl Loggers {
             cpu: logger.child("cpu", tinylog::Level::Trace),
             kernel: logger.child("kernel", tinylog::Level::Trace),
             gpu: logger.child("gpu", tinylog::Level::Trace),
+            cdrom: logger.child("cdrom", tinylog::Level::Trace),
             root: logger,
         }
     }
@@ -65,6 +67,7 @@ pub struct PSX {
     pub cop0: cop0::Cop0,
     pub interrupts: interrupts::Controller,
     pub gpu: gpu::Gpu,
+    pub cdrom: cdrom::Controller,
 }
 
 /// The shimmer emulator.
@@ -76,6 +79,8 @@ pub struct Emulator {
     gpu_interpreter: gpu::Interpreter,
     /// The DMA executor.
     dma_executor: dma::Executor,
+    /// The CDROM command interpreter.
+    cdrom_interpreter: cdrom::Interpreter,
 }
 
 impl Emulator {
@@ -94,13 +99,15 @@ impl Emulator {
                 cop0: cop0::Cop0::default(),
                 interrupts: interrupts::Controller::default(),
                 gpu: gpu::Gpu::default(),
+                cdrom: cdrom::Controller::default(),
             },
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
+            cdrom_interpreter: cdrom::Interpreter::default(),
         };
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
-        e.psx.scheduler.schedule(Event::VSync, 0);
+        e.psx.scheduler.schedule(Event::VBlank, 0);
         e.psx.scheduler.schedule(Event::Timer2, 0);
 
         (e, receiver)
@@ -139,12 +146,8 @@ impl Emulator {
 
                     self.psx.scheduler.schedule(Event::Cpu, cycles);
                 }
-                Event::VSync => {
-                    self.gpu_interpreter.vsync(&mut self.psx);
-                    self.psx.interrupts.status.request(Interrupt::VBlank);
-                    self.psx
-                        .scheduler
-                        .schedule(Event::VSync, u64::from(self.psx.gpu.cycles_per_vblank()));
+                Event::VBlank => {
+                    self.gpu_interpreter.vblank(&mut self.psx);
                 }
                 Event::Timer2 => {
                     let cycles = self.psx.timers.timer2.tick();
@@ -158,6 +161,9 @@ impl Emulator {
                 }
                 Event::DmaAdvance => {
                     self.dma_executor.advance(&mut self.psx);
+                }
+                Event::Cdrom => {
+                    self.cdrom_interpreter.update(&mut self.psx);
                 }
             }
         }

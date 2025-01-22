@@ -13,6 +13,7 @@ use crate::{
         },
         renderer::{Command, CopyToVram},
     },
+    interrupts::Interrupt,
     scheduler::Event,
 };
 use bitos::integer::u10;
@@ -169,12 +170,15 @@ impl Interpreter {
         self.exec_queued_render(psx);
     }
 
-    /// Performs a VSync.
-    pub fn vsync(&mut self, psx: &mut PSX) {
+    /// Performs a VBlank.
+    pub fn vblank(&mut self, psx: &mut PSX) {
         psx.gpu
             .status
             .set_interlace_odd(!psx.gpu.status.interlace_odd());
+        self.sender.send(Command::VBlank).unwrap();
 
-        self.sender.send(Command::Vsync).unwrap();
+        psx.interrupts.status.request(Interrupt::VBlank);
+        psx.scheduler
+            .schedule(Event::VBlank, u64::from(psx.gpu.cycles_per_vblank()));
     }
 }

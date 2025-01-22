@@ -6,13 +6,15 @@ pub enum Event {
     /// Execute the next CPU instruction.
     Cpu,
     /// Fire a VSync.
-    VSync,
+    VBlank,
     /// Update the GPU state machine.
     Gpu,
     /// Update the DMA state machine and possibly start a transfer.
     DmaUpdate,
     /// Advance the currently ongoing DMA transfer.
     DmaAdvance,
+    /// Update the CDROM state machine.
+    Cdrom,
     /// Advance Timer2.
     Timer2,
 }

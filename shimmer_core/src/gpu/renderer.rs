@@ -95,7 +95,7 @@ pub enum Command {
     SetDisplayResolution(DisplayResolution),
 
     // Control
-    Vsync,
+    VBlank,
 
     // Copy data
     CopyToVram(CopyToVram),

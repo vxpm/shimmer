@@ -4,7 +4,7 @@ pub mod io;
 
 mod primitive;
 
-use crate::{PSX, dma, exe::Executable, scheduler::Event, util};
+use crate::{PSX, cdrom, dma, exe::Executable, scheduler::Event, util};
 use binrw::BinRead;
 use bitos::integer::u7;
 use easyerr::Error;
@@ -441,6 +441,10 @@ impl PSX {
 
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::Cdrom0 => P::read_from_buf(self.cdrom.read_reg0().as_bytes()),
+                io::Reg::Cdrom1 => P::read_from_buf(self.cdrom.read_reg1().as_bytes()),
+                io::Reg::Cdrom2 => P::read_from_buf(self.cdrom.read_reg2().as_bytes()),
+                io::Reg::Cdrom3 => P::read_from_buf(self.cdrom.read_reg3().as_bytes()),
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -648,6 +652,42 @@ impl PSX {
 
                     self.scheduler.schedule(Event::Gpu, 0);
                     self.scheduler.schedule(Event::DmaUpdate, 0);
+                }
+                io::Reg::Cdrom0 => {
+                    let mut byte = 0u8;
+                    value.write_to(byte.as_mut_bytes());
+
+                    self.cdrom
+                        .write_queue
+                        .push_back(cdrom::RegWrite::Reg0(byte));
+                    self.scheduler.schedule(Event::Cdrom, 0);
+                }
+                io::Reg::Cdrom1 => {
+                    let mut byte = 0u8;
+                    value.write_to(byte.as_mut_bytes());
+
+                    self.cdrom
+                        .write_queue
+                        .push_back(cdrom::RegWrite::Reg1(byte));
+                    self.scheduler.schedule(Event::Cdrom, 0);
+                }
+                io::Reg::Cdrom2 => {
+                    let mut byte = 0u8;
+                    value.write_to(byte.as_mut_bytes());
+
+                    self.cdrom
+                        .write_queue
+                        .push_back(cdrom::RegWrite::Reg2(byte));
+                    self.scheduler.schedule(Event::Cdrom, 0);
+                }
+                io::Reg::Cdrom3 => {
+                    let mut byte = 0u8;
+                    value.write_to(byte.as_mut_bytes());
+
+                    self.cdrom
+                        .write_queue
+                        .push_back(cdrom::RegWrite::Reg3(byte));
+                    self.scheduler.schedule(Event::Cdrom, 0);
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();

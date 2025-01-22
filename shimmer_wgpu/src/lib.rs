@@ -144,7 +144,7 @@ impl Inner {
                 self.display_renderer
                     .set_display_top_left(top_left.x, top_left.y);
             }
-            Command::Vsync => {
+            Command::VBlank => {
                 self.flush();
             }
             Command::CopyToVram(copy) => {
