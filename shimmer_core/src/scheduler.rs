@@ -1,7 +1,9 @@
 //! The event scheduler of the [`PSX`](super::PSX).
 
+use crate::cdrom;
+
 /// Possible schedule events.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
     /// Execute the next CPU instruction.
     Cpu,
@@ -14,9 +16,35 @@ pub enum Event {
     /// Advance the currently ongoing DMA transfer.
     DmaAdvance,
     /// Update the CDROM state machine.
-    Cdrom,
+    Cdrom(cdrom::Event),
     /// Advance Timer2.
     Timer2,
+}
+
+impl Event {
+    pub fn priority(&self) -> u8 {
+        match self {
+            Event::Cpu => 0,
+            Event::VBlank => 1,
+            Event::Gpu => 2,
+            Event::DmaUpdate => 3,
+            Event::DmaAdvance => 4,
+            Event::Cdrom(_) => 5,
+            Event::Timer2 => 6,
+        }
+    }
+}
+
+impl PartialOrd for Event {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.priority().partial_cmp(&other.priority())
+    }
+}
+
+impl Ord for Event {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.priority().cmp(&other.priority())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

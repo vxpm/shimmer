@@ -14,7 +14,7 @@ struct ControlRequest {
 
 impl Interpreter {
     pub fn control_request(&mut self, psx: &mut PSX, value: u8) {
-        info!(psx.loggers.cdrom, "control request");
+        debug!(psx.loggers.cdrom, "control request");
         let cmd = ControlRequest::from_bits(value);
 
         if cmd.request_sector_buffer_write() {

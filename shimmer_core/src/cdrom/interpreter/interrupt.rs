@@ -1,6 +1,7 @@
 use crate::{
     PSX,
-    cdrom::{Interpreter, InterruptMask, InterruptStatus},
+    cdrom::{Event, Interpreter, InterruptMask, InterruptStatus},
+    scheduler,
 };
 use bitos::{bitos, integer::u3};
 use tinylog::info;
@@ -23,7 +24,9 @@ struct InterruptFlags {
 
 impl Interpreter {
     pub fn set_interrupt_mask(&mut self, psx: &mut PSX, value: u8) {
-        psx.cdrom.interrupt_mask = InterruptMask::from_bits(value);
+        let mask = InterruptMask::from_bits(value);
+        psx.cdrom.interrupt_mask = mask;
+        info!(psx.loggers.cdrom, "setting interrupts mask to {value:?}");
     }
 
     pub fn ack_interrupt_status(&mut self, psx: &mut PSX, value: u8) {
@@ -33,6 +36,13 @@ impl Interpreter {
         let status = psx.cdrom.interrupt_status.to_bits();
         let new_status = status & !value;
         psx.cdrom.interrupt_status = InterruptStatus::from_bits(new_status | 0b1110_0000);
+
+        info!(
+            psx.loggers.cdrom,
+            "new kind: {:?}. queue: {:?}",
+            psx.cdrom.interrupt_status.kind(),
+            self.interrupt_queue.clone(),
+        );
 
         if cmd.clear_sound_buffer() {
             todo!("clear sound buffer");

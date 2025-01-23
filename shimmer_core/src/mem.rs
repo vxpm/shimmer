@@ -443,12 +443,8 @@ impl PSX {
                 }
                 io::Reg::Cdrom0 | io::Reg::Cdrom1 | io::Reg::Cdrom2 | io::Reg::Cdrom3 => {
                     let reg = reg.cdrom_reg().unwrap();
-                    debug!(
-                        self.loggers.cdrom,
-                        "reading {:?}.{:?}",
-                        self.cdrom.status.bank(),
-                        reg,
-                    );
+                    self.scheduler
+                        .schedule(Event::Cdrom(cdrom::Event::Update), 0);
                     P::read_from_buf(self.cdrom.read(reg).as_bytes())
                 }
                 io::Reg::Timer2Value => {
@@ -668,7 +664,8 @@ impl PSX {
                         .write_queue
                         .push_back(cdrom::RegWrite { reg, value: byte });
 
-                    self.scheduler.schedule(Event::Cdrom, 0);
+                    self.scheduler
+                        .schedule(Event::Cdrom(cdrom::Event::Update), 0);
                 }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();

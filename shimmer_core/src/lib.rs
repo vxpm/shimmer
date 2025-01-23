@@ -87,10 +87,10 @@ impl Emulator {
     /// Creates a new [`Emulator`].
     pub fn with_bios(bios: Vec<u8>, logger: Logger) -> (Self, Receiver<gpu::renderer::Command>) {
         let (gpu_interpreter, receiver) = gpu::Interpreter::new();
+        let loggers = Loggers::new(logger);
         let mut e = Self {
             psx: PSX {
                 scheduler: Scheduler::default(),
-                loggers: Loggers::new(logger),
 
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
                 timers: timers::Timers::default(),
@@ -99,7 +99,12 @@ impl Emulator {
                 cop0: cop0::Cop0::default(),
                 interrupts: interrupts::Controller::default(),
                 gpu: gpu::Gpu::default(),
-                cdrom: cdrom::Controller::default(),
+                cdrom: cdrom::Controller {
+                    logger: loggers.cdrom.clone(),
+                    ..Default::default()
+                },
+
+                loggers,
             },
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
@@ -162,8 +167,8 @@ impl Emulator {
                 Event::DmaAdvance => {
                     self.dma_executor.advance(&mut self.psx);
                 }
-                Event::Cdrom => {
-                    self.cdrom_interpreter.update(&mut self.psx);
+                Event::Cdrom(event) => {
+                    self.cdrom_interpreter.update(&mut self.psx, event);
                 }
             }
         }

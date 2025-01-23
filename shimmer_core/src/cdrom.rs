@@ -1,10 +1,22 @@
 mod interpreter;
 
 use bitos::{bitos, integer::u3};
-use std::{cell::RefCell, collections::VecDeque};
+use std::collections::VecDeque;
 use strum::FromRepr;
+use tinylog::{Logger, debug};
 
 pub use interpreter::Interpreter;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    Update,
+
+    /// Generick acknowledge interrupt, has STATUS as response.
+    GenericAck,
+
+    InitAck,
+    InitComplete,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reg {
@@ -144,7 +156,7 @@ pub struct Status {
 }
 
 #[bitos(3)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InterruptKind {
     #[default]
     None,
@@ -158,7 +170,7 @@ pub enum InterruptKind {
 }
 
 #[bitos(8)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct InterruptStatus {
     #[bits(0..3)]
     kind: InterruptKind,
@@ -166,6 +178,14 @@ pub struct InterruptStatus {
     sound_buffer_empty: bool,
     #[bits(4)]
     sound_buffer_write_ready: bool,
+}
+
+impl Default for InterruptStatus {
+    fn default() -> Self {
+        Self::from_bits(0)
+            .with_sound_buffer_empty(true)
+            .with_sound_buffer_write_ready(true)
+    }
 }
 
 #[bitos(8)]
@@ -239,6 +259,8 @@ pub struct Controller {
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
     pub result_queue: VecDeque<u8>,
+
+    pub logger: Logger,
 }
 
 impl Controller {
@@ -256,11 +278,15 @@ impl Controller {
 
     pub fn read(&mut self, reg: Reg) -> u8 {
         match (reg, self.status.bank()) {
-            (Reg::Reg0, _) => self.status.to_bits(),
+            (Reg::Reg0, _) => {
+                debug!(self.logger, "reading status: {:?}", self.status);
+                self.status.to_bits()
+            }
             (Reg::Reg1, _) => {
-                let value = self.result_queue.pop_front().unwrap_or_default();
+                let value = self.result_queue.pop_front().unwrap();
                 self.update_status();
 
+                debug!(self.logger, "reading result from queue: {value:#02X}");
                 value
             }
             (Reg::Reg2, Bank::Bank0) => todo!(),
@@ -268,7 +294,13 @@ impl Controller {
             (Reg::Reg2, Bank::Bank2) => todo!(),
             (Reg::Reg2, Bank::Bank3) => todo!(),
             (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => todo!(),
-            (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => self.interrupt_status.to_bits(),
+            (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => {
+                debug!(
+                    self.logger,
+                    "reading interrupt status: {:?}", self.interrupt_status
+                );
+                self.interrupt_status.to_bits()
+            }
         }
     }
 }
