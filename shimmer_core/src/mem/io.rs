@@ -547,7 +547,8 @@ impl Reg {
     #[inline(always)]
     pub fn offset(self, addr: Address) -> Option<usize> {
         let (reg_addr, width) = self.address_and_width();
-        addr.value()
+        addr.physical()?
+            .value()
             .checked_sub(reg_addr.value())
             .and_then(|offset| ((offset as usize) < width).then_some(offset as usize))
     }

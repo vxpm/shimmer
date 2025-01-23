@@ -1,7 +1,6 @@
 use crate::{
     PSX,
-    cdrom::{Event, Interpreter, InterruptMask, InterruptStatus},
-    scheduler,
+    cdrom::{Interpreter, InterruptKind, InterruptMask, InterruptStatus},
 };
 use bitos::{bitos, integer::u3};
 use tinylog::{debug, info};
@@ -37,12 +36,6 @@ impl Interpreter {
         let new_status = status & !value;
         psx.cdrom.interrupt_status = InterruptStatus::from_bits(new_status | 0b1110_0000);
 
-        info!(
-            psx.loggers.cdrom,
-            "new kind: {:?}",
-            psx.cdrom.interrupt_status.kind(),
-        );
-
         if cmd.clear_sound_buffer() {
             todo!("clear sound buffer");
         }
@@ -55,5 +48,7 @@ impl Interpreter {
         if cmd.reset_decoder() {
             todo!("reset decoder");
         }
+
+        self.next_interrupt(psx);
     }
 }

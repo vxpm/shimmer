@@ -304,6 +304,7 @@ impl<'ctx> Interpreter<'ctx> {
             if func == kernel::Function::PutChar {
                 let char = self.psx.cpu.regs().read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
+                    print!("{char}");
                     if char == '\r' {
                         self.psx.memory.kernel_stdout.push('\n');
                     } else {

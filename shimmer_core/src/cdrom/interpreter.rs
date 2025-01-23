@@ -10,12 +10,22 @@ use tinylog::{debug, trace};
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
+    command_queue: VecDeque<u8>,
     interrupt_queue: VecDeque<InterruptKind>,
 }
 
 impl Interpreter {
     fn switch_bank(&mut self, psx: &mut PSX, bank: Bank) {
         psx.cdrom.status.set_bank(bank);
+    }
+
+    fn next_interrupt(&mut self, psx: &mut PSX) {
+        if psx.cdrom.interrupt_status.kind() == InterruptKind::None
+            && let Some(kind) = self.interrupt_queue.pop_front()
+        {
+            debug!(psx.loggers.cdrom, "popped interrupt: {:?}", kind);
+            psx.cdrom.set_interrupt_kind(kind);
+        }
     }
 
     pub fn update(&mut self, psx: &mut PSX, event: Event) {
@@ -48,37 +58,39 @@ impl Interpreter {
                     }
                 }
             }
-            Event::GenericAck => {
+            Event::AckGeneric => {
                 psx.cdrom.status.set_busy(false);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
             Event::AckInit => {
+                psx.cdrom.status.set_busy(false);
+                debug!(psx.loggers.cdrom, "INIT ack");
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
             Event::CompleteInit => {
-                psx.cdrom.status.set_busy(false);
+                debug!(psx.loggers.cdrom, "INIT complete");
                 psx.cdrom.mode = Mode::from_bits(0x20);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Complete);
             }
         }
 
-        if psx.cdrom.interrupt_status.kind() == InterruptKind::None
-            && let Some(kind) = self.interrupt_queue.pop_front()
-        {
-            debug!(psx.loggers.cdrom, "popped interrupt: {:?}", kind);
-            psx.cdrom.set_interrupt_kind(kind);
+        if psx.cdrom.interrupt_status.kind() == InterruptKind::None {
+            while let Some(value) = self.command_queue.pop_front() {
+                self.command(psx, value);
+            }
         }
 
-        psx.cdrom.update_status();
+        self.next_interrupt(psx);
 
         let masked =
             psx.cdrom.interrupt_status.kind() as u8 & psx.cdrom.interrupt_mask.mask().value();
-
         if masked != 0 {
             psx.interrupts.status.request(Interrupt::CDROM);
         }
+
+        psx.cdrom.update_status();
     }
 }

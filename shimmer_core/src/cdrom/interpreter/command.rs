@@ -1,6 +1,6 @@
 use crate::{
     PSX,
-    cdrom::{Command, Interpreter, InterruptKind, interpreter::Event},
+    cdrom::{Command, Interpreter, interpreter::Event},
     scheduler,
 };
 use tinylog::info;
@@ -24,7 +24,7 @@ impl Interpreter {
         match cmd {
             Command::Nop => {
                 psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
+                    .schedule(scheduler::Event::Cdrom(Event::AckGeneric), DEFAULT_DELAY);
             }
             Command::Init => {
                 psx.scheduler
@@ -37,7 +37,7 @@ impl Interpreter {
             }
             Command::Demute => {
                 psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
+                    .schedule(scheduler::Event::Cdrom(Event::AckGeneric), DEFAULT_DELAY);
             }
             Command::Test => {
                 let param = psx.cdrom.parameter_queue.pop_front().unwrap_or_default();
@@ -47,7 +47,7 @@ impl Interpreter {
 
                 psx.cdrom.result_queue.extend(CDROM_VERSION);
                 psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
+                    .schedule(scheduler::Event::Cdrom(Event::AckGeneric), DEFAULT_DELAY);
             }
             _ => todo!("{:?}", cmd),
         }

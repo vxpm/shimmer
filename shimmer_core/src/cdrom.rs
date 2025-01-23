@@ -12,7 +12,7 @@ pub enum Event {
     Update,
 
     /// Generick acknowledge interrupt, has STATUS as response.
-    GenericAck,
+    AckGeneric,
 
     AckInit,
     CompleteInit,
