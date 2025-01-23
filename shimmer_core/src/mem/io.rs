@@ -1,7 +1,7 @@
 //! Items related to memory mapped IO.
 
 use super::{Address, PhysicalAddress};
-use crate::dma::Channel;
+use crate::{cdrom, dma};
 use strum::VariantArray;
 
 /// A memory mapped register.
@@ -548,15 +548,25 @@ impl Reg {
         (Reg::Voice0Volume.address()..=Reg::Voice23Repeat.address()).contains(&self.address())
     }
 
-    pub fn dma_channel(&self) -> Option<Channel> {
+    pub fn dma_channel(&self) -> Option<dma::Channel> {
         Some(match self {
-            Reg::Dma0Base | Reg::Dma0BlockControl | Reg::Dma0Control => Channel::MdecIn,
-            Reg::Dma1Base | Reg::Dma1BlockControl | Reg::Dma1Control => Channel::MdecOut,
-            Reg::Dma2Base | Reg::Dma2BlockControl | Reg::Dma2Control => Channel::GPU,
-            Reg::Dma3Base | Reg::Dma3BlockControl | Reg::Dma3Control => Channel::CDROM,
-            Reg::Dma4Base | Reg::Dma4BlockControl | Reg::Dma4Control => Channel::SPU,
-            Reg::Dma5Base | Reg::Dma5BlockControl | Reg::Dma5Control => Channel::PIO,
-            Reg::Dma6Base | Reg::Dma6BlockControl | Reg::Dma6Control => Channel::OTC,
+            Reg::Dma0Base | Reg::Dma0BlockControl | Reg::Dma0Control => dma::Channel::MdecIn,
+            Reg::Dma1Base | Reg::Dma1BlockControl | Reg::Dma1Control => dma::Channel::MdecOut,
+            Reg::Dma2Base | Reg::Dma2BlockControl | Reg::Dma2Control => dma::Channel::GPU,
+            Reg::Dma3Base | Reg::Dma3BlockControl | Reg::Dma3Control => dma::Channel::CDROM,
+            Reg::Dma4Base | Reg::Dma4BlockControl | Reg::Dma4Control => dma::Channel::SPU,
+            Reg::Dma5Base | Reg::Dma5BlockControl | Reg::Dma5Control => dma::Channel::PIO,
+            Reg::Dma6Base | Reg::Dma6BlockControl | Reg::Dma6Control => dma::Channel::OTC,
+            _ => return None,
+        })
+    }
+
+    pub fn cdrom_reg(&self) -> Option<cdrom::Reg> {
+        Some(match self {
+            Reg::Cdrom0 => cdrom::Reg::Reg0,
+            Reg::Cdrom1 => cdrom::Reg::Reg1,
+            Reg::Cdrom2 => cdrom::Reg::Reg2,
+            Reg::Cdrom3 => cdrom::Reg::Reg3,
             _ => return None,
         })
     }

@@ -1,10 +1,18 @@
 mod interpreter;
 
 use bitos::{bitos, integer::u3};
-use std::collections::VecDeque;
+use std::{cell::RefCell, collections::VecDeque};
 use strum::FromRepr;
 
 pub use interpreter::Interpreter;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reg {
+    Reg0,
+    Reg1,
+    Reg2,
+    Reg3,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
@@ -125,9 +133,9 @@ pub struct Status {
     #[bits(3)]
     pub parameter_fifo_empty: bool,
     #[bits(4)]
-    pub parameter_fifo_ready: bool,
+    pub parameter_fifo_not_full: bool,
     #[bits(5)]
-    pub result_fifo_ready: bool,
+    pub result_fifo_not_empty: bool,
     #[bits(6)]
     pub data_request: bool,
     /// Is the controller busy acknowledging a command?
@@ -161,7 +169,7 @@ pub struct InterruptStatus {
 }
 
 #[bitos(8)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct InterruptMask {
     #[bits(0..3)]
     mask: u3,
@@ -169,6 +177,12 @@ pub struct InterruptMask {
     enable_sound_buffer_empty: bool,
     #[bits(4)]
     enable_sound_buffer_write_ready: bool,
+}
+
+impl Default for InterruptMask {
+    fn default() -> Self {
+        Self::from_bits(0).with_mask(u3::new(0x7))
+    }
 }
 
 #[bitos(1)]
@@ -209,11 +223,9 @@ pub struct Mode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RegWrite {
-    Reg0(u8),
-    Reg1(u8),
-    Reg2(u8),
-    Reg3(u8),
+pub struct RegWrite {
+    pub reg: Reg,
+    pub value: u8,
 }
 
 /// The state of the CDROM controller.
@@ -225,35 +237,38 @@ pub struct Controller {
     pub mode: Mode,
 
     pub write_queue: VecDeque<RegWrite>,
-    pub result_fifo: Vec<u8>,
+    pub parameter_queue: VecDeque<u8>,
+    pub result_queue: VecDeque<u8>,
 }
 
 impl Controller {
-    pub fn read_reg0(&self) -> u8 {
-        self.status.to_bits()
+    pub fn set_interrupt_kind(&mut self, kind: InterruptKind) {
+        self.interrupt_status.set_kind(kind);
     }
 
-    pub fn read_reg1(&self) -> u8 {
-        todo!()
+    pub fn update_status(&mut self) {
+        self.status
+            .set_parameter_fifo_empty(self.parameter_queue.is_empty());
+        self.status.set_parameter_fifo_not_full(true);
+        self.status
+            .set_result_fifo_not_empty(!self.result_queue.is_empty());
     }
 
-    pub fn read_reg2(&self) -> u8 {
-        todo!()
-    }
+    pub fn read(&mut self, reg: Reg) -> u8 {
+        match (reg, self.status.bank()) {
+            (Reg::Reg0, _) => self.status.to_bits(),
+            (Reg::Reg1, _) => {
+                let value = self.result_queue.pop_front().unwrap_or_default();
+                self.update_status();
 
-    pub fn read_reg3(&self) -> u8 {
-        match self.status.bank() {
-            Bank::Bank0 | Bank::Bank2 => todo!(),
-            Bank::Bank1 | Bank::Bank3 => self.interrupt_status.to_bits(),
-        }
-    }
-
-    fn command(&mut self, command: Command) {
-        match command {
-            Command::UnusedA => {
-                self.result_fifo.push(self.status.to_bits());
+                value
             }
-            _ => todo!("{:?}", command),
+            (Reg::Reg2, Bank::Bank0) => todo!(),
+            (Reg::Reg2, Bank::Bank1) => todo!(),
+            (Reg::Reg2, Bank::Bank2) => todo!(),
+            (Reg::Reg2, Bank::Bank3) => todo!(),
+            (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => todo!(),
+            (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => self.interrupt_status.to_bits(),
         }
     }
 }

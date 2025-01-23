@@ -357,7 +357,7 @@ where
 }
 
 impl PSX {
-    fn read_io_ports<P, const SILENT: bool>(&self, addr: Address) -> P
+    fn read_io_ports<P, const SILENT: bool>(&mut self, addr: Address) -> P
     where
         P: Primitive,
     {
@@ -441,10 +441,16 @@ impl PSX {
 
                     P::read_from_buf(&bytes[offset..])
                 }
-                io::Reg::Cdrom0 => P::read_from_buf(self.cdrom.read_reg0().as_bytes()),
-                io::Reg::Cdrom1 => P::read_from_buf(self.cdrom.read_reg1().as_bytes()),
-                io::Reg::Cdrom2 => P::read_from_buf(self.cdrom.read_reg2().as_bytes()),
-                io::Reg::Cdrom3 => P::read_from_buf(self.cdrom.read_reg3().as_bytes()),
+                io::Reg::Cdrom0 | io::Reg::Cdrom1 | io::Reg::Cdrom2 | io::Reg::Cdrom3 => {
+                    let reg = reg.cdrom_reg().unwrap();
+                    debug!(
+                        self.loggers.cdrom,
+                        "reading {:?}.{:?}",
+                        self.cdrom.status.bank(),
+                        reg,
+                    );
+                    P::read_from_buf(self.cdrom.read(reg).as_bytes())
+                }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -477,7 +483,7 @@ impl PSX {
         }
     }
 
-    pub fn read_unaligned<P, const SILENT: bool>(&self, addr: Address) -> P
+    pub fn read_unaligned<P, const SILENT: bool>(&mut self, addr: Address) -> P
     where
         P: Primitive,
     {
@@ -510,7 +516,7 @@ impl PSX {
     }
 
     #[inline(always)]
-    pub fn read<P, const SILENT: bool>(&self, addr: Address) -> Result<P, MisalignedAddressErr>
+    pub fn read<P, const SILENT: bool>(&mut self, addr: Address) -> Result<P, MisalignedAddressErr>
     where
         P: Primitive,
     {
@@ -653,40 +659,15 @@ impl PSX {
                     self.scheduler.schedule(Event::Gpu, 0);
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
-                io::Reg::Cdrom0 => {
+                io::Reg::Cdrom0 | io::Reg::Cdrom1 | io::Reg::Cdrom2 | io::Reg::Cdrom3 => {
                     let mut byte = 0u8;
                     value.write_to(byte.as_mut_bytes());
 
+                    let reg = reg.cdrom_reg().unwrap();
                     self.cdrom
                         .write_queue
-                        .push_back(cdrom::RegWrite::Reg0(byte));
-                    self.scheduler.schedule(Event::Cdrom, 0);
-                }
-                io::Reg::Cdrom1 => {
-                    let mut byte = 0u8;
-                    value.write_to(byte.as_mut_bytes());
+                        .push_back(cdrom::RegWrite { reg, value: byte });
 
-                    self.cdrom
-                        .write_queue
-                        .push_back(cdrom::RegWrite::Reg1(byte));
-                    self.scheduler.schedule(Event::Cdrom, 0);
-                }
-                io::Reg::Cdrom2 => {
-                    let mut byte = 0u8;
-                    value.write_to(byte.as_mut_bytes());
-
-                    self.cdrom
-                        .write_queue
-                        .push_back(cdrom::RegWrite::Reg2(byte));
-                    self.scheduler.schedule(Event::Cdrom, 0);
-                }
-                io::Reg::Cdrom3 => {
-                    let mut byte = 0u8;
-                    value.write_to(byte.as_mut_bytes());
-
-                    self.cdrom
-                        .write_queue
-                        .push_back(cdrom::RegWrite::Reg3(byte));
                     self.scheduler.schedule(Event::Cdrom, 0);
                 }
                 io::Reg::Timer2Value => {

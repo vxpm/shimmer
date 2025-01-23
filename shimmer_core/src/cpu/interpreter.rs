@@ -17,6 +17,7 @@ use crate::{
         EXCEPTION_VECTOR_KSEG0, EXCEPTION_VECTOR_KSEG1,
         instr::{CoOpcode, Opcode, SpecialOpcode},
     },
+    interrupts::Interrupt,
     kernel,
     mem::{Address, Region, io},
     util::cold_path,
@@ -88,14 +89,16 @@ impl<'ctx> Interpreter<'ctx> {
             },
         );
 
-        info!(
-            self.psx.loggers.cpu,
-            "triggered exception {:?} at {} (next would be: {})",
-            exception,
-            address,
-            delay_slot;
-            in_branch_delay = in_branch_delay,
-        );
+        if exception != Exception::Interrupt {
+            info!(
+                self.psx.loggers.cpu,
+                "triggered exception {:?} at {} (next would be: {})",
+                exception,
+                address,
+                delay_slot;
+                in_branch_delay = in_branch_delay,
+            );
+        }
 
         // flush pipeline
         self.psx.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
@@ -156,11 +159,13 @@ impl<'ctx> Interpreter<'ctx> {
                 return false;
             }
 
-            info!(
-                self.psx.loggers.cpu,
-                "triggered interrupt {:?} at {}",
-                requested_interrupt, self.psx.cpu.instr_delay_slot().1;
-            );
+            if requested_interrupt != Interrupt::VBlank {
+                info!(
+                    self.psx.loggers.cpu,
+                    "triggered interrupt {:?} at {}",
+                    requested_interrupt, self.psx.cpu.instr_delay_slot().1;
+                );
+            }
 
             self.trigger_exception(Exception::Interrupt);
 
@@ -200,13 +205,17 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::SWL => self.swl(instr),
                 Opcode::SWR => self.swr(instr),
                 Opcode::XORI => self.xori(instr),
-                Opcode::COP0 | Opcode::COP1 | Opcode::COP2 | Opcode::COP3 => {
+                Opcode::COP2 => {
+                    warn!(self.psx.loggers.cpu, "ignoring GTE instruction");
+                    DEFAULT_CYCLE_COUNT
+                }
+                Opcode::COP0 | Opcode::COP1 | Opcode::COP3 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
                             CoOpcode::MFC => self.mfc(instr),
                             CoOpcode::CFC => todo!(),
                             CoOpcode::MTC => self.mtc(instr),
-                            CoOpcode::CTC => todo!(),
+                            CoOpcode::CTC => todo!("{:?}", instr.cop()),
                             CoOpcode::BRANCH => todo!(),
                             CoOpcode::SPECIAL => {
                                 if let Some(op) = instr.cop_special_op() {
