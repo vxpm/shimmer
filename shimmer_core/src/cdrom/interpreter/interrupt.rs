@@ -4,7 +4,7 @@ use crate::{
     scheduler,
 };
 use bitos::{bitos, integer::u3};
-use tinylog::info;
+use tinylog::{debug, info};
 
 #[bitos(8)]
 struct InterruptFlags {
@@ -39,9 +39,8 @@ impl Interpreter {
 
         info!(
             psx.loggers.cdrom,
-            "new kind: {:?}. queue: {:?}",
+            "new kind: {:?}",
             psx.cdrom.interrupt_status.kind(),
-            self.interrupt_queue.clone(),
         );
 
         if cmd.clear_sound_buffer() {
@@ -49,6 +48,7 @@ impl Interpreter {
         }
 
         if cmd.clear_parameter_fifo() {
+            debug!(psx.loggers.cdrom, "clearing parameter queue");
             psx.cdrom.parameter_queue.clear();
         }
 

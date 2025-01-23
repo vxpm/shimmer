@@ -14,8 +14,8 @@ pub enum Event {
     /// Generick acknowledge interrupt, has STATUS as response.
     GenericAck,
 
-    InitAck,
-    InitComplete,
+    AckInit,
+    CompleteInit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -289,11 +289,14 @@ impl Controller {
                 debug!(self.logger, "reading result from queue: {value:#02X}");
                 value
             }
-            (Reg::Reg2, Bank::Bank0) => todo!(),
-            (Reg::Reg2, Bank::Bank1) => todo!(),
-            (Reg::Reg2, Bank::Bank2) => todo!(),
-            (Reg::Reg2, Bank::Bank3) => todo!(),
-            (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => todo!(),
+            (Reg::Reg2, _) => todo!(),
+            (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => {
+                debug!(
+                    self.logger,
+                    "reading interrupt mask: {:?}", self.interrupt_mask
+                );
+                self.interrupt_mask.to_bits()
+            }
             (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => {
                 debug!(
                     self.logger,

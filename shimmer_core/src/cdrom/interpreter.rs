@@ -28,7 +28,7 @@ impl Interpreter {
                         (Reg::Reg0, _) => {
                             let bank = Bank::from_repr(value as usize & 0b11).unwrap();
                             self.switch_bank(psx, bank);
-                            trace!(psx.loggers.cdrom, "switched to bank: {:?}", bank);
+                            trace!(psx.loggers.cdrom, "switched to {:?}", bank);
                         }
 
                         (Reg::Reg1, Bank::Bank0) => self.command(psx, value),
@@ -53,11 +53,11 @@ impl Interpreter {
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
-            Event::InitAck => {
+            Event::AckInit => {
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
-            Event::InitComplete => {
+            Event::CompleteInit => {
                 psx.cdrom.status.set_busy(false);
                 psx.cdrom.mode = Mode::from_bits(0x20);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
@@ -68,11 +68,12 @@ impl Interpreter {
         if psx.cdrom.interrupt_status.kind() == InterruptKind::None
             && let Some(kind) = self.interrupt_queue.pop_front()
         {
-            debug!(psx.loggers.cdrom, "next interrupt: {:?}", kind);
+            debug!(psx.loggers.cdrom, "popped interrupt: {:?}", kind);
             psx.cdrom.set_interrupt_kind(kind);
         }
 
         psx.cdrom.update_status();
+
         let masked =
             psx.cdrom.interrupt_status.kind() as u8 & psx.cdrom.interrupt_mask.mask().value();
 

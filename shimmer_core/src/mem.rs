@@ -461,6 +461,7 @@ impl PSX {
                     let bytes = self.timers.timer2.target.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::JoyStat => P::read_from_buf(&[0xFF, 0xFF, 0xFF, 0xFF]),
                 _ => default(),
             };
 

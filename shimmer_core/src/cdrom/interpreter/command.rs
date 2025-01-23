@@ -23,32 +23,31 @@ impl Interpreter {
         psx.cdrom.status.set_busy(true);
         match cmd {
             Command::Nop => {
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 psx.scheduler
                     .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
             }
             Command::Init => {
                 psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::InitAck), INIT_ACK_DELAY);
+                    .schedule(scheduler::Event::Cdrom(Event::AckInit), INIT_ACK_DELAY);
 
                 psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::InitComplete),
+                    scheduler::Event::Cdrom(Event::CompleteInit),
                     INIT_ACK_DELAY + DEFAULT_DELAY,
                 );
             }
             Command::Demute => {
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 psx.scheduler
                     .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
             }
             Command::Test => {
-                let param = psx.cdrom.parameter_queue.pop_back().unwrap_or_default();
+                let param = psx.cdrom.parameter_queue.pop_front().unwrap_or_default();
                 if param != 0x20 {
                     todo!()
                 }
 
                 psx.cdrom.result_queue.extend(CDROM_VERSION);
-                self.interrupt_queue.push_back(InterruptKind::Acknowledge);
+                psx.scheduler
+                    .schedule(scheduler::Event::Cdrom(Event::GenericAck), DEFAULT_DELAY);
             }
             _ => todo!("{:?}", cmd),
         }

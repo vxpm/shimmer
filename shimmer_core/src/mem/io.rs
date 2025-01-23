@@ -18,6 +18,10 @@ pub enum Reg {
     Expansion2Delay,
     CommonDelay,
 
+    // Peripheral IO
+    JoyData,
+    JoyStat,
+
     // Memory Control 2
     RamSize,
 
@@ -276,6 +280,10 @@ impl Reg {
             Reg::CdromDelay => (0x1F80_1018, 4),
             Reg::Expansion2Delay => (0x1F80_101C, 4),
             Reg::CommonDelay => (0x1F80_1020, 4),
+
+            // Peripheral IO
+            Reg::JoyData => (0x1F80_1040, 4),
+            Reg::JoyStat => (0x1F80_1044, 4),
 
             // Memory Control 2
             Reg::RamSize => (0x1F80_1060, 4),

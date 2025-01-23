@@ -1,6 +1,6 @@
 use crate::{PSX, cdrom::Interpreter};
 use bitos::bitos;
-use tinylog::{debug, info};
+use tinylog::debug;
 
 #[bitos(8)]
 struct ControlRequest {

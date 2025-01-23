@@ -91,7 +91,7 @@ impl SliceTransfer {
         for _ in 0..len {
             match self.channel {
                 Channel::GPU => match transfer_direction {
-                    TransferDirection::DeviceToRam => todo!(),
+                    TransferDirection::DeviceToRam => todo!("channel: {:?}", self.channel),
                     TransferDirection::RamToDevice => {
                         let word = psx.read::<u32, true>(Address(current_addr)).unwrap();
                         psx.gpu.render_queue.push_back(word);
