@@ -7,7 +7,7 @@ use crate::{
     },
     scheduler::Event,
 };
-use tinylog::{debug, error};
+use tinylog::{debug, error, warn};
 
 impl Interpreter {
     /// Executes the given display command.
@@ -68,6 +68,12 @@ impl Interpreter {
             DisplayOpcode::VramSizeV2 => {
                 let settings = cmd.vram_size_cmd();
                 psx.gpu.environment.double_vram = settings.double();
+            }
+            DisplayOpcode::AcknowledgeGpuInterrupt => {
+                psx.gpu.status.set_interrupt_request(false);
+            }
+            DisplayOpcode::ResetCommandBuffer => {
+                warn!(psx.loggers.gpu, "reset command buffer stub");
             }
             _ => error!(psx.loggers.gpu, "unimplemented display command: {cmd:?}"),
         }

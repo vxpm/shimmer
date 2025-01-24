@@ -315,6 +315,15 @@ impl<'ctx> Interpreter<'ctx> {
                 return;
             }
 
+            let ignore = [
+                kernel::Function::Rand,
+                kernel::Function::ReturnFromException,
+            ];
+
+            if ignore.contains(&func) {
+                return;
+            }
+
             let args = match func.args() {
                 0 => vec![],
                 1 => vec![self.psx.cpu.regs.read(Reg::A0)],

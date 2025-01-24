@@ -14,7 +14,7 @@ use crate::{
     scheduler::Event,
 };
 use bitos::integer::{u1, u10};
-use tinylog::{debug, error, warn};
+use tinylog::{debug, error, trace};
 
 #[derive(Default)]
 struct VertexPackets {
@@ -271,8 +271,8 @@ impl Interpreter {
 
         match cmd.opcode() {
             RenderingOpcode::Misc => match cmd.misc_opcode().unwrap() {
-                MiscOpcode::NOP => (),
-                MiscOpcode::ClearCache => warn!(psx.loggers.gpu, "should have cleared cache"),
+                MiscOpcode::NOP => trace!(psx.loggers.gpu, "nop"),
+                MiscOpcode::ClearCache => trace!(psx.loggers.gpu, "clear cache"),
                 MiscOpcode::QuickRectangleFill => self.exec_quick_rect_fill(psx, cmd),
                 _ => error!(
                     psx.loggers.gpu,
