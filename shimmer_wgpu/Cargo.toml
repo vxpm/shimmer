@@ -17,4 +17,4 @@ easyerr.workspace = true
 tinylog.workspace = true
 wgpu.workspace = true
 zerocopy.workspace = true
-bitvec = "1"
+bitvec = { version = "1", default-features = false }

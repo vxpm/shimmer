@@ -13,7 +13,6 @@ bitos = { workspace = true }
 bitos.workspace = true
 bytesize.workspace = true
 easyerr.workspace = true
-paste.workspace = true
 strum.workspace = true
 tinylog.workspace = true
 zerocopy.workspace = true

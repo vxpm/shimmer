@@ -11,13 +11,13 @@ tinylog.workspace = true
 bytesize.workspace = true
 
 clap = { version = "4.5", features = ["derive"] }
-colorous = "1.0"
+colorous = { version = "1.0", default-features = false }
 crossbeam = "0.8"
 dhat = { version = "0.3", optional = true }
 eframe = { version = "0.30", default-features = false, features = [
+    "wayland",
     "wgpu",
     "default_fonts",
-    "wayland",
 ] }
 egui_dock = "0.15"
 egui_table = "0.2"

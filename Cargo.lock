@@ -2302,7 +2302,6 @@ dependencies = [
  "bitos",
  "bytesize",
  "easyerr",
- "paste",
  "strum",
  "tinylog",
  "zerocopy 0.8.14",
