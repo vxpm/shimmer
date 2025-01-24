@@ -77,6 +77,36 @@ pub struct TimerMode {
 }
 
 #[derive(Default)]
+pub struct Timer1 {
+    pub value: u16,
+    pub target: u16,
+    pub mode: TimerMode,
+}
+
+impl Timer1 {
+    pub fn vblank(&mut self) {
+        if self.mode.sync() {
+            match self.mode.sync_mode().value() {
+                0 => todo!(),
+                1 => todo!(),
+                2 => todo!(),
+                3 => todo!(),
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    pub fn tick(&mut self) -> u64 {
+        self.value = self.value.wrapping_add(1);
+        match self.mode.clock_source().value() {
+            0 | 2 => 1,
+            1 | 3 => 2,
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct Timer2 {
     pub value: u16,
     pub target: u16,
@@ -96,5 +126,6 @@ impl Timer2 {
 
 #[derive(Default)]
 pub struct Timers {
+    pub timer1: Timer1,
     pub timer2: Timer2,
 }

@@ -668,6 +668,20 @@ impl PSX {
                     self.scheduler
                         .schedule(Event::Cdrom(cdrom::Event::Update), 0);
                 }
+                io::Reg::Timer1Value => {
+                    let bytes = self.timers.timer1.value.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::Timer1Mode => {
+                    self.timers.timer1.value = 0;
+
+                    let bytes = self.timers.timer1.mode.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::Timer1Target => {
+                    let bytes = self.timers.timer1.value.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);

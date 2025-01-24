@@ -113,6 +113,8 @@ impl Emulator {
 
         e.psx.scheduler.schedule(Event::Cpu, 0);
         e.psx.scheduler.schedule(Event::VBlank, 0);
+
+        e.psx.scheduler.schedule(Event::Timer1, 0);
         e.psx.scheduler.schedule(Event::Timer2, 0);
 
         (e, receiver)
@@ -153,6 +155,10 @@ impl Emulator {
                 }
                 Event::VBlank => {
                     self.gpu_interpreter.vblank(&mut self.psx);
+                }
+                Event::Timer1 => {
+                    let cycles = self.psx.timers.timer1.tick();
+                    self.psx.scheduler.schedule(Event::Timer1, cycles);
                 }
                 Event::Timer2 => {
                     let cycles = self.psx.timers.timer2.tick();
