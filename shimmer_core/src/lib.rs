@@ -22,7 +22,6 @@ mod util;
 
 use cpu::cop0;
 use scheduler::{Event, Scheduler};
-use std::sync::mpsc::Receiver;
 use tinylog::Logger;
 
 pub use binrw;
@@ -85,12 +84,17 @@ pub struct Emulator {
 
 impl Emulator {
     /// Creates a new [`Emulator`].
-    pub fn with_bios(bios: Vec<u8>, logger: Logger) -> (Self, Receiver<gpu::renderer::Command>) {
-        let (gpu_interpreter, receiver) = gpu::Interpreter::new();
+    pub fn new(
+        bios: Vec<u8>,
+        logger: Logger,
+        renderer: impl gpu::renderer::Renderer + 'static,
+    ) -> Self {
+        let gpu_interpreter = gpu::Interpreter::new(renderer);
         let loggers = Loggers::new(logger);
-        let mut e = Self {
+
+        Self {
             psx: PSX {
-                scheduler: Scheduler::default(),
+                scheduler: Scheduler::new(),
 
                 memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
                 timers: timers::Timers::default(),
@@ -109,15 +113,7 @@ impl Emulator {
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
             cdrom_interpreter: cdrom::Interpreter::default(),
-        };
-
-        e.psx.scheduler.schedule(Event::Cpu, 0);
-        e.psx.scheduler.schedule(Event::VBlank, 0);
-
-        e.psx.scheduler.schedule(Event::Timer1, 0);
-        e.psx.scheduler.schedule(Event::Timer2, 0);
-
-        (e, receiver)
+        }
     }
 
     /// Returns a reference to the state of the system.

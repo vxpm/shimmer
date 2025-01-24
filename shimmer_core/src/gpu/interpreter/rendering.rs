@@ -118,40 +118,32 @@ impl Interpreter {
                 stat.set_texpage_y_base_2(u1::new(0));
             }
 
-            self.sender
-                .send(Command::DrawTriangle(Triangle {
-                    vertices: tri_1,
+            self.renderer.exec(Command::DrawTriangle(Triangle {
+                vertices: tri_1,
+                shading: cmd.shading_mode(),
+                texture: Some(texture_config),
+            }));
+
+            if cmd.polygon_mode() == PolygonMode::Rectangle {
+                self.renderer.exec(Command::DrawTriangle(Triangle {
+                    vertices: tri_2,
                     shading: cmd.shading_mode(),
                     texture: Some(texture_config),
-                }))
-                .unwrap();
-
-            if cmd.polygon_mode() == PolygonMode::Rectangle {
-                self.sender
-                    .send(Command::DrawTriangle(Triangle {
-                        vertices: tri_2,
-                        shading: cmd.shading_mode(),
-                        texture: Some(texture_config),
-                    }))
-                    .unwrap();
+                }));
             }
         } else {
-            self.sender
-                .send(Command::DrawTriangle(Triangle {
-                    vertices: tri_1,
-                    shading: cmd.shading_mode(),
-                    texture: None,
-                }))
-                .unwrap();
+            self.renderer.exec(Command::DrawTriangle(Triangle {
+                vertices: tri_1,
+                shading: cmd.shading_mode(),
+                texture: None,
+            }));
 
             if cmd.polygon_mode() == PolygonMode::Rectangle {
-                self.sender
-                    .send(Command::DrawTriangle(Triangle {
-                        vertices: tri_2,
-                        shading: cmd.shading_mode(),
-                        texture: None,
-                    }))
-                    .unwrap();
+                self.renderer.exec(Command::DrawTriangle(Triangle {
+                    vertices: tri_2,
+                    shading: cmd.shading_mode(),
+                    texture: None,
+                }));
             }
         }
     }
@@ -227,18 +219,16 @@ impl Interpreter {
             RectangleMode::Sprite16 => (16, 16),
         };
 
-        self.sender
-            .send(Command::DrawRectangle(Rectangle {
-                color,
-                x: position.x(),
-                y: position.y(),
-                u: uv.u(),
-                v: uv.v(),
-                width: u10::new(width),
-                height: u10::new(height),
-                texture: texture_config,
-            }))
-            .unwrap();
+        self.renderer.exec(Command::DrawRectangle(Rectangle {
+            color,
+            x: position.x(),
+            y: position.y(),
+            u: uv.u(),
+            v: uv.v(),
+            width: u10::new(width),
+            height: u10::new(height),
+            texture: texture_config,
+        }));
     }
 
     fn exec_line(&mut self, psx: &mut PSX, cmd: RenderingCommand) {

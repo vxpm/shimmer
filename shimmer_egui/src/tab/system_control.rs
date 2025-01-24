@@ -79,7 +79,7 @@ impl Tab for SystemControl {
                 .add_enabled(!ctx.exclusive.controls.running, egui::Button::new("Step"))
                 .clicked()
             {
-                ctx.exclusive.psx.cycle_for(1);
+                ctx.exclusive.emulator.cycle_for(1);
             }
 
             ui.checkbox(
@@ -102,7 +102,7 @@ impl Tab for SystemControl {
                             Reg::VARIANTS[show_range.start * 2..show_range.end * 2].chunks(2)
                         {
                             for reg in chunk {
-                                let value = ctx.exclusive.psx.psx().cpu.regs().read(*reg);
+                                let value = ctx.exclusive.emulator.psx().cpu.regs().read(*reg);
                                 let name = if ctx.exclusive.controls.alternative_names {
                                     RichText::new(reg.alt_name())
                                 } else {

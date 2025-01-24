@@ -17,8 +17,9 @@ use crate::{
     scheduler::Event,
 };
 use bitos::integer::u10;
-use std::sync::mpsc::{Receiver, Sender};
 use tinylog::debug;
+
+use super::renderer::Renderer;
 
 #[derive(Debug, Default)]
 enum Inner {
@@ -36,22 +37,17 @@ enum Inner {
 }
 
 /// A GPU packet interpreter.
-#[derive(Debug)]
 pub struct Interpreter {
     inner: Inner,
-    sender: Sender<Command>,
+    renderer: Box<dyn Renderer>,
 }
 
 impl Interpreter {
-    pub fn new() -> (Self, Receiver<Command>) {
-        let (sender, receiver) = std::sync::mpsc::channel();
-        (
-            Self {
-                inner: Inner::default(),
-                sender,
-            },
-            receiver,
-        )
+    pub fn new(renderer: impl Renderer + 'static) -> Self {
+        Self {
+            inner: Inner::default(),
+            renderer: Box::new(renderer),
+        }
     }
 
     fn exec_queued_render(&mut self, psx: &mut PSX) {
@@ -92,15 +88,13 @@ impl Interpreter {
                     );
                 }
 
-                self.sender
-                    .send(Command::CopyToVram(CopyToVram {
-                        x: u10::new(_dest.x()),
-                        y: u10::new(_dest.y()),
-                        width: u10::new(size.width()),
-                        height: u10::new(size.height()),
-                        data,
-                    }))
-                    .unwrap();
+                self.renderer.exec(Command::CopyToVram(CopyToVram {
+                    x: u10::new(_dest.x()),
+                    y: u10::new(_dest.y()),
+                    width: u10::new(size.width()),
+                    height: u10::new(size.height()),
+                    data,
+                }));
 
                 self.inner = Inner::Idle;
 
@@ -175,10 +169,10 @@ impl Interpreter {
         psx.gpu
             .status
             .set_interlace_odd(!psx.gpu.status.interlace_odd());
-        self.sender.send(Command::VBlank).unwrap();
-
         psx.interrupts.status.request(Interrupt::VBlank);
         psx.scheduler
             .schedule(Event::VBlank, u64::from(psx.gpu.cycles_per_vblank()));
+
+        self.renderer.exec(Command::VBlank);
     }
 }

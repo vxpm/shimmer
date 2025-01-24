@@ -1,15 +1,12 @@
-use std::sync::Arc;
-
 use crate::tab::{Context, Tab};
 use eframe::{
     egui::{self, Ui, Vec2},
     egui_wgpu::{self, CallbackTrait},
 };
-use parking_lot::Mutex;
-use shimmer_wgpu::Renderer;
+use shimmer_wgpu::WgpuRenderer;
 
 pub struct RendererCallback {
-    renderer: Arc<Mutex<Renderer>>,
+    renderer: WgpuRenderer,
 }
 
 impl CallbackTrait for RendererCallback {
@@ -19,7 +16,7 @@ impl CallbackTrait for RendererCallback {
         render_pass: &mut eframe::wgpu::RenderPass<'static>,
         _callback_resources: &egui_wgpu::CallbackResources,
     ) {
-        self.renderer.lock().render(render_pass);
+        self.renderer.render(render_pass);
     }
 }
 

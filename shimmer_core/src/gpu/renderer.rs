@@ -21,6 +21,7 @@ pub struct Rgba8 {
 }
 
 impl Rgba8 {
+    #[inline(always)]
     pub fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b, a: 255 }
     }
@@ -38,12 +39,14 @@ pub struct Vertex {
     pub _padding: u16,
 }
 
+/// Texture configuration.
 #[derive(Debug, Clone, Copy)]
 pub struct TextureConfig {
     pub clut: Clut,
     pub texpage: TexPage,
 }
 
+/// A triangle primitive.
 #[derive(Debug, Clone)]
 pub struct Triangle {
     pub vertices: [Vertex; 3],
@@ -51,6 +54,7 @@ pub struct Triangle {
     pub texture: Option<TextureConfig>,
 }
 
+/// A rectangle primitive.
 #[derive(Debug, Clone)]
 pub struct Rectangle {
     pub color: Rgba8,
@@ -103,4 +107,12 @@ pub enum Command {
     // Draw stuff
     DrawTriangle(Triangle),
     DrawRectangle(Rectangle),
+}
+
+/// Renderer interface.
+pub trait Renderer: Send + Sync {
+    /// Executes a single renderer command. This method should execute as quickly as possible in
+    /// order to not disturb emulator timing. It is recommended to offload the rendering to another
+    /// thread.
+    fn exec(&mut self, command: Command);
 }

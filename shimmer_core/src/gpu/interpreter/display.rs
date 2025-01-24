@@ -31,12 +31,11 @@ impl Interpreter {
                 stat.set_force_horizontal_368(settings.force_horizontal_368());
                 stat.set_flip_screen_x(settings.flip_screen_x());
 
-                self.sender
-                    .send(Command::SetDisplayResolution(DisplayResolution {
+                self.renderer
+                    .exec(Command::SetDisplayResolution(DisplayResolution {
                         horizontal: settings.horizontal_resolution(),
                         vertical: settings.vertical_resolution(),
-                    }))
-                    .unwrap();
+                    }));
             }
             DisplayOpcode::DmaDirection => {
                 let cmd = cmd.dma_direction_cmd();
@@ -48,12 +47,11 @@ impl Interpreter {
                 psx.gpu.display.top_left_x = settings.x();
                 psx.gpu.display.top_left_y = settings.y();
 
-                self.sender
-                    .send(Command::SetDisplayTopLeft(DisplayTopLeft {
+                self.renderer
+                    .exec(Command::SetDisplayTopLeft(DisplayTopLeft {
                         x: settings.x(),
                         y: settings.y(),
-                    }))
-                    .unwrap();
+                    }));
             }
             DisplayOpcode::HorizontalDisplayRange => {
                 let settings = cmd.horizontal_display_range_cmd();

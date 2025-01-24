@@ -60,13 +60,37 @@ struct ScheduledEvent {
 ///
 /// The scheduler is responsible for keeping track of how many cycles have elapsed and what should
 /// happen next.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Scheduler {
     elapsed: u64,
     scheduled: Vec<ScheduledEvent>,
 }
 
 impl Scheduler {
+    pub fn new() -> Self {
+        Self {
+            elapsed: 0,
+            scheduled: vec![
+                ScheduledEvent {
+                    happens_at: 0,
+                    event: Event::Cpu,
+                },
+                ScheduledEvent {
+                    happens_at: 0,
+                    event: Event::VBlank,
+                },
+                ScheduledEvent {
+                    happens_at: 0,
+                    event: Event::Timer1,
+                },
+                ScheduledEvent {
+                    happens_at: 0,
+                    event: Event::Timer2,
+                },
+            ],
+        }
+    }
+
     #[inline(always)]
     pub fn schedule(&mut self, event: Event, after: u64) {
         let event = ScheduledEvent {

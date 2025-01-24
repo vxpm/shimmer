@@ -5,16 +5,20 @@ mod texture;
 mod triangle;
 mod vram;
 
-pub use context::Config;
 use context::Context;
 use display::DisplayRenderer;
 use rectangle::RectangleRenderer;
-use shimmer_core::gpu::renderer::{Command, Vertex};
-use std::sync::{Arc, Mutex, mpsc::Receiver};
-use tinylog::{Logger, debug, warn};
+use shimmer_core::gpu::renderer::{Command, Renderer, Vertex};
+use std::sync::{
+    Arc, Mutex,
+    mpsc::{Sender, channel},
+};
+use tinylog::{Logger, debug};
 use triangle::TriangleRenderer;
 use vram::{Rect, Vram};
 use zerocopy::{Immutable, IntoBytes};
+
+pub use context::Config;
 
 #[derive(Debug, Clone, Copy, IntoBytes, Immutable, Default)]
 #[repr(u32)]
@@ -249,22 +253,27 @@ impl Inner {
     }
 }
 
-pub struct Renderer {
+/// A WGPU based renderer implementation.
+///
+/// This type is reference counted and therefore cheaply clonable.
+#[derive(Clone)]
+pub struct WgpuRenderer {
     inner: Arc<Mutex<Inner>>,
-    _thread_handle: std::thread::JoinHandle<()>,
+    sender: Sender<Command>,
 }
 
-impl Renderer {
+impl WgpuRenderer {
     pub fn new(
         device: Arc<wgpu::Device>,
         queue: Arc<wgpu::Queue>,
-        receiver: Receiver<Command>,
         logger: Logger,
         config: Config,
     ) -> Self {
         let inner = Arc::new(Mutex::new(Inner::new(device, queue, logger, config)));
-        let _thread_handle = std::thread::Builder::new()
-            .name("shimmer_wgpu renderer".to_owned())
+        let (sender, receiver) = channel();
+
+        std::thread::Builder::new()
+            .name("shimmer_wgpu renderer".into())
             .spawn({
                 let inner = inner.clone();
                 move || {
@@ -287,14 +296,19 @@ impl Renderer {
             })
             .unwrap();
 
-        Self {
-            inner,
-            _thread_handle,
-        }
+        Self { inner, sender }
     }
 
-    pub fn render(&mut self, pass: &mut wgpu::RenderPass<'_>) {
+    pub fn render(&self, pass: &mut wgpu::RenderPass<'_>) {
         let inner = self.inner.lock().unwrap();
         inner.display_renderer.render(pass);
+    }
+}
+
+impl Renderer for WgpuRenderer {
+    fn exec(&mut self, command: Command) {
+        self.sender
+            .send(command)
+            .expect("rendering thread is alive");
     }
 }

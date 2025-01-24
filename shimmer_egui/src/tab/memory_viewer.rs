@@ -145,43 +145,43 @@ impl MemoryViewer {
         let view = match self.visualization {
             Visualization::U8 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<u8, true>(addr)
                 .to_string(),
             Visualization::U16 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<u16, true>(addr)
                 .to_string(),
             Visualization::U32 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<u32, true>(addr)
                 .to_string(),
             Visualization::I8 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<i8, true>(addr)
                 .to_string(),
             Visualization::I16 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<i16, true>(addr)
                 .to_string(),
             Visualization::I32 => ctx
                 .exclusive
-                .psx
+                .emulator
                 .psx_mut()
                 .read_unaligned::<i32, true>(addr)
                 .to_string(),
             Visualization::F32 => (f32::from_bits(
                 ctx.exclusive
-                    .psx
+                    .emulator
                     .psx_mut()
                     .read_unaligned::<u32, true>(addr),
             ))
@@ -301,7 +301,7 @@ impl MemoryViewer {
                 self.mem_values.extend((0..widths.byte_count).map(|offset| {
                     base.checked_add(offset as u32).map(|addr| {
                         ctx.exclusive
-                            .psx
+                            .emulator
                             .psx_mut()
                             .read_unaligned::<u8, true>(Address(addr))
                     })

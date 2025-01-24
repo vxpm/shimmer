@@ -15,7 +15,7 @@ use eframe::{
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::Emulator;
-use shimmer_wgpu::Renderer;
+use shimmer_wgpu::WgpuRenderer;
 use std::{
     sync::{
         Arc,
@@ -50,8 +50,8 @@ struct Controls {
 
 /// State shared between the GUI and emulation threads that is locked behind a mutex.
 struct ExclusiveState {
-    psx: Emulator,
-    renderer: Arc<Mutex<Renderer>>,
+    emulator: Emulator,
+    renderer: WgpuRenderer,
     timing: Timing,
     controls: Controls,
 
@@ -73,21 +73,19 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let (mut emulator, receiver) = Emulator::with_bios(bios, root_logger);
         let renderer_config = shimmer_wgpu::Config {
             display_tex_format: render_state.target_format,
         };
-
         let device = Arc::clone(&render_state.device);
         let queue = Arc::clone(&render_state.queue);
-        let renderer = Arc::new(Mutex::new(Renderer::new(
+        let renderer = WgpuRenderer::new(
             device,
             queue,
-            receiver,
             log_family.logger("wgpu-renderer", tinylog::Level::Trace),
             renderer_config,
-        )));
+        );
 
+        let mut emulator = Emulator::new(bios, root_logger, renderer.clone());
         if let Some(rom) = sideload_rom {
             use shimmer_core::binrw::BinReaderExt;
             let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
@@ -95,7 +93,7 @@ impl ExclusiveState {
         }
 
         Self {
-            psx: emulator,
+            emulator,
             renderer,
             timing: Timing {
                 running_timer: Timer::new(),
@@ -320,7 +318,7 @@ impl eframe::App for App {
         let mut exclusive = self.state.exclusive.lock();
 
         if dump {
-            std::fs::write("dump.bin", exclusive.psx.psx().memory.ram.as_slice()).unwrap();
+            std::fs::write("dump.bin", exclusive.emulator.psx().memory.ram.as_slice()).unwrap();
         }
 
         if reset {
