@@ -77,6 +77,16 @@ pub struct CopyToVram {
     pub data: Vec<u8>,
 }
 
+/// A data copy from VRAM.
+#[derive(Debug)]
+pub struct CopyFromVram {
+    pub x: u10,
+    pub y: u10,
+    pub width: u10,
+    pub height: u10,
+    pub response: oneshot::Sender<Vec<u8>>,
+}
+
 /// Top-Left position of the display.
 #[derive(Debug, Clone)]
 pub struct DisplayTopLeft {
@@ -92,7 +102,7 @@ pub struct DisplayResolution {
 }
 
 /// A renderer command.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Command {
     // Configuration
     SetDisplayTopLeft(DisplayTopLeft),
@@ -103,6 +113,7 @@ pub enum Command {
 
     // Copy data
     CopyToVram(CopyToVram),
+    CopyFromVram(CopyFromVram),
 
     // Draw stuff
     DrawTriangle(Triangle),

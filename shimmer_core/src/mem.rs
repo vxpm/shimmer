@@ -432,8 +432,8 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Gp0 => {
-                    let bytes = self.gpu.response.as_bytes();
-                    P::read_from_buf(&bytes[offset..])
+                    let value = self.gpu.response_queue.pop_front().unwrap_or_default();
+                    P::read_from_buf(&value.as_bytes()[offset..])
                 }
                 io::Reg::Gp1 => {
                     let bytes = self.gpu.status.as_bytes();

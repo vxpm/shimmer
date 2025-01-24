@@ -14,7 +14,9 @@ shimmer_core = { path = "../shimmer_core" }
 bitos.workspace = true
 bytesize.workspace = true
 easyerr.workspace = true
+oneshot.workspace = true
 tinylog.workspace = true
 wgpu.workspace = true
 zerocopy.workspace = true
+
 bitvec = { version = "1", default-features = false }

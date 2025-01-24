@@ -163,11 +163,6 @@ impl Status {
     }
 }
 
-/// The GPU response for the last request.
-#[bitos(32)]
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Response {}
-
 /// Environment configuration of the GPU.
 #[derive(Debug, Default)]
 pub struct EnvironmentState {
@@ -190,10 +185,10 @@ pub struct DisplayState {
 /// The state of the GPU.
 #[derive(Debug, Default)]
 pub struct Gpu {
-    /// The GPU status. This is the value of GPUSTAT (GP0).
+    /// GPU status. This is the value of GPUSTAT (GP0).
     pub status: Status,
-    /// The GPU status. This is the value of GPUREAD (GP1).
-    pub response: Response,
+    /// GPU response. This is the value of GPUREAD (GP1).
+    pub response_queue: VecDeque<u32>,
     /// The queued packets written to GP0.
     pub render_queue: VecDeque<u32>,
     /// The queued packets written to GP1.

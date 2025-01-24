@@ -9,7 +9,7 @@ use crate::{
             },
         },
         interpreter::{Interpreter, State},
-        renderer::{Command, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
+        renderer::{Command, CopyFromVram, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
     },
     scheduler::Event,
 };
@@ -182,16 +182,36 @@ impl Interpreter {
         psx.scheduler.schedule(Event::DmaUpdate, 0);
     }
 
-    #[expect(clippy::unused_self, reason = "stubbed")]
     fn exec_vram_to_cpu_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
-        // for now, nop
         psx.gpu.status.set_ready_to_send_vram(true);
 
-        // let src = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
-        // let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
-        //
-        // psx.gpu.status.set_ready_to_send_vram(true);
-        // psx.scheduler.schedule(Event::DmaUpdate, 0);
+        let src = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+        let (sender, receiver) = oneshot::channel();
+        let copy = CopyFromVram {
+            x: u10::new(src.x()),
+            y: u10::new(src.y()),
+            width: u10::new(size.width()),
+            height: u10::new(size.height()),
+            response: sender,
+        };
+        self.renderer.exec(Command::CopyFromVram(copy));
+        let data = receiver.recv().unwrap();
+
+        let packed = data.chunks(4).map(|chunk| {
+            let bytes = [
+                chunk[0],
+                chunk[1],
+                chunk.get(2).copied().unwrap_or_default(),
+                chunk.get(3).copied().unwrap_or_default(),
+            ];
+
+            u32::from_le_bytes(bytes)
+        });
+
+        psx.gpu.response_queue.extend(packed);
+        psx.scheduler.schedule(Event::DmaUpdate, 0);
     }
 
     fn exec_rectangle(&mut self, psx: &mut PSX, cmd: RenderingCommand) {

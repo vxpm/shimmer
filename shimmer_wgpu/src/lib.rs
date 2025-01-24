@@ -189,6 +189,83 @@ impl Inner {
                     },
                 );
             }
+            Command::CopyFromVram(copy) => {
+                debug!(
+                    self.ctx.logger(),
+                    "copying from vram";
+                    coords = (copy.x.value(), copy.y.value()),
+                    dimensions = (copy.width.value(), copy.height.value())
+                );
+
+                // create buffer
+                let bytes_per_row = 2 * copy.width.value() as u32;
+                let bytes_per_row_padded =
+                    bytes_per_row.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
+
+                let buffer = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("copy from vram"),
+                    size: bytes_per_row_padded as u64 * copy.height.value() as u64,
+                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                    mapped_at_creation: false,
+                });
+
+                // copy texture to buffer
+                let mut encoder = self
+                    .ctx
+                    .device()
+                    .create_command_encoder(&Default::default());
+
+                encoder.copy_texture_to_buffer(
+                    wgpu::ImageCopyTexture {
+                        texture: self.vram.front_texbundle().texture(),
+                        mip_level: 0,
+                        origin: wgpu::Origin3d {
+                            x: u32::from(copy.x.value()),
+                            y: u32::from(copy.y.value()),
+                            z: 0,
+                        },
+                        aspect: Default::default(),
+                    },
+                    wgpu::ImageCopyBuffer {
+                        buffer: &buffer,
+                        layout: wgpu::ImageDataLayout {
+                            offset: 0,
+                            bytes_per_row: Some(bytes_per_row_padded),
+                            rows_per_image: Some(u32::from(copy.height.value())),
+                        },
+                    },
+                    wgpu::Extent3d {
+                        width: copy.width.value() as u32,
+                        height: copy.height.value() as u32,
+                        depth_or_array_layers: 1,
+                    },
+                );
+
+                self.ctx.queue().submit([encoder.finish()]);
+
+                // copy data to CPU
+                let data = {
+                    let slice = buffer.slice(..);
+
+                    let (sender, receiver) = oneshot::channel();
+                    slice.map_async(wgpu::MapMode::Read, move |result| {
+                        sender.send(result).unwrap();
+                    });
+
+                    self.ctx.device().poll(wgpu::Maintain::Wait);
+                    receiver.recv().unwrap().unwrap();
+
+                    slice.get_mapped_range().to_vec()
+                };
+                buffer.unmap();
+
+                let mut result: Vec<u8> = Vec::with_capacity(data.len());
+                for row in data.chunks_exact(bytes_per_row_padded as usize) {
+                    result.extend(row[..bytes_per_row as usize].iter());
+                }
+
+                copy.response.send(result).unwrap();
+            }
             Command::DrawTriangle(triangle) => {
                 debug!(
                     self.ctx.logger(),

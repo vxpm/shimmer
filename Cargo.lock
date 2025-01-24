@@ -1964,6 +1964,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
+name = "oneshot"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e296cf87e61c9cfc1a61c3c63a0f7f286ed4554e0e22be84e8a38e1d264a2a29"
+
+[[package]]
 name = "orbclient"
 version = "0.3.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2302,6 +2308,7 @@ dependencies = [
  "bitos",
  "bytesize",
  "easyerr",
+ "oneshot",
  "strum",
  "tinylog",
  "zerocopy 0.8.14",
@@ -2335,6 +2342,7 @@ dependencies = [
  "bitvec",
  "bytesize",
  "easyerr",
+ "oneshot",
  "shimmer_core",
  "tinylog",
  "wgpu",
