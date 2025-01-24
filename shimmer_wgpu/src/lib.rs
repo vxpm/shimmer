@@ -214,7 +214,7 @@ impl Inner {
 
                 let rect = triangle_bounding_rect(&triangle.vertices);
                 self.vram_dirty.mark(rect);
-                self.triangle_renderer.enqueue(triangle);
+                self.triangle_renderer.enqueue(&triangle);
             }
             Command::DrawRectangle(rectangle) => {
                 debug!(
@@ -247,7 +247,7 @@ impl Inner {
                     (rectangle.width.value(), rectangle.height.value()),
                 );
                 self.vram_dirty.mark(rect);
-                self.rectangle_renderer.enqueue(rectangle);
+                self.rectangle_renderer.enqueue(&rectangle);
             }
         }
     }

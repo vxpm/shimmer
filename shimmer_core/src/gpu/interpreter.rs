@@ -21,8 +21,9 @@ use tinylog::debug;
 
 use super::renderer::Renderer;
 
+/// The state of the interpreter.
 #[derive(Debug, Default)]
-enum Inner {
+enum State {
     #[default]
     Idle,
     /// Waiting for enough data to complete a CPU to VRAM blit
@@ -38,21 +39,21 @@ enum Inner {
 
 /// A GPU packet interpreter.
 pub struct Interpreter {
-    inner: Inner,
+    inner: State,
     renderer: Box<dyn Renderer>,
 }
 
 impl Interpreter {
     pub fn new(renderer: impl Renderer + 'static) -> Self {
         Self {
-            inner: Inner::default(),
+            inner: State::default(),
             renderer: Box::new(renderer),
         }
     }
 
     fn exec_queued_render(&mut self, psx: &mut PSX) {
         match &mut self.inner {
-            Inner::Idle => {
+            State::Idle => {
                 if let Some(packet) = psx.gpu.render_queue.front() {
                     let cmd = RenderingCommand::from_bits(*packet);
                     if psx.gpu.render_queue.len() <= cmd.args() {
@@ -70,7 +71,7 @@ impl Interpreter {
                     self.exec_queued_render(psx);
                 }
             }
-            Inner::CpuToVramBlit { dest: _dest, size } => {
+            State::CpuToVramBlit { dest: _dest, size } => {
                 let count = (size.width() * size.height() + 1) / 2;
                 if psx.gpu.render_queue.len() < count as usize {
                     return;
@@ -96,14 +97,14 @@ impl Interpreter {
                     data,
                 }));
 
-                self.inner = Inner::Idle;
+                self.inner = State::Idle;
 
                 psx.gpu.status.set_ready_to_send_vram(false);
                 psx.scheduler.schedule(Event::DmaUpdate, 0);
 
                 self.exec_queued_render(psx);
             }
-            Inner::PolyLine { cmd, received } => {
+            State::PolyLine { cmd, received } => {
                 let Some(front) = psx.gpu.render_queue.front() else {
                     return;
                 };
@@ -111,7 +112,7 @@ impl Interpreter {
                 if *received >= 2 && (front & 0xF000_F000 == 0x5000_5000) {
                     debug!(psx.loggers.gpu, "exiting polyline mode",);
                     psx.gpu.render_queue.pop_front();
-                    self.inner = Inner::Idle;
+                    self.inner = State::Idle;
                     self.exec_queued_render(psx);
                     return;
                 }

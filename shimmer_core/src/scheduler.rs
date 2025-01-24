@@ -24,7 +24,7 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn priority(&self) -> u8 {
+    pub fn priority(self) -> u8 {
         match self {
             Event::Cpu => 0,
             Event::VBlank => 1,
@@ -40,7 +40,7 @@ impl Event {
 
 impl PartialOrd for Event {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.priority().partial_cmp(&other.priority())
+        Some(self.cmp(other))
     }
 }
 
@@ -64,6 +64,12 @@ struct ScheduledEvent {
 pub struct Scheduler {
     elapsed: u64,
     scheduled: Vec<ScheduledEvent>,
+}
+
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Scheduler {

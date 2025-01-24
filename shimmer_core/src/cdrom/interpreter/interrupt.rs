@@ -1,6 +1,6 @@
 use crate::{
     PSX,
-    cdrom::{Interpreter, InterruptKind, InterruptMask, InterruptStatus},
+    cdrom::{Interpreter, InterruptMask, InterruptStatus},
 };
 use bitos::{bitos, integer::u3};
 use tinylog::{debug, info};

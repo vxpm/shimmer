@@ -149,8 +149,9 @@ impl LinkedTransfer {
     }
 }
 
+/// The state of the executor.
 #[derive(Default)]
-enum ExecutorInner {
+enum State {
     #[default]
     Idle,
     BurstTransfer(BurstTransfer),
@@ -166,25 +167,22 @@ fn update_master_interrupt(psx: &mut PSX) {
 
 /// A DMA transfer executor.
 #[derive(Default)]
-pub struct Executor(ExecutorInner);
+pub struct Executor(State);
 
 impl Executor {
     #[inline(always)]
     pub fn ongoing(&self) -> bool {
-        match self.0 {
-            ExecutorInner::Idle => false,
-            _ => true,
-        }
+        !matches!(self.0, State::Idle)
     }
 
     pub fn advance(&mut self, psx: &mut PSX) {
         update_master_interrupt(psx);
 
         let (channel, progress) = match &mut self.0 {
-            ExecutorInner::BurstTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            ExecutorInner::SliceTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            ExecutorInner::LinkedTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
-            ExecutorInner::Idle => unreachable!(),
+            State::BurstTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            State::SliceTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            State::LinkedTransfer(transfer) => (transfer.channel, transfer.advance(psx)),
+            State::Idle => unreachable!(),
         };
 
         match channel {
@@ -234,7 +232,7 @@ impl Executor {
                     "finished transfer on channel {channel:?}";
                 );
 
-                self.0 = ExecutorInner::Idle;
+                self.0 = State::Idle;
 
                 let channel_control = &mut psx.dma.channels[channel as usize].control;
                 channel_control.set_transfer_ongoing(false);
@@ -256,7 +254,7 @@ impl Executor {
     pub fn update(&mut self, psx: &mut PSX) {
         update_master_interrupt(psx);
 
-        if matches!(self.0, ExecutorInner::Idle) {
+        if matches!(self.0, State::Idle) {
             let mut enabled_channels = psx.dma.control.enabled_channels();
             enabled_channels.sort_unstable_by_key(|(_, priority)| std::cmp::Reverse(*priority));
 
@@ -303,7 +301,7 @@ impl Executor {
                                 base = Address(current_addr), remaining = remaining
                             );
 
-                            self.0 = ExecutorInner::BurstTransfer(BurstTransfer {
+                            self.0 = State::BurstTransfer(BurstTransfer {
                                 channel,
                                 current_addr,
                                 remaining,
@@ -315,7 +313,7 @@ impl Executor {
                                 "starting slice transfer on channel {channel:?}";
                             );
 
-                            self.0 = ExecutorInner::SliceTransfer(SliceTransfer { channel });
+                            self.0 = State::SliceTransfer(SliceTransfer { channel });
                         }
                         TransferMode::LinkedList => {
                             info!(
@@ -323,7 +321,7 @@ impl Executor {
                                 "starting linked transfer on channel {channel:?}";
                             );
 
-                            self.0 = ExecutorInner::LinkedTransfer(LinkedTransfer { channel });
+                            self.0 = State::LinkedTransfer(LinkedTransfer { channel });
                         }
                     }
 

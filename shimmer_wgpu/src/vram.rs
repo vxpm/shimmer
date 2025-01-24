@@ -24,8 +24,8 @@ impl Vram {
             &wgpu::TextureDescriptor {
                 label: Some("psx vram back buffer"),
                 size: wgpu::Extent3d {
-                    width: VRAM_WIDTH as u32,
-                    height: VRAM_HEIGHT as u32,
+                    width: u32::from(VRAM_WIDTH),
+                    height: u32::from(VRAM_HEIGHT),
                     depth_or_array_layers: 1,
                 },
                 usage: wgpu::TextureUsages::COPY_SRC
@@ -44,8 +44,8 @@ impl Vram {
             &wgpu::TextureDescriptor {
                 label: Some("psx vram front buffer"),
                 size: wgpu::Extent3d {
-                    width: VRAM_WIDTH as u32,
-                    height: VRAM_HEIGHT as u32,
+                    width: u32::from(VRAM_WIDTH),
+                    height: u32::from(VRAM_HEIGHT),
                     depth_or_array_layers: 1,
                 },
                 usage: wgpu::TextureUsages::COPY_SRC

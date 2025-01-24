@@ -8,7 +8,7 @@ use crate::{
                 VertexColorPacket, VertexPositionPacket, VertexUVPacket,
             },
         },
-        interpreter::{Inner, Interpreter},
+        interpreter::{Interpreter, State},
         renderer::{Command, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
     },
     scheduler::Event,
@@ -37,6 +37,7 @@ impl VertexPackets {
 }
 
 impl Interpreter {
+    #[expect(clippy::unused_self, reason = "stubbed")]
     fn exec_quick_rect_fill(&mut self, psx: &mut PSX, _: RenderingCommand) {
         debug!(
             psx.loggers.gpu,
@@ -148,6 +149,7 @@ impl Interpreter {
         }
     }
 
+    #[expect(clippy::unused_self, reason = "consistency")]
     fn exec_drawing_settings(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let settings = cmd.drawing_settings_cmd();
         let stat = &mut psx.gpu.status;
@@ -174,12 +176,13 @@ impl Interpreter {
         let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
         debug!(psx.loggers.gpu, "starting CPU to VRAM blit"; dest = dest.clone(), size = size.clone());
-        self.inner = Inner::CpuToVramBlit { dest, size };
+        self.inner = State::CpuToVramBlit { dest, size };
 
         psx.gpu.status.set_ready_to_send_vram(true);
         psx.scheduler.schedule(Event::DmaUpdate, 0);
     }
 
+    #[expect(clippy::unused_self, reason = "stubbed")]
     fn exec_vram_to_cpu_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
         // for now, nop
         psx.gpu.status.set_ready_to_send_vram(true);
@@ -253,7 +256,7 @@ impl Interpreter {
             }
             LineMode::Poly => {
                 debug!(psx.loggers.gpu, "starting polyline mode",);
-                self.inner = Inner::PolyLine { cmd, received: 0 };
+                self.inner = State::PolyLine { cmd, received: 0 };
             }
         }
     }

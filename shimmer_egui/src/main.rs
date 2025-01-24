@@ -23,9 +23,8 @@ use std::{
     },
     time::Duration,
 };
-use tab::Tab;
 use tab::{
-    breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
+    Tab, breakpoints::Breakpoints, instruction_viewer::InstructionViewer, log_viewer::LogViewer,
     memory_viewer::MemoryViewer, screen::Screen, system_control::SystemControl, tty::Terminal,
 };
 use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};

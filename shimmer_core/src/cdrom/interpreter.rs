@@ -15,10 +15,6 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    fn switch_bank(&mut self, psx: &mut PSX, bank: Bank) {
-        psx.cdrom.status.set_bank(bank);
-    }
-
     fn next_interrupt(&mut self, psx: &mut PSX) {
         if psx.cdrom.interrupt_status.kind() == InterruptKind::None
             && let Some(kind) = self.interrupt_queue.pop_front()
@@ -37,7 +33,8 @@ impl Interpreter {
                     match (reg, psx.cdrom.status.bank()) {
                         (Reg::Reg0, _) => {
                             let bank = Bank::from_repr(value as usize & 0b11).unwrap();
-                            self.switch_bank(psx, bank);
+                            psx.cdrom.status.set_bank(bank);
+
                             trace!(psx.loggers.cdrom, "switched to {:?}", bank);
                         }
 

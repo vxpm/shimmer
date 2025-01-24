@@ -156,7 +156,7 @@ impl TriangleRenderer {
     }
 
     /// Enqueues the given triangle to be drawn.
-    pub fn enqueue(&mut self, triangle: Triangle) {
+    pub fn enqueue(&mut self, triangle: &Triangle) {
         let config = match triangle.texture {
             Some(config) => TriangleConfig {
                 kind: config.texpage.depth().into(),

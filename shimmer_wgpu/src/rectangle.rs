@@ -123,7 +123,7 @@ impl RectangleRenderer {
     }
 
     /// Enqueues the given rectangle to be drawn.
-    pub fn enqueue(&mut self, rect: Rectangle) {
+    pub fn enqueue(&mut self, rect: &Rectangle) {
         let config = match rect.texture {
             Some(config) => RectangleConfig {
                 color: rect.color,
