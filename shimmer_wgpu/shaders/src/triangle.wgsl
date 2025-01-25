@@ -28,13 +28,20 @@ struct Config {
 fn vs_main(in: VertexIn) -> VertexOut {
     var out: VertexOut;
 
-    var pos = vec2<f32>(
-        unorm_to_snorm(f32(in.xy.x) / 1024.0),
-        -unorm_to_snorm(f32(in.xy.y) / 512.0)
+    var coords = vec2f(
+        f32(in.xy.x),
+        f32(in.xy.y),
     );
-    out.position = vec4<f32>(pos, 0.0, 1.0);
-    out.rgba = vec4<f32>(in.rgba) / 255.0;
-    out.uv = vec2<f32>(in.uv) / 255.0;
+
+    var pos = vec2f(
+        unorm_to_snorm(coords.x / 1024.0),
+        -unorm_to_snorm(coords.y / 512.0)
+    );
+
+    out.position = vec4f(pos, 0.0, 1.0);
+
+    out.rgba = vec4f(in.rgba) / 255.0;
+    out.uv = vec2f(in.uv) / 255.0;
     out.config_index = in.index / 3;
 
     return out;
@@ -60,7 +67,7 @@ fn dither_norm_rgba(coords: vec2u, value: vec4f) -> vec4f {
 fn fs_main(in: VertexOut) -> @location(0) u32 {
     var config = configs[in.config_index];
 
-    var vram_coords = vec2u(u32(in.position.x), u32(in.position.y));
+    var vram_coords = vec2u(u32(floor(in.position.x)), u32(floor(in.position.y)));
     var clut_coords = vec2u(config.clut_x, config.clut_y);
     var texpage_base_coords = vec2u(config.texpage_x, config.texpage_y);
 

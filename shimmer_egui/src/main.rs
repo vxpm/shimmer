@@ -383,7 +383,7 @@ fn main() {
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.inner_size = Some(egui::Vec2::new(1333.0, 1000.0));
-    native_options.viewport.maximized = Some(false);
+    native_options.viewport.maximized = Some(true);
 
     let result = eframe::run_native(
         "shimmer - psx",

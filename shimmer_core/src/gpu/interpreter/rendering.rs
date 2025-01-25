@@ -98,8 +98,8 @@ impl Interpreter {
         ];
         let tri_2 = [
             vertex_b.to_vertex(),
-            vertex_d.to_vertex(),
             vertex_c.to_vertex(),
+            vertex_d.to_vertex(),
         ];
 
         if cmd.textured() {
