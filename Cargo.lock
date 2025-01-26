@@ -2328,7 +2328,7 @@ dependencies = [
  "egui_table",
  "parking_lot",
  "shimmer_core",
- "shimmer_wgpu",
+ "shimmer_wgpu_compute",
  "si-scale",
  "strum",
  "tinylog",
@@ -2336,6 +2336,22 @@ dependencies = [
 
 [[package]]
 name = "shimmer_wgpu"
+version = "0.1.0"
+dependencies = [
+ "bitos",
+ "bitvec",
+ "bytesize",
+ "easyerr",
+ "oneshot",
+ "shimmer_core",
+ "tinylog",
+ "wgpu",
+ "wgsl_composer",
+ "zerocopy 0.8.14",
+]
+
+[[package]]
+name = "shimmer_wgpu_compute"
 version = "0.1.0"
 dependencies = [
  "bitos",

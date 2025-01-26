@@ -1,3 +1,4 @@
 /target
 /resources
 /shimmer_wgpu/shaders/built
+/shimmer_wgpu_compute/shaders/built
