@@ -42,10 +42,10 @@ var<uniform> display_area: DisplayArea;
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    let top_left_x = extractBits(display_area.top_left, 0u, 16u);
-    let top_left_y = extractBits(display_area.top_left, 16u, 16u);
-    let dimensions_x = extractBits(display_area.dimensions, 0u, 16u);
-    let dimensions_y = extractBits(display_area.dimensions, 16u, 16u);
+    var top_left_x = extractBits(display_area.top_left, 0u, 16u);
+    var top_left_y = extractBits(display_area.top_left, 16u, 16u);
+    var dimensions_x = extractBits(display_area.dimensions, 0u, 16u);
+    var dimensions_y = extractBits(display_area.dimensions, 16u, 16u);
 
     var x = f32(top_left_x) + in.uv.x * f32(dimensions_x);
     var y = f32(top_left_y) + in.uv.y * f32(dimensions_y);

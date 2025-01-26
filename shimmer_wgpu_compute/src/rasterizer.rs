@@ -1,25 +1,25 @@
 use crate::{context::Context, vram::Vram};
+use encase::{ShaderType, StorageBuffer};
+use glam::{IVec2, UVec4};
 use shimmer_core::gpu::renderer::Triangle;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
-use zerocopy::{FromBytes, Immutable, IntoBytes};
 
-#[repr(C, align(16))]
-#[derive(FromBytes, IntoBytes, Immutable)]
+#[derive(Debug, Clone, ShaderType)]
 struct SimpleVertex {
-    color_r: u32,
-    color_g: u32,
-    color_b: u32,
-    color_a: u32,
-    x: u32,
-    y: u32,
-    _padding: [u32; 2],
+    rgba: UVec4,
+    coords: IVec2,
 }
 
-#[repr(C)]
-#[derive(FromBytes, IntoBytes, Immutable)]
+#[derive(Debug, Clone, ShaderType)]
 struct TrianglePrimitive {
     vertices: [SimpleVertex; 3],
+}
+
+#[derive(ShaderType)]
+struct TrianglePrimitiveArray {
+    #[size(runtime)]
+    triangles: Vec<TrianglePrimitive>,
 }
 
 pub struct Rasterizer {
@@ -87,13 +87,8 @@ impl Rasterizer {
     pub fn enqueue(&mut self, triangle: Triangle) {
         self.triangles.push(TrianglePrimitive {
             vertices: triangle.vertices.map(|v| SimpleVertex {
-                color_r: 255,
-                color_g: 255,
-                color_b: 255,
-                color_a: 255,
-                x: v.x.value() as u32,
-                y: v.y.value() as u32,
-                _padding: [0; 2],
+                rgba: UVec4::new(v.color.r as u32, v.color.g as u32, v.color.b as u32, 255),
+                coords: IVec2::new(v.x.value() as i32, v.y.value() as i32),
             }),
         });
     }
@@ -106,13 +101,19 @@ impl Rasterizer {
         println!("rendering {} triangles", self.triangles.len());
 
         // build triangles buffer
+        let mut data = StorageBuffer::new(Vec::new());
+        let triangles = TrianglePrimitiveArray {
+            triangles: self.triangles.clone(),
+        };
+        data.write(&triangles).unwrap();
+
         let triangles_buffer =
             self.ctx
                 .device()
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("triangles"),
                     usage: wgpu::BufferUsages::STORAGE,
-                    contents: self.triangles.as_bytes(),
+                    contents: &data.into_inner(),
                 });
 
         let triangle_bind_group = self

@@ -20,3 +20,5 @@ wgpu.workspace = true
 zerocopy.workspace = true
 
 bitvec = { version = "1", default-features = false }
+encase = { version = "0.10", features = ["glam"] }
+glam = "0.29"

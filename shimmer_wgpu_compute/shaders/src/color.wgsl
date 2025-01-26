@@ -5,7 +5,7 @@ struct Rgb5m {
 }
 
 fn rgb5m_to_rgba_norm(rgb5m: Rgb5m) -> RgbaNorm {
-    let rgb5 = vec3u(
+    var rgb5 = vec3u(
         extractBits(rgb5m.value, 0u, 5u),
         extractBits(rgb5m.value, 5u, 5u),
         extractBits(rgb5m.value, 10u, 5u)
