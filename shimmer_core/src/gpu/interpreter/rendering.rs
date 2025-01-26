@@ -31,7 +31,6 @@ impl VertexPackets {
             y: self.position.y(),
             u: self.uv.u(),
             v: self.uv.v(),
-            _padding: 0,
         }
     }
 }

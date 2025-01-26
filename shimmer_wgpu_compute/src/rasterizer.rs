@@ -16,6 +16,21 @@ struct TrianglePrimitive {
     vertices: [SimpleVertex; 3],
 }
 
+impl TrianglePrimitive {
+    pub fn sort(&mut self) {
+        let center =
+            (self.vertices[0].coords + self.vertices[1].coords + self.vertices[2].coords) / 3;
+
+        self.vertices.sort_by_key(|v| {
+            let relative = v.coords - center;
+            let x = relative.x as f32;
+            let y = relative.y as f32;
+
+            ordered_float::OrderedFloat(y.atan2(x))
+        });
+    }
+}
+
 #[derive(ShaderType)]
 struct TrianglePrimitiveArray {
     #[size(runtime)]
@@ -85,12 +100,15 @@ impl Rasterizer {
     }
 
     pub fn enqueue(&mut self, triangle: Triangle) {
-        self.triangles.push(TrianglePrimitive {
+        let mut triangle = TrianglePrimitive {
             vertices: triangle.vertices.map(|v| SimpleVertex {
                 rgba: UVec4::new(v.color.r as u32, v.color.g as u32, v.color.b as u32, 255),
                 coords: IVec2::new(v.x.value() as i32, v.y.value() as i32),
             }),
-        });
+        };
+
+        triangle.sort();
+        self.triangles.push(triangle);
     }
 
     pub fn flush(&mut self) {

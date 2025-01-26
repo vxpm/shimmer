@@ -29,14 +29,12 @@ impl Rgba8 {
 
 /// A single triangle vertex.
 #[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
-#[repr(C)]
 pub struct Vertex {
     pub color: Rgba8,
     pub x: i11,
     pub y: i11,
     pub u: u8,
     pub v: u8,
-    pub _padding: u16,
 }
 
 /// Texture configuration.

@@ -70,7 +70,6 @@ impl Inner {
     fn exec(&mut self, command: Command) {
         match command {
             Command::VBlank => {
-                println!("VBlank");
                 self.rasterizer.flush();
             }
             Command::DrawTriangle(triangle) => {
