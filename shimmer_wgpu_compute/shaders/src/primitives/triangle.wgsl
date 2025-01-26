@@ -6,11 +6,17 @@ struct Triangle {
     vertices: array<Vertex, 3>,
 }
 
-fn cross_2d(a: vec2i, b: vec2i) -> i32 {
+fn _triangle_cross_2d(a: vec2i, b: vec2i) -> i32 {
     return a.x * b.y - a.y * b.x;
 }
 
-fn triangle_barycentric_point_coords(triangle: Triangle, point: vec2i) -> vec3f {
+fn _triangle_is_top_or_left_edge(edge: vec2i) -> bool {
+    var is_top = edge.y == 0 && edge.x < 0;
+    var is_left = edge.y < 0;
+    return is_top || is_left;
+}
+
+fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
     let ap = point - triangle.vertices[0].coords;
     let bp = point - triangle.vertices[1].coords;
     let cp = point - triangle.vertices[2].coords;
@@ -19,10 +25,14 @@ fn triangle_barycentric_point_coords(triangle: Triangle, point: vec2i) -> vec3f 
     let bc = triangle.vertices[2].coords - triangle.vertices[1].coords;
     let ca = triangle.vertices[0].coords - triangle.vertices[2].coords;
 
-    let total = abs(f32(cross_2d(ab, ca)));
-    let wc = f32(cross_2d(ab, ap)) / total;
-    let wa = f32(cross_2d(bc, bp)) / total;
-    let wb = f32(cross_2d(ca, cp)) / total;
+    let bias_a = select(0, 1, _triangle_is_top_or_left_edge(bc));
+    let bias_b = select(0, 1, _triangle_is_top_or_left_edge(ca));
+    let bias_c = select(0, 1, _triangle_is_top_or_left_edge(ab));
+
+    let total = abs(f32(_triangle_cross_2d(ab, ca)));
+    let wa = f32(_triangle_cross_2d(bc, bp) - bias_a) / total;
+    let wb = f32(_triangle_cross_2d(ca, cp) - bias_b) / total;
+    let wc = f32(_triangle_cross_2d(ab, ap) - bias_c) / total;
 
     return vec3f(wa, wb, wc);
 }

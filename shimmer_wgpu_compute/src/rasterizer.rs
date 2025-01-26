@@ -116,8 +116,6 @@ impl Rasterizer {
             return;
         }
 
-        println!("rendering {} triangles", self.triangles.len());
-
         // build triangles buffer
         let mut data = StorageBuffer::new(Vec::new());
         let triangles = TrianglePrimitiveArray {
