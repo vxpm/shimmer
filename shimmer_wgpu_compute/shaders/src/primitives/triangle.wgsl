@@ -12,33 +12,34 @@ struct Triangle {
     texture: TextureConfig,
 }
 
-fn _triangle_cross_2d(a: vec2i, b: vec2i) -> i32 {
+fn _triangle_cross_2d(a: vec2f, b: vec2f) -> f32 {
     return a.x * b.y - a.y * b.x;
 }
 
-fn _triangle_is_top_or_left_edge(edge: vec2i) -> bool {
+fn _triangle_is_top_or_left_edge(edge: vec2f) -> bool {
     var is_top = edge.y == 0 && edge.x < 0;
     var is_left = edge.y < 0;
     return is_top || is_left;
 }
 
 fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
-    let ap = point - triangle.vertices[0].coords;
-    let bp = point - triangle.vertices[1].coords;
-    let cp = point - triangle.vertices[2].coords;
+    let offset = vec2f(0.5);
+    let ap = vec2f(point - triangle.vertices[0].coords) + offset;
+    let bp = vec2f(point - triangle.vertices[1].coords) + offset;
+    let cp = vec2f(point - triangle.vertices[2].coords) + offset;
 
-    let ab = triangle.vertices[1].coords - triangle.vertices[0].coords;
-    let bc = triangle.vertices[2].coords - triangle.vertices[1].coords;
-    let ca = triangle.vertices[0].coords - triangle.vertices[2].coords;
+    let ab = vec2f(triangle.vertices[1].coords - triangle.vertices[0].coords);
+    let bc = vec2f(triangle.vertices[2].coords - triangle.vertices[1].coords);
+    let ca = vec2f(triangle.vertices[0].coords - triangle.vertices[2].coords);
 
-    let bias_a = select(0, 1, _triangle_is_top_or_left_edge(bc));
-    let bias_b = select(0, 1, _triangle_is_top_or_left_edge(ca));
-    let bias_c = select(0, 1, _triangle_is_top_or_left_edge(ab));
+    let bias_a = select(0.0, 0.5, _triangle_is_top_or_left_edge(bc));
+    let bias_b = select(0.0, 0.5, _triangle_is_top_or_left_edge(ca));
+    let bias_c = select(0.0, 0.5, _triangle_is_top_or_left_edge(ab));
 
-    let total = abs(f32(_triangle_cross_2d(ab, ca)));
-    let wa = f32(_triangle_cross_2d(bc, bp) - bias_a);
-    let wb = f32(_triangle_cross_2d(ca, cp) - bias_b);
-    let wc = f32(_triangle_cross_2d(ab, ap) - bias_c);
+    let total = abs(_triangle_cross_2d(ab, ca));
+    let wa = _triangle_cross_2d(bc, bp) - bias_a;
+    let wb = _triangle_cross_2d(ca, cp) - bias_b;
+    let wc = _triangle_cross_2d(ab, ap) - bias_c;
 
     return vec3f(wa, wb, wc) / total;
 }
@@ -56,5 +57,5 @@ fn triangle_uv(triangle: Triangle, bary_coords: vec3f) -> vec2u {
     let b = vec2f(triangle.vertices[1].uv) * bary_coords.y;
     let c = vec2f(triangle.vertices[2].uv) * bary_coords.z;
 
-    return vec2u(floor(a + b + c));
+    return vec2u(round(a + b + c));
 }
