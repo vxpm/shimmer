@@ -36,11 +36,11 @@ fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
     let bias_c = select(0, 1, _triangle_is_top_or_left_edge(ab));
 
     let total = abs(f32(_triangle_cross_2d(ab, ca)));
-    let wa = f32(_triangle_cross_2d(bc, bp) - bias_a) / total;
-    let wb = f32(_triangle_cross_2d(ca, cp) - bias_b) / total;
-    let wc = f32(_triangle_cross_2d(ab, ap) - bias_c) / total;
+    let wa = f32(_triangle_cross_2d(bc, bp) - bias_a);
+    let wb = f32(_triangle_cross_2d(ca, cp) - bias_b);
+    let wc = f32(_triangle_cross_2d(ab, ap) - bias_c);
 
-    return vec3f(wa, wb, wc);
+    return vec3f(wa, wb, wc) / total;
 }
 
 fn triangle_color(triangle: Triangle, bary_coords: vec3f) -> RgbaNorm {
@@ -56,5 +56,5 @@ fn triangle_uv(triangle: Triangle, bary_coords: vec3f) -> vec2u {
     let b = vec2f(triangle.vertices[1].uv) * bary_coords.y;
     let c = vec2f(triangle.vertices[2].uv) * bary_coords.z;
 
-    return vec2u(round(a + b + c));
+    return vec2u(ceil(a + b + c));
 }
