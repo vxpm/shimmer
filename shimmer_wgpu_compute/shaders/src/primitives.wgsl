@@ -1,5 +1,6 @@
 //!include color
 //!include primitives/triangle
+//!include primitives/rectangle
 
 // A single vertex of a primitive.
 struct Vertex {

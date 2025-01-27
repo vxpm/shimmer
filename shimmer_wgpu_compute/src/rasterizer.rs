@@ -8,7 +8,10 @@ use crate::{
 use dirty::{DirtyRegions, Region};
 use encase::{ShaderType, StorageBuffer};
 use glam::{IVec2, UVec2, UVec4};
-use shimmer_core::gpu::{cmd::environment::TexPageDepth, renderer::Triangle as RendererTriangle};
+use shimmer_core::gpu::{
+    cmd::environment::TexPageDepth,
+    renderer::{Rectangle as RendererRectangle, Triangle as RendererTriangle},
+};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
@@ -70,11 +73,33 @@ impl Triangle {
     }
 }
 
+#[derive(Debug, Clone, ShaderType)]
+struct Rectangle {
+    top_left: IVec2,
+    top_left_uv: UVec2,
+    dimensions: UVec2,
+    rgba: UVec4,
+    texture_config: TextureConfig,
+}
+
+impl Rectangle {
+    pub fn bounding_region(&self) -> Region {
+        Region::new(
+            (
+                self.top_left.x.clamp(0, VRAM_WIDTH as i32) as u16,
+                self.top_left.y.clamp(0, VRAM_WIDTH as i32) as u16,
+            ),
+            (self.dimensions.x as u16, self.dimensions.y as u16),
+        )
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoBytes, Immutable)]
 #[repr(u32)]
 enum Command {
     Barrier,
     Triangle,
+    Rectangle,
 }
 
 pub struct Rasterizer {
@@ -86,6 +111,7 @@ pub struct Rasterizer {
 
     commands: Vec<Command>,
     triangles: Vec<Triangle>,
+    rectangles: Vec<Rectangle>,
     dirty: DirtyRegions,
 }
 
@@ -112,6 +138,16 @@ impl Rasterizer {
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
                             visibility: wgpu::ShaderStages::COMPUTE,
                             ty: wgpu::BindingType::Buffer {
                                 ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -151,6 +187,7 @@ impl Rasterizer {
 
             commands: Vec::with_capacity(64),
             triangles: Vec::with_capacity(64),
+            rectangles: Vec::with_capacity(64),
             dirty: DirtyRegions::default(),
         }
     }
@@ -205,6 +242,61 @@ impl Rasterizer {
         self.triangles.push(primitive);
     }
 
+    pub fn enqueue_rectangle(&mut self, rectangle: RendererRectangle) {
+        let texture_config = if let Some(texture) = &rectangle.texture {
+            let region = Region::new(
+                (
+                    u16::from(texture.texpage.x_base().value()) * 64,
+                    u16::from(texture.texpage.y_base().value()) * 256,
+                ),
+                (64, 256),
+            );
+
+            if self.dirty.is_dirty(region) {
+                self.commands.push(Command::Barrier);
+                self.dirty.clear();
+            }
+
+            TextureConfig {
+                mode: match texture.texpage.depth() {
+                    TexPageDepth::Nibble => 1,
+                    TexPageDepth::Byte => 2,
+                    TexPageDepth::Full | TexPageDepth::Reserved => 3,
+                },
+                clut: UVec2::new(
+                    texture.clut.x_by_16().value() as u32 * 16,
+                    texture.clut.y().value() as u32,
+                ),
+                texpage: UVec2::new(
+                    texture.texpage.x_base().value() as u32 * 64,
+                    texture.texpage.y_base().value() as u32 * 256,
+                ),
+            }
+        } else {
+            TextureConfig::default()
+        };
+
+        let primitive = Rectangle {
+            top_left: IVec2::new(rectangle.x.value() as i32, rectangle.y.value() as i32),
+            top_left_uv: UVec2::new(rectangle.u as u32, rectangle.v as u32),
+            dimensions: UVec2::new(
+                rectangle.width.value() as u32,
+                rectangle.height.value() as u32,
+            ),
+            rgba: UVec4::new(
+                rectangle.color.r as u32,
+                rectangle.color.g as u32,
+                rectangle.color.b as u32,
+                255,
+            ),
+            texture_config,
+        };
+
+        self.dirty.mark(primitive.bounding_region());
+        self.commands.push(Command::Rectangle);
+        self.rectangles.push(primitive);
+    }
+
     pub fn flush(&mut self) {
         if self.commands.is_empty() {
             return;
@@ -234,6 +326,19 @@ impl Rasterizer {
                     contents: &data.into_inner(),
                 });
 
+        let mut data = StorageBuffer::new(Vec::new());
+        let rectangles = ShaderSlice::new(&self.rectangles);
+        data.write(&rectangles).unwrap();
+
+        let rectangles_buffer =
+            self.ctx
+                .device()
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("rectangles"),
+                    usage: wgpu::BufferUsages::STORAGE,
+                    contents: &data.into_inner(),
+                });
+
         // bind group
         let rasterizer_bind_group =
             self.ctx
@@ -254,6 +359,14 @@ impl Rasterizer {
                             binding: 1,
                             resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                                 buffer: &triangles_buffer,
+                                offset: 0,
+                                size: None,
+                            }),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                                buffer: &rectangles_buffer,
                                 offset: 0,
                                 size: None,
                             }),

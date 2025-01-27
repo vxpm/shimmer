@@ -76,6 +76,9 @@ impl Inner {
             Command::DrawTriangle(triangle) => {
                 self.rasterizer.enqueue_triangle(triangle);
             }
+            Command::DrawRectangle(rectangle) => {
+                self.rasterizer.enqueue_rectangle(rectangle);
+            }
             Command::SetDisplayTopLeft(display_top_left) => {
                 self.display_renderer
                     .set_display_top_left(display_top_left.x, display_top_left.y);
@@ -93,7 +96,6 @@ impl Inner {
                 self.rasterizer.flush();
                 self.vram.copy_to_vram(copy);
             }
-            _ => (),
         }
     }
 }

@@ -22,6 +22,20 @@ fn texture_texel(config: TextureConfig, uv: vec2u) -> Rgb5m {
 
             return texel;
         }
+        case TEXTURE_MODE_LUT8 {
+            var texpage_vram_coords = config.texpage + uv / vec2u(2, 1);
+            var texel_index_group = vram_get_color_rgb5m(texpage_vram_coords);
+
+            var clut_index = extractBits(texel_index_group.value, 8 * (uv.x % 2), 8u);
+            var texel = vram_get_color_rgb5m(config.clut + vec2u(clut_index, 0));
+
+            return texel;
+        }
+        case TEXTURE_MODE_FULL {
+            var texpage_vram_coords = config.texpage + uv;
+            var texel = vram_get_color_rgb5m(texpage_vram_coords);
+            return texel;
+        }
         default: {
             return RGB5M_PLACEHOLDER;
         }
