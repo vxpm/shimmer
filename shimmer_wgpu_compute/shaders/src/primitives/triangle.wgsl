@@ -56,5 +56,5 @@ fn triangle_uv(triangle: Triangle, bary_coords: vec3f) -> vec2u {
     let b = vec2f(triangle.vertices[1].uv) * bary_coords.y;
     let c = vec2f(triangle.vertices[2].uv) * bary_coords.z;
 
-    return vec2u(ceil(a + b + c));
+    return vec2u(floor(a + b + c));
 }

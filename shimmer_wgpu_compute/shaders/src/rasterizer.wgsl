@@ -43,7 +43,7 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
                         }
                         case TEXTURE_MODE_LUT4 {
                             let uv = triangle_uv(triangle, bary_coords);
-                            let texel = texture_texel(triangle.texture, vram_coords, uv);
+                            let texel = texture_texel(triangle.texture, uv);
 
                             if texel.value == RGB5M_TRANSPARENT.value {
                                 color = vram_get_color_rgb5m(vram_coords);
