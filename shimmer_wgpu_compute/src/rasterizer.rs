@@ -7,16 +7,17 @@ use crate::{
 };
 use dirty::{DirtyRegions, Region};
 use encase::{ShaderType, StorageBuffer};
-use glam::{IVec2, UVec4};
-use shimmer_core::gpu::renderer::Triangle as RendererTriangle;
+use glam::{IVec2, UVec2, UVec4};
+use shimmer_core::gpu::{cmd::environment::TexPageDepth, renderer::Triangle as RendererTriangle};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
 
 #[derive(Debug, Clone, ShaderType)]
 struct Vertex {
-    rgba: UVec4,
     coords: IVec2,
+    rgba: UVec4,
+    uv: UVec2,
 }
 
 impl Vertex {
@@ -35,9 +36,18 @@ impl Vertex {
     }
 }
 
+#[derive(Debug, Clone, ShaderType, Default)]
+struct TextureConfig {
+    mode: u32,
+    clut: UVec2,
+    texpage: UVec2,
+}
+
 #[derive(Debug, Clone, ShaderType)]
 struct Triangle {
     vertices: [Vertex; 3],
+    shading_mode: u32,
+    texture_config: TextureConfig,
 }
 
 impl Triangle {
@@ -83,7 +93,7 @@ impl Rasterizer {
     pub fn new(ctx: Arc<Context>, vram: &Vram) -> Self {
         let shader = ctx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("../shaders/built/render.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("../shaders/built/rasterizer.wgsl"));
 
         let rasterizer_bind_group_layout =
             ctx.device()
@@ -146,14 +156,7 @@ impl Rasterizer {
     }
 
     pub fn enqueue_triangle(&mut self, triangle: RendererTriangle) {
-        let mut primitive = Triangle {
-            vertices: triangle.vertices.map(|v| Vertex {
-                rgba: UVec4::new(v.color.r as u32, v.color.g as u32, v.color.b as u32, 255),
-                coords: IVec2::new(v.x.value() as i32, v.y.value() as i32),
-            }),
-        };
-
-        if let Some(texture) = &triangle.texture {
+        let texture_config = if let Some(texture) = &triangle.texture {
             let region = Region::new(
                 (
                     u16::from(texture.texpage.x_base().value()) * 64,
@@ -166,7 +169,35 @@ impl Rasterizer {
                 self.commands.push(Command::Barrier);
                 self.dirty.clear();
             }
-        }
+
+            TextureConfig {
+                mode: match texture.texpage.depth() {
+                    TexPageDepth::Nibble => 1,
+                    TexPageDepth::Byte => 2,
+                    TexPageDepth::Full | TexPageDepth::Reserved => 3,
+                },
+                clut: UVec2::new(
+                    texture.clut.x_by_16().value() as u32 * 16,
+                    texture.clut.y().value() as u32,
+                ),
+                texpage: UVec2::new(
+                    texture.texpage.x_base().value() as u32 * 64,
+                    texture.texpage.y_base().value() as u32 * 256,
+                ),
+            }
+        } else {
+            TextureConfig::default()
+        };
+
+        let mut primitive = Triangle {
+            vertices: triangle.vertices.map(|v| Vertex {
+                coords: IVec2::new(v.x.value() as i32, v.y.value() as i32),
+                rgba: UVec4::new(v.color.r as u32, v.color.g as u32, v.color.b as u32, 255),
+                uv: UVec2::new(v.u as u32, v.v as u32),
+            }),
+            shading_mode: triangle.shading as u32,
+            texture_config,
+        };
 
         Vertex::sort(&mut primitive.vertices);
         self.dirty.mark(primitive.bounding_region());

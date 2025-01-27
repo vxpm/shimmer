@@ -89,6 +89,10 @@ impl Inner {
             Command::CopyFromVram(copy) => {
                 copy.response.send(Vec::new()).unwrap();
             }
+            Command::CopyToVram(copy) => {
+                self.rasterizer.flush();
+                self.vram.copy_to_vram(copy);
+            }
             _ => (),
         }
     }

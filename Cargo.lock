@@ -2399,7 +2399,7 @@ dependencies = [
  "shimmer_core",
  "tinylog",
  "wgpu",
- "wgsl_composer",
+ "wgsl_composer 0.1.0 (git+https://github.com/vxpm/wgsl-composer.git)",
  "zerocopy 0.8.14",
 ]
 
@@ -2418,7 +2418,7 @@ dependencies = [
  "shimmer_core",
  "tinylog",
  "wgpu",
- "wgsl_composer",
+ "wgsl_composer 0.1.0",
  "zerocopy 0.8.14",
 ]
 
@@ -3131,6 +3131,13 @@ dependencies = [
  "bitflags 2.8.0",
  "js-sys",
  "web-sys",
+]
+
+[[package]]
+name = "wgsl_composer"
+version = "0.1.0"
+dependencies = [
+ "walkdir",
 ]
 
 [[package]]

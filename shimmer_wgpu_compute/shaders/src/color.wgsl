@@ -4,6 +4,9 @@ struct Rgb5m {
     value: u32,
 }
 
+const RGB5M_PLACEHOLDER = Rgb5m(0x7C1C);
+const RGB5M_TRANSPARENT = Rgb5m(0x0000);
+
 fn rgb5m_to_rgba_norm(rgb5m: Rgb5m) -> RgbaNorm {
     var rgb5 = vec3u(
         extractBits(rgb5m.value, 0u, 5u),

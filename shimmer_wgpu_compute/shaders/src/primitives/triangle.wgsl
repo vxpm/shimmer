@@ -1,9 +1,15 @@
 //!include primitives
+//!include shading
+//!include texture
 
 // A triangle primitive.
 struct Triangle {
-    /// Vertices that make up this triangle, in counter-clockwise order.
+    // Vertices that make up this triangle, in counter-clockwise order.
     vertices: array<Vertex, 3>,
+    // Shading mode of this triangle.
+    shading_mode: ShadingMode,
+    // Texture configuration of this triangle.
+    texture: TextureConfig,
 }
 
 fn _triangle_cross_2d(a: vec2i, b: vec2i) -> i32 {
@@ -43,4 +49,12 @@ fn triangle_color(triangle: Triangle, bary_coords: vec3f) -> RgbaNorm {
     let c = rgba8_normalize(triangle.vertices[2].color).value * bary_coords.z;
 
     return RgbaNorm(a + b + c);
+}
+
+fn triangle_uv(triangle: Triangle, bary_coords: vec3f) -> vec2u {
+    let a = vec2f(triangle.vertices[0].uv) * bary_coords.x;
+    let b = vec2f(triangle.vertices[1].uv) * bary_coords.y;
+    let c = vec2f(triangle.vertices[2].uv) * bary_coords.z;
+
+    return vec2u(round(a + b + c));
 }

@@ -3,6 +3,7 @@
 
 // A single vertex of a primitive.
 struct Vertex {
-    color: Rgba8,
     coords: vec2i,
+    color: Rgba8,
+    uv: vec2u,
 }

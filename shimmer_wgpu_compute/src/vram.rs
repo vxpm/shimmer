@@ -1,6 +1,7 @@
 use crate::context::Context;
-use bitvec::BitArr;
+use shimmer_core::gpu::renderer::CopyToVram;
 use std::sync::Arc;
+use zerocopy::IntoBytes;
 
 pub const VRAM_WIDTH: u16 = 1024;
 pub const VRAM_HEIGHT: u16 = 512;
@@ -18,7 +19,9 @@ impl Vram {
         let buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("vram"),
             size: 1024 * 512 * 8,
-            usage: wgpu::BufferUsages::STORAGE,
+            usage: wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -66,5 +69,26 @@ impl Vram {
 
     pub fn bind_group(&self) -> &Arc<wgpu::BindGroup> {
         &self.bind_group
+    }
+
+    pub fn copy_to_vram(&mut self, copy: CopyToVram) {
+        let mut row_padded = Vec::new();
+        for (row_index, row) in copy
+            .data
+            .chunks(copy.width.value() as usize * 2)
+            .enumerate()
+        {
+            row_padded.clear();
+            row_padded.extend(row.iter().map(|v| *v as u32));
+
+            let row_start = (copy.y.value() as usize + row_index) * (VRAM_WIDTH as usize) * 8
+                + copy.x.value() as usize * 8;
+
+            self.ctx
+                .queue()
+                .write_buffer(&self.buffer, row_start as u64, row_padded.as_bytes());
+        }
+
+        self.ctx.queue().submit([]);
     }
 }
