@@ -1,5 +1,9 @@
 use crate::context::Context;
+use bitvec::BitArr;
 use std::sync::Arc;
+
+pub const VRAM_WIDTH: u16 = 1024;
+pub const VRAM_HEIGHT: u16 = 512;
 
 pub struct Vram {
     ctx: Arc<Context>,

@@ -1,0 +1,2 @@
+const COMMAND_BARRIER: u32 = 0;
+const COMMAND_TRIANGLE: u32 = 1;

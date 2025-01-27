@@ -1,6 +1,7 @@
 mod context;
 mod display;
 mod rasterizer;
+mod util;
 mod vram;
 
 use context::Context;
@@ -73,7 +74,7 @@ impl Inner {
                 self.rasterizer.flush();
             }
             Command::DrawTriangle(triangle) => {
-                self.rasterizer.enqueue(triangle);
+                self.rasterizer.enqueue_triangle(triangle);
             }
             Command::SetDisplayTopLeft(display_top_left) => {
                 self.display_renderer
