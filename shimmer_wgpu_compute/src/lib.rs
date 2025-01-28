@@ -1,6 +1,7 @@
 mod context;
 mod display;
 mod rasterizer;
+mod transfers;
 mod util;
 mod vram;
 
@@ -13,7 +14,8 @@ use std::sync::{
     mpsc::{Sender, channel},
 };
 use tinylog::Logger;
-use vram::Vram;
+use transfers::Transfers;
+use vram::{VRAM_WIDTH, Vram};
 use zerocopy::{Immutable, IntoBytes};
 
 pub use context::Config;
@@ -45,6 +47,7 @@ struct Inner {
     vram: Vram,
     rasterizer: Rasterizer,
     display_renderer: DisplayRenderer,
+    transfers: Transfers,
 }
 
 impl Inner {
@@ -58,6 +61,7 @@ impl Inner {
         let vram = Vram::new(ctx.clone());
         let rasterizer = Rasterizer::new(ctx.clone(), &vram);
         let display_renderer = DisplayRenderer::new(ctx.clone(), &vram);
+        let transfers = Transfers::new(ctx.clone(), &vram);
 
         Self {
             ctx,
@@ -65,6 +69,7 @@ impl Inner {
             vram,
             rasterizer,
             display_renderer,
+            transfers,
         }
     }
 
@@ -90,7 +95,8 @@ impl Inner {
                 );
             }
             Command::CopyFromVram(copy) => {
-                copy.response.send(Vec::new()).unwrap();
+                self.rasterizer.flush();
+                self.transfers.transfer(copy);
             }
             Command::CopyToVram(copy) => {
                 self.rasterizer.flush();

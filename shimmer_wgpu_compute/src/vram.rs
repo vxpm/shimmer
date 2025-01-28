@@ -91,4 +91,8 @@ impl Vram {
 
         self.ctx.queue().submit([]);
     }
+
+    pub fn buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
 }

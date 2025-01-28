@@ -2,7 +2,6 @@
 //!include vram
 //!include commands
 //!include color
-//
 
 @group(0) @binding(0)
 var<storage, read_write> vram: array<u32>;
