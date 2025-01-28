@@ -13,8 +13,8 @@ use crate::{
     },
     scheduler::Event,
 };
-use bitos::integer::{u1, u10};
-use tinylog::{debug, error, trace};
+use bitos::integer::{i11, u1};
+use tinylog::{debug, error, info, trace, warn};
 
 #[derive(Default)]
 struct VertexPackets {
@@ -36,19 +36,37 @@ impl VertexPackets {
 }
 
 impl Interpreter {
-    #[expect(clippy::unused_self, reason = "stubbed")]
-    fn exec_quick_rect_fill(&mut self, psx: &mut PSX, _: RenderingCommand) {
-        debug!(
+    fn exec_quick_rect_fill(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let cmd = cmd.rectangle_cmd();
+        let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
+
+        let position = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        let dimensions = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        let (x, y) = (position.x(), position.y());
+        let (width, height) = (dimensions.width(), dimensions.height());
+        let rectangle = Rectangle {
+            color,
+            x: i11::new((x & 0x3F0) as i16),
+            y: i11::new((y & 0x1FF) as i16),
+            u: 0,
+            v: 0,
+            width: ((width & 0x3FF) + 0xF) & !0xF,
+            height: height & 0x1FF,
+            texture: None,
+        };
+
+        warn!(
             psx.loggers.gpu,
-            "top left: {:?}",
-            CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
+            "quick rectangle fill at {}x{} with dimensions {}x{} and color {:?}",
+            position.x() & 0x3F0,
+            position.y() & 0x1FF,
+            ((width & 0x3FF) + 0xF) & !0xF,
+            height & 0x1FF,
+            color;
+            rectangle = rectangle.clone()
         );
 
-        debug!(
-            psx.loggers.gpu,
-            "dimensions: {:?}",
-            SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-        );
+        // self.renderer.exec(Command::DrawRectangle(rectangle));
     }
 
     fn exec_polygon(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
@@ -101,7 +119,7 @@ impl Interpreter {
             vertex_d.to_vertex(),
         ];
 
-        if cmd.textured() {
+        let texture_config = cmd.textured().then(|| {
             let clut = vertex_a.uv.clut();
             let texpage = vertex_b.uv.texpage();
             let texture_config = TextureConfig { clut, texpage };
@@ -118,41 +136,36 @@ impl Interpreter {
                 stat.set_texpage_y_base_2(u1::new(0));
             }
 
-            self.renderer.exec(Command::DrawTriangle(Triangle {
-                vertices: tri_1,
-                shading: cmd.shading_mode(),
-                texture: Some(texture_config),
-            }));
+            texture_config
+        });
 
-            if cmd.polygon_mode() == PolygonMode::Rectangle {
-                self.renderer.exec(Command::DrawTriangle(Triangle {
-                    vertices: tri_2,
-                    shading: cmd.shading_mode(),
-                    texture: Some(texture_config),
-                }));
-            }
-        } else {
-            self.renderer.exec(Command::DrawTriangle(Triangle {
-                vertices: tri_1,
-                shading: cmd.shading_mode(),
-                texture: None,
-            }));
+        let triangle = Triangle {
+            vertices: tri_1,
+            shading: cmd.shading_mode(),
+            texture: texture_config,
+        };
 
-            if cmd.polygon_mode() == PolygonMode::Rectangle {
-                self.renderer.exec(Command::DrawTriangle(Triangle {
-                    vertices: tri_2,
-                    shading: cmd.shading_mode(),
-                    texture: None,
-                }));
-            }
+        debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle.clone());
+        self.renderer.exec(Command::DrawTriangle(triangle));
+
+        if cmd.polygon_mode() == PolygonMode::Rectangle {
+            let triangle = Triangle {
+                vertices: tri_2,
+                shading: cmd.shading_mode(),
+                texture: texture_config,
+            };
+
+            debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle.clone());
+            self.renderer.exec(Command::DrawTriangle(triangle));
         }
     }
 
     #[expect(clippy::unused_self, reason = "consistency")]
     fn exec_drawing_settings(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let settings = cmd.drawing_settings_cmd();
-        let stat = &mut psx.gpu.status;
+        info!(psx.loggers.gpu, "updating drawing settings"; settings = settings.clone());
 
+        let stat = &mut psx.gpu.status;
         stat.set_texpage_x_base(settings.texpage().x_base());
         stat.set_texpage_y_base(settings.texpage().y_base());
         stat.set_semi_transparency_mode(settings.texpage().semi_transparency_mode());
@@ -174,10 +187,10 @@ impl Interpreter {
         let dest = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
         let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-        debug!(psx.loggers.gpu, "starting CPU to VRAM blit"; dest = dest.clone(), size = size.clone());
+        info!(psx.loggers.gpu, "starting CPU to VRAM blit"; dest = dest.clone(), size = size.clone());
         self.inner = State::CpuToVramBlit { dest, size };
 
-        psx.gpu.status.set_ready_to_send_vram(true);
+        psx.gpu.status.set_ready_to_send_vram(false);
         psx.scheduler.schedule(Event::DmaUpdate, 0);
     }
 
@@ -186,13 +199,26 @@ impl Interpreter {
 
         let src = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
         let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        info!(psx.loggers.gpu, "starting VRAM to CPU blit"; src = src.clone(), size = size.clone());
+
+        let real_width = if size.width() == 0 {
+            0x400
+        } else {
+            ((size.width() - 1) & 0x3FF) + 1
+        };
+
+        let real_height = if size.height() == 0 {
+            0x200
+        } else {
+            ((size.height() - 1) & 0x1FF) + 1
+        };
 
         let (sender, receiver) = oneshot::channel();
         let copy = CopyFromVram {
-            x: u10::new(src.x()),
-            y: u10::new(src.y()),
-            width: u10::new(size.width()),
-            height: u10::new(size.height()),
+            x: src.x() & 0x3FF,
+            y: src.y() & 0x1FF,
+            width: real_width,
+            height: real_height,
             response: sender,
         };
         self.renderer.exec(Command::CopyFromVram(copy));
@@ -215,7 +241,6 @@ impl Interpreter {
 
     fn exec_rectangle(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.rectangle_cmd();
-
         let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
         let position = VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
@@ -241,16 +266,19 @@ impl Interpreter {
             RectangleMode::Sprite16 => (16, 16),
         };
 
-        self.renderer.exec(Command::DrawRectangle(Rectangle {
+        let rectangle = Rectangle {
             color,
             x: position.x(),
             y: position.y(),
             u: uv.u(),
             v: uv.v(),
-            width: u10::new(width),
-            height: u10::new(height),
+            width,
+            height,
             texture: texture_config,
-        }));
+        };
+
+        info!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle.clone());
+        self.renderer.exec(Command::DrawRectangle(rectangle));
     }
 
     fn exec_line(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
@@ -282,7 +310,7 @@ impl Interpreter {
 
     /// Executes the given rendering command.
     pub fn exec_render(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
-        debug!(
+        trace!(
             psx.loggers.gpu,
             "executing render cmd: {cmd:?} (0x{:08X})",
             cmd.to_bits()

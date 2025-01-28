@@ -1,21 +1,21 @@
 mod context;
 mod display;
-mod rectangle;
-mod texture;
-mod triangle;
+mod rasterizer;
+mod transfers;
+mod util;
 mod vram;
 
 use context::Context;
 use display::DisplayRenderer;
-use rectangle::RectangleRenderer;
-use shimmer_core::gpu::renderer::{Command, Renderer, Vertex};
+use rasterizer::Rasterizer;
+use shimmer_core::gpu::renderer::{Command, Renderer};
 use std::sync::{
     Arc, Mutex,
     mpsc::{Sender, channel},
 };
-use tinylog::{Logger, debug};
-use triangle::TriangleRenderer;
-use vram::{Rect, Vram};
+use tinylog::Logger;
+use transfers::Transfers;
+use vram::Vram;
 use zerocopy::{Immutable, IntoBytes};
 
 pub use context::Config;
@@ -41,32 +41,13 @@ impl From<shimmer_core::gpu::cmd::environment::TexPageDepth> for TextureKind {
     }
 }
 
-fn triangle_bounding_rect(vertices: &[Vertex; 3]) -> Rect {
-    let mut min_x = u16::MAX;
-    let mut max_x = u16::MIN;
-    let mut min_y = u16::MAX;
-    let mut max_y = u16::MIN;
-
-    for vertex in vertices {
-        min_x = min_x.min(vertex.x.value().clamp(0, i16::MAX) as u16);
-        max_x = max_x.max(vertex.x.value().clamp(0, i16::MAX) as u16);
-
-        min_y = min_y.min(vertex.y.value().clamp(0, i16::MAX) as u16);
-        max_y = max_y.max(vertex.y.value().clamp(0, i16::MAX) as u16);
-    }
-
-    Rect::from_extremes((min_x, min_y), (max_x, max_y))
-}
-
 struct Inner {
     ctx: Arc<Context>,
 
     vram: Vram,
-    vram_dirty: vram::Dirty,
-
-    triangle_renderer: TriangleRenderer,
-    rectangle_renderer: RectangleRenderer,
+    rasterizer: Rasterizer,
     display_renderer: DisplayRenderer,
+    transfers: Transfers,
 }
 
 impl Inner {
@@ -77,254 +58,50 @@ impl Inner {
         config: Config,
     ) -> Self {
         let ctx = Arc::new(Context::new(device, queue, config, logger));
-
         let vram = Vram::new(ctx.clone());
-        let triangle_renderer = TriangleRenderer::new(ctx.clone(), vram.back_texbundle());
-        let rectangle_renderer = RectangleRenderer::new(ctx.clone(), vram.back_texbundle());
-        let display_renderer = DisplayRenderer::new(ctx.clone(), vram.front_texbundle());
+        let rasterizer = Rasterizer::new(ctx.clone(), &vram);
+        let display_renderer = DisplayRenderer::new(ctx.clone(), &vram);
+        let transfers = Transfers::new(ctx.clone(), &vram);
 
         Self {
             ctx,
 
             vram,
-            vram_dirty: vram::Dirty::default(),
-
-            triangle_renderer,
-            rectangle_renderer,
+            rasterizer,
             display_renderer,
+            transfers,
         }
-    }
-
-    /// Flushes all pending rendering actions.
-    fn flush(&mut self) {
-        let mut encoder = self
-            .ctx
-            .device()
-            .create_command_encoder(&Default::default());
-
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("shimmer_wgpu render pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: self.vram.front_texbundle().view(),
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-
-        self.triangle_renderer.draw(&mut pass);
-        self.rectangle_renderer.draw(&mut pass);
-
-        std::mem::drop(pass);
-        self.ctx.queue().submit([encoder.finish()]);
     }
 
     fn exec(&mut self, command: Command) {
         match command {
-            Command::SetDisplayResolution(resolution) => {
-                debug!(
-                    self.ctx.logger(),
-                    "display resolution";
-                    horizontal = resolution.horizontal,
-                    vertical = resolution.vertical,
-                );
-
-                self.display_renderer
-                    .set_display_resolution(resolution.horizontal, resolution.vertical);
-            }
-            Command::SetDisplayTopLeft(top_left) => {
-                debug!(
-                    self.ctx.logger(),
-                    "display top left";
-                    x = top_left.x,
-                    y = top_left.y,
-                );
-
-                self.display_renderer
-                    .set_display_top_left(top_left.x, top_left.y);
-            }
             Command::VBlank => {
-                self.flush();
+                self.rasterizer.flush();
+                self.vram.sync();
             }
-            Command::CopyToVram(copy) => {
-                debug!(
-                    self.ctx.logger(),
-                    "copying to vram";
-                    coords = (copy.x.value(), copy.y.value()),
-                    dimensions = (copy.width.value(), copy.height.value())
-                );
-
-                let rect = Rect::new(
-                    (copy.x.value(), copy.y.value()),
-                    (copy.width.value(), copy.height.value()),
-                );
-                self.vram_dirty.mark(rect);
-
-                self.ctx.queue().write_texture(
-                    wgpu::ImageCopyTexture {
-                        texture: self.vram.front_texbundle().texture(),
-                        mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x: u32::from(copy.x.value()),
-                            y: u32::from(copy.y.value()),
-                            z: 0,
-                        },
-                        aspect: Default::default(),
-                    },
-                    &copy.data,
-                    wgpu::ImageDataLayout {
-                        offset: 0,
-                        bytes_per_row: Some(u32::from(copy.width.value()) * 2),
-                        rows_per_image: Some(u32::from(copy.height.value())),
-                    },
-                    wgpu::Extent3d {
-                        width: u32::from(copy.width.value()),
-                        height: u32::from(copy.height.value()),
-                        depth_or_array_layers: 1,
-                    },
+            Command::DrawTriangle(triangle) => {
+                self.rasterizer.enqueue_triangle(triangle);
+            }
+            Command::DrawRectangle(rectangle) => {
+                self.rasterizer.enqueue_rectangle(rectangle);
+            }
+            Command::SetDisplayTopLeft(display_top_left) => {
+                self.display_renderer
+                    .set_display_top_left(display_top_left.x, display_top_left.y);
+            }
+            Command::SetDisplayResolution(display_resolution) => {
+                self.display_renderer.set_display_resolution(
+                    display_resolution.horizontal,
+                    display_resolution.vertical,
                 );
             }
             Command::CopyFromVram(copy) => {
-                debug!(
-                    self.ctx.logger(),
-                    "copying from vram";
-                    coords = (copy.x.value(), copy.y.value()),
-                    dimensions = (copy.width.value(), copy.height.value())
-                );
-
-                // create buffer
-                let bytes_per_row = 2 * copy.width.value() as u32;
-                let bytes_per_row_padded =
-                    bytes_per_row.next_multiple_of(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT);
-
-                let buffer = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("copy from vram"),
-                    size: bytes_per_row_padded as u64 * copy.height.value() as u64,
-                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-                    mapped_at_creation: false,
-                });
-
-                // copy texture to buffer
-                let mut encoder = self
-                    .ctx
-                    .device()
-                    .create_command_encoder(&Default::default());
-
-                encoder.copy_texture_to_buffer(
-                    wgpu::ImageCopyTexture {
-                        texture: self.vram.front_texbundle().texture(),
-                        mip_level: 0,
-                        origin: wgpu::Origin3d {
-                            x: u32::from(copy.x.value()),
-                            y: u32::from(copy.y.value()),
-                            z: 0,
-                        },
-                        aspect: Default::default(),
-                    },
-                    wgpu::ImageCopyBuffer {
-                        buffer: &buffer,
-                        layout: wgpu::ImageDataLayout {
-                            offset: 0,
-                            bytes_per_row: Some(bytes_per_row_padded),
-                            rows_per_image: Some(u32::from(copy.height.value())),
-                        },
-                    },
-                    wgpu::Extent3d {
-                        width: copy.width.value() as u32,
-                        height: copy.height.value() as u32,
-                        depth_or_array_layers: 1,
-                    },
-                );
-
-                self.ctx.queue().submit([encoder.finish()]);
-
-                // copy data to CPU
-                let data = {
-                    let slice = buffer.slice(..);
-
-                    let (sender, receiver) = oneshot::channel();
-                    slice.map_async(wgpu::MapMode::Read, move |result| {
-                        sender.send(result).unwrap();
-                    });
-
-                    self.ctx.device().poll(wgpu::Maintain::Wait);
-                    receiver.recv().unwrap().unwrap();
-
-                    slice.get_mapped_range().to_vec()
-                };
-                buffer.unmap();
-
-                let mut result: Vec<u8> = Vec::with_capacity(data.len());
-                for row in data.chunks_exact(bytes_per_row_padded as usize) {
-                    result.extend(row[..bytes_per_row as usize].iter());
-                }
-
-                copy.response.send(result).unwrap();
+                self.rasterizer.flush();
+                self.transfers.copy_from_vram(copy);
             }
-            Command::DrawTriangle(triangle) => {
-                debug!(
-                    self.ctx.logger(),
-                    "rendering triangle";
-                    triangle = triangle.clone(),
-                );
-
-                if let Some(config) = triangle.texture {
-                    let texpage_rect = Rect::new(
-                        (
-                            u16::from(config.texpage.x_base().value()) * 64,
-                            u16::from(config.texpage.y_base().value()) * 256,
-                        ),
-                        (64, 256),
-                    );
-
-                    if self.vram_dirty.is_dirty(texpage_rect) {
-                        self.flush();
-                        self.vram.sync();
-                        self.vram_dirty.clear();
-                    }
-                }
-
-                let rect = triangle_bounding_rect(&triangle.vertices);
-                self.vram_dirty.mark(rect);
-                self.triangle_renderer.enqueue(&triangle);
-            }
-            Command::DrawRectangle(rectangle) => {
-                debug!(
-                    self.ctx.logger(),
-                    "rendering rectangle";
-                    rectangle = rectangle.clone()
-                );
-
-                if let Some(config) = rectangle.texture {
-                    let texpage_rect = Rect::new(
-                        (
-                            u16::from(config.texpage.x_base().value()) * 64,
-                            u16::from(config.texpage.y_base().value()) * 256,
-                        ),
-                        (64, 256),
-                    );
-
-                    if self.vram_dirty.is_dirty(texpage_rect) {
-                        self.flush();
-                        self.vram.sync();
-                        self.vram_dirty.clear();
-                    }
-                }
-
-                let rect = Rect::new(
-                    (
-                        rectangle.x.value().clamp(0, i16::MAX) as u16,
-                        rectangle.y.value().clamp(0, i16::MAX) as u16,
-                    ),
-                    (rectangle.width.value(), rectangle.height.value()),
-                );
-                self.vram_dirty.mark(rect);
-                self.rectangle_renderer.enqueue(&rectangle);
+            Command::CopyToVram(copy) => {
+                self.rasterizer.flush();
+                self.transfers.copy_to_vram(copy);
             }
         }
     }

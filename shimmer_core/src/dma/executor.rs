@@ -92,8 +92,7 @@ impl SliceTransfer {
             match self.channel {
                 Channel::GPU => match transfer_direction {
                     TransferDirection::DeviceToRam => {
-                        // TODO: change back to unwrap
-                        let value = psx.gpu.response_queue.pop_front().unwrap_or_default();
+                        let value = psx.gpu.response_queue.pop_front().unwrap();
                         psx.write::<u32, true>(Address(current_addr), value)
                             .unwrap();
                     }

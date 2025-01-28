@@ -97,7 +97,6 @@ impl Rectangle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoBytes, Immutable)]
 #[repr(u32)]
 enum Command {
-    Barrier,
     Triangle,
     Rectangle,
 }
@@ -203,8 +202,8 @@ impl Rasterizer {
             );
 
             if self.dirty.is_dirty(region) {
-                self.commands.push(Command::Barrier);
-                self.dirty.clear();
+                println!("{:?} is dirty - flushing", region);
+                self.flush();
             }
 
             TextureConfig {
@@ -253,8 +252,8 @@ impl Rasterizer {
             );
 
             if self.dirty.is_dirty(region) {
-                self.commands.push(Command::Barrier);
-                self.dirty.clear();
+                println!("{:?} is dirty - flushing", region);
+                self.flush();
             }
 
             TextureConfig {
@@ -279,10 +278,7 @@ impl Rasterizer {
         let primitive = Rectangle {
             top_left: IVec2::new(rectangle.x.value() as i32, rectangle.y.value() as i32),
             top_left_uv: UVec2::new(rectangle.u as u32, rectangle.v as u32),
-            dimensions: UVec2::new(
-                rectangle.width.value() as u32,
-                rectangle.height.value() as u32,
-            ),
+            dimensions: UVec2::new(rectangle.width as u32, rectangle.height as u32),
             rgba: UVec4::new(
                 rectangle.color.r as u32,
                 rectangle.color.g as u32,
@@ -392,7 +388,6 @@ impl Rasterizer {
 
         std::mem::drop(pass);
         self.ctx.queue().submit([encoder.finish()]);
-        self.ctx.device().poll(wgpu::Maintain::Wait);
 
         self.commands.clear();
         self.triangles.clear();

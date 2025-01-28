@@ -12,7 +12,7 @@ struct Rectangle {
 
 fn rectangle_contains(rectangle: Rectangle, point: vec2u) -> bool {
     let coords = vec2i(point) - rectangle.top_left;
-    if coords.x < 0 || coords.y < 0 || coords.x >= i32(rectangle.dimensions.x) || coords.y >= i32(rectangle.dimensions.y) {
+    if coords.x < 0 || coords.y < 0 || coords.x > i32(rectangle.dimensions.x) || coords.y > i32(rectangle.dimensions.y) {
         return false;
     }
 

@@ -52,101 +52,116 @@ impl Interpreter {
     }
 
     fn exec_queued_render(&mut self, psx: &mut PSX) {
-        match &mut self.inner {
-            State::Idle => {
-                if let Some(packet) = psx.gpu.render_queue.front() {
+        loop {
+            match &mut self.inner {
+                State::Idle => {
+                    let Some(packet) = psx.gpu.render_queue.front() else {
+                        return;
+                    };
+
                     let cmd = RenderingCommand::from_bits(*packet);
                     if psx.gpu.render_queue.len() <= cmd.args() {
                         debug!(
                             psx.loggers.gpu,
-                            "{cmd:?} is waiting for {} arguments (has {})",
-                            cmd.args(),
+                            "{cmd:?} is waiting for arguments (has {}/{})",
                             psx.gpu.render_queue.len() - 1,
+                            cmd.args(),
                         );
                         return;
                     }
 
                     psx.gpu.render_queue.pop_front();
                     self.exec_render(psx, cmd);
-                    self.exec_queued_render(psx);
                 }
-            }
-            State::CpuToVramBlit { dest: _dest, size } => {
-                let count = (size.width() as u32 * size.height() as u32 + 1) / 2;
-                if psx.gpu.render_queue.len() < count as usize {
-                    return;
-                }
+                State::CpuToVramBlit { dest, size } => {
+                    let real_width = if size.width() == 0 {
+                        0x400
+                    } else {
+                        ((size.width() - 1) & 0x3FF) + 1
+                    };
 
-                let mut data = Vec::with_capacity(count as usize * 4);
-                for _ in 0..count {
-                    data.extend(
-                        psx.gpu
-                            .render_queue
-                            .pop_front()
-                            .unwrap()
-                            .to_le_bytes()
-                            .into_iter(),
-                    );
-                }
+                    let real_height = if size.height() == 0 {
+                        0x200
+                    } else {
+                        ((size.height() - 1) & 0x1FF) + 1
+                    };
 
-                self.renderer.exec(Command::CopyToVram(CopyToVram {
-                    x: u10::new(_dest.x()),
-                    y: u10::new(_dest.y()),
-                    width: u10::new(size.width()),
-                    height: u10::new(size.height()),
-                    data,
-                }));
+                    let count = (real_width as u32 * real_height as u32).div_ceil(2);
+                    if psx.gpu.render_queue.len() < count as usize {
+                        return;
+                    }
 
-                self.inner = State::Idle;
+                    let mut data = Vec::with_capacity(count as usize * 4);
+                    for _ in 0..count {
+                        data.extend(
+                            psx.gpu
+                                .render_queue
+                                .pop_front()
+                                .unwrap()
+                                .to_le_bytes()
+                                .into_iter(),
+                        );
+                    }
 
-                psx.gpu.status.set_ready_to_send_vram(false);
-                psx.scheduler.schedule(Event::DmaUpdate, 0);
+                    self.renderer.exec(Command::CopyToVram(CopyToVram {
+                        x: dest.x() & 0x3FF,
+                        y: dest.y() & 0x1FF,
+                        width: real_width,
+                        height: real_height,
+                        data,
+                    }));
 
-                self.exec_queued_render(psx);
-            }
-            State::PolyLine { cmd, received } => {
-                let Some(front) = psx.gpu.render_queue.front() else {
-                    return;
-                };
-
-                if *received >= 2 && (front & 0xF000_F000 == 0x5000_5000) {
-                    debug!(psx.loggers.gpu, "exiting polyline mode",);
-                    psx.gpu.render_queue.pop_front();
                     self.inner = State::Idle;
-                    self.exec_queued_render(psx);
-                    return;
+
+                    psx.gpu.status.set_ready_to_send_vram(false);
+                    psx.scheduler.schedule(Event::DmaUpdate, 0);
                 }
+                State::PolyLine { cmd, received } => {
+                    let Some(front) = psx.gpu.render_queue.front() else {
+                        return;
+                    };
 
-                match (cmd.shading_mode(), psx.gpu.render_queue.len()) {
-                    (ShadingMode::Flat, _) => {
-                        debug!(
-                            psx.loggers.gpu,
-                            "vertex: {:?}",
-                            VertexPositionPacket::from_bits(
-                                psx.gpu.render_queue.pop_front().unwrap()
-                            )
-                        );
-
-                        *received += 1;
+                    if *received >= 2 && (front & 0xF000_F000 == 0x5000_5000) {
+                        debug!(psx.loggers.gpu, "exiting polyline mode",);
+                        psx.gpu.render_queue.pop_front();
+                        self.inner = State::Idle;
+                        self.exec_queued_render(psx);
+                        return;
                     }
-                    (ShadingMode::Gouraud, x) if x >= 2 => {
-                        debug!(
-                            psx.loggers.gpu,
-                            "gouraud: {:?}",
-                            VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
-                        );
 
-                        debug!(
-                            psx.loggers.gpu,
-                            "vertex: {:?}",
-                            VertexPositionPacket::from_bits(
-                                psx.gpu.render_queue.pop_front().unwrap()
-                            )
-                        );
+                    match (cmd.shading_mode(), psx.gpu.render_queue.len()) {
+                        (ShadingMode::Flat, _) => {
+                            debug!(
+                                psx.loggers.gpu,
+                                "vertex: {:?}",
+                                VertexPositionPacket::from_bits(
+                                    psx.gpu.render_queue.pop_front().unwrap()
+                                )
+                            );
 
-                        *received += 1;
+                            *received += 1;
+                        }
+                        (ShadingMode::Gouraud, x) if x >= 2 => {
+                            debug!(
+                                psx.loggers.gpu,
+                                "gouraud: {:?}",
+                                VertexColorPacket::from_bits(
+                                    psx.gpu.render_queue.pop_front().unwrap()
+                                )
+                            );
+
+                            debug!(
+                                psx.loggers.gpu,
+                                "vertex: {:?}",
+                                VertexPositionPacket::from_bits(
+                                    psx.gpu.render_queue.pop_front().unwrap()
+                                )
+                            );
+
+                            *received += 1;
+                        }
+                        _ => (),
                     }
-                    _ => (),
                 }
             }
         }

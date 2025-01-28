@@ -3,7 +3,7 @@ use eframe::{
     egui::{self, Ui, Vec2},
     egui_wgpu::{self, CallbackTrait},
 };
-use shimmer_wgpu_compute::WgpuRenderer;
+use shimmer_wgpu::WgpuRenderer;
 
 pub struct RendererCallback {
     renderer: WgpuRenderer,

@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    Context,
-    context::texture::{R16Uint, TextureBundle},
-};
+use crate::{Context, vram::Vram};
 use bitos::integer::{u9, u10};
 use shimmer_core::gpu::{HorizontalResolution, VerticalResolution};
 use wgpu::util::DeviceExt;
@@ -14,7 +11,7 @@ pub struct DisplayRenderer {
 
     pipeline: wgpu::RenderPipeline,
 
-    texbundle_bg: wgpu::BindGroup,
+    vram_bind_group: Arc<wgpu::BindGroup>,
 
     top_left: [u16; 2],
     dimensions: [u16; 2],
@@ -24,12 +21,11 @@ pub struct DisplayRenderer {
 }
 
 impl DisplayRenderer {
-    pub fn new(ctx: Arc<Context>, texbundle: &TextureBundle<R16Uint>) -> Self {
+    pub fn new(ctx: Arc<Context>, vram: &Vram) -> Self {
         let shader = ctx
             .device()
             .create_shader_module(wgpu::include_wgsl!("../shaders/built/display.wgsl"));
 
-        let texbundle_bg_layout = ctx.texbundle_bind_group_layout::<R16Uint>();
         let coordinates_bg_layout =
             ctx.device()
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -50,7 +46,7 @@ impl DisplayRenderer {
             ctx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("display"),
-                    bind_group_layouts: &[texbundle_bg_layout, &coordinates_bg_layout],
+                    bind_group_layouts: &[vram.bind_group_layout(), &coordinates_bg_layout],
                     push_constant_ranges: &[],
                 });
 
@@ -102,7 +98,6 @@ impl DisplayRenderer {
                 contents: [0u32, 0u32, 0u32, 0u32].as_bytes(),
             });
 
-        let texbundle_bg = ctx.texbundle_bind_group(texbundle);
         let display_area_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("display coordinates"),
             layout: &coordinates_bg_layout,
@@ -121,7 +116,7 @@ impl DisplayRenderer {
 
             pipeline,
 
-            texbundle_bg,
+            vram_bind_group: vram.front_bind_group().clone(),
 
             top_left: [0; 2],
             dimensions: [0; 2],
@@ -152,7 +147,7 @@ impl DisplayRenderer {
 
     pub fn render(&self, pass: &mut wgpu::RenderPass) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.texbundle_bg, &[]);
+        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
         pass.set_bind_group(1, &self.display_area_bg, &[]);
         pass.draw(0..4, 0..1);
     }

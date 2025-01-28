@@ -89,9 +89,6 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
     for (var i: u32 = 0; i < arrayLength(&commands); i += 1u) {
         let command = commands[i];
         switch command {
-            case COMMAND_BARRIER {
-                storageBarrier();
-            }
             case COMMAND_TRIANGLE {
                 render_triangle(triangles[triangle_index], vram_coords);
                 triangle_index += 1;
@@ -100,7 +97,10 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
                 render_rectangle(rectangles[rectangle_index], vram_coords);
                 rectangle_index += 1;
             }
-            default: {}
+            default: {
+                vram_set_color_rgb5m(vram_coords, RGB5M_PLACEHOLDER);
+                return;
+            } 
         }
     }
 }

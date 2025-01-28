@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 shimmer_core = { path = "../shimmer_core" }
-shimmer_wgpu_compute = { path = "../shimmer_wgpu_compute" }
+shimmer_wgpu = { path = "../shimmer_wgpu" }
 strum.workspace = true
 tinylog.workspace = true
 bytesize.workspace = true

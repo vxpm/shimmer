@@ -38,7 +38,7 @@ pub struct Vertex {
 }
 
 /// Texture configuration.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TextureConfig {
     pub clut: Clut,
     pub texpage: TexPage,
@@ -60,28 +60,28 @@ pub struct Rectangle {
     pub y: i11,
     pub u: u8,
     pub v: u8,
-    pub width: u10,
-    pub height: u10,
+    pub width: u16,
+    pub height: u16,
     pub texture: Option<TextureConfig>,
 }
 
 /// A data copy to VRAM.
 #[derive(Debug, Clone)]
 pub struct CopyToVram {
-    pub x: u10,
-    pub y: u10,
-    pub width: u10,
-    pub height: u10,
+    pub x: u16,
+    pub y: u16,
+    pub width: u16,
+    pub height: u16,
     pub data: Vec<u8>,
 }
 
 /// A data copy from VRAM.
 #[derive(Debug)]
 pub struct CopyFromVram {
-    pub x: u10,
-    pub y: u10,
-    pub width: u10,
-    pub height: u10,
+    pub x: u16,
+    pub y: u16,
+    pub width: u16,
+    pub height: u16,
     pub response: oneshot::Sender<Vec<u8>>,
 }
 

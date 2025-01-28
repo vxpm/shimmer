@@ -7,12 +7,12 @@ use crate::{
     },
     scheduler::Event,
 };
-use tinylog::{debug, error, warn};
+use tinylog::{debug, error, trace, warn};
 
 impl Interpreter {
     /// Executes the given display command.
     pub fn exec_display(&mut self, psx: &mut PSX, cmd: DisplayCommand) {
-        debug!(psx.loggers.gpu, "received display cmd: {cmd:?}");
+        trace!(psx.loggers.gpu, "received display cmd: {cmd:?}");
 
         match cmd.opcode().unwrap() {
             DisplayOpcode::ResetGpu => {

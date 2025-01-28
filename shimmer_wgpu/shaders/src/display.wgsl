@@ -1,3 +1,6 @@
+//!include vram
+//!include color
+
 struct VertexOut {
     @location(0) uv: vec2<f32>,
     @builtin(position) clip_position: vec4<f32>,
@@ -28,9 +31,7 @@ fn vs_main(@builtin(vertex_index) index: u32) -> VertexOut {
 }
 
 @group(0) @binding(0)
-var tex: texture_2d<u32>;
-@group(0) @binding(1)
-var tex_sampler: sampler;
+var<storage, read_write> vram: array<u32>;
 
 struct DisplayArea {
     top_left: u32,
@@ -41,7 +42,7 @@ struct DisplayArea {
 var<uniform> display_area: DisplayArea;
 
 @fragment
-fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOut) -> @location(0) vec4f {
     var top_left_x = extractBits(display_area.top_left, 0u, 16u);
     var top_left_y = extractBits(display_area.top_left, 16u, 16u);
     var dimensions_x = extractBits(display_area.dimensions, 0u, 16u);
@@ -49,17 +50,11 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
 
     var x = f32(top_left_x) + in.uv.x * f32(dimensions_x);
     var y = f32(top_left_y) + in.uv.y * f32(dimensions_y);
-    var pos = vec2<u32>(u32(floor(x)), u32(floor(y)));
+    var vram_coords = vec2u(u32(floor(x)), u32(floor(y)));
 
     // assume 16 bit (rgb5m) mode
-    var data = textureLoad(tex, pos, 0).r;
-    var rgb5 = vec3<u32>(
-        extractBits(data, 0u, 5u),
-        extractBits(data, 5u, 5u),
-        extractBits(data, 10u, 5u)
-    );
+    var rgb5m = vram_get_color_rgb5m(vram_coords);
+    var rgba_norm = rgb5m_to_rgba_norm(rgb5m);
 
-    // normalize colors
-    var norm = vec4<f32>(vec3<f32>(rgb5) / 32.0, 1.0);
-    return norm;
+    return rgba_norm.value;
 }

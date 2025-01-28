@@ -432,7 +432,14 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Gp0 => {
-                    let value = self.gpu.response_queue.pop_front().unwrap_or_default();
+                    let value = self.gpu.response_queue.pop_front();
+                    let value = if let Some(value) = value {
+                        value
+                    } else {
+                        println!("yup...");
+                        0
+                    };
+
                     P::read_from_buf(&value.as_bytes()[offset..])
                 }
                 io::Reg::Gp1 => {

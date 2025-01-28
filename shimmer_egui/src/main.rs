@@ -15,7 +15,7 @@ use eframe::{
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
 use shimmer_core::Emulator;
-use shimmer_wgpu_compute::WgpuRenderer;
+use shimmer_wgpu::WgpuRenderer;
 use std::{
     sync::{
         Arc,
@@ -72,7 +72,7 @@ impl ExclusiveState {
         };
         let root_logger = log_family.logger("psx", level);
 
-        let renderer_config = shimmer_wgpu_compute::Config {
+        let renderer_config = shimmer_wgpu::Config {
             display_tex_format: render_state.target_format,
         };
         let device = Arc::clone(&render_state.device);

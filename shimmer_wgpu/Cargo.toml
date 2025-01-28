@@ -7,7 +7,8 @@ edition = "2024"
 workspace = true
 
 [build-dependencies]
-wgsl_composer = { git = "https://github.com/vxpm/wgsl-composer.git" }
+# wgsl_composer = { git = "https://github.com/vxpm/wgsl-composer.git" }
+wgsl_composer = { path = "../../wgsl_composer" }
 
 [dependencies]
 shimmer_core = { path = "../shimmer_core" }
@@ -20,3 +21,6 @@ wgpu.workspace = true
 zerocopy.workspace = true
 
 bitvec = { version = "1", default-features = false }
+encase = { version = "0.10", features = ["glam"] }
+glam = "0.29"
+ordered-float = "4.6"
