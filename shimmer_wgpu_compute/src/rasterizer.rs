@@ -181,7 +181,7 @@ impl Rasterizer {
         Self {
             ctx,
 
-            vram_bind_group: vram.bind_group().clone(),
+            vram_bind_group: vram.back_bind_group().clone(),
             rasterizer_bind_group_layout,
             pipeline,
 

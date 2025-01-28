@@ -2,7 +2,7 @@ use crate::{context::Context, vram::Vram};
 use encase::{ShaderType, StorageBuffer};
 use glam::UVec2;
 use shimmer_core::gpu::renderer::CopyFromVram;
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
 #[derive(Debug, Clone, ShaderType)]
@@ -75,7 +75,7 @@ impl Transfers {
         Self {
             ctx,
 
-            vram_bind_group: vram.bind_group().clone(),
+            vram_bind_group: vram.back_bind_group().clone(),
             transfers_bind_group_layout,
             pipeline,
         }

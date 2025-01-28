@@ -9,19 +9,30 @@ pub const VRAM_HEIGHT: u16 = 512;
 pub struct Vram {
     ctx: Arc<Context>,
 
-    buffer: wgpu::Buffer,
+    back_buffer: wgpu::Buffer,
+    front_buffer: wgpu::Buffer,
+
     bind_group_layout: wgpu::BindGroupLayout,
-    bind_group: Arc<wgpu::BindGroup>,
+
+    back_bind_group: Arc<wgpu::BindGroup>,
+    front_bind_group: Arc<wgpu::BindGroup>,
 }
 
 impl Vram {
     pub fn new(ctx: Arc<Context>) -> Self {
-        let buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
-            label: Some("vram"),
+        let back_buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("vram back"),
             size: 1024 * 512 * 8,
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_SRC
                 | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let front_buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
+            label: Some("vram front"),
+            size: 1024 * 512 * 8,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -41,13 +52,26 @@ impl Vram {
                     }],
                 });
 
-        let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("vram"),
+        let back_bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("vram back"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &buffer,
+                    buffer: &back_buffer,
+                    offset: 0,
+                    size: None,
+                }),
+            }],
+        });
+
+        let front_bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("vram front"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &front_buffer,
                     offset: 0,
                     size: None,
                 }),
@@ -57,9 +81,12 @@ impl Vram {
         Self {
             ctx,
 
-            buffer,
+            back_buffer,
+            front_buffer,
+
             bind_group_layout,
-            bind_group: Arc::new(bind_group),
+            back_bind_group: Arc::new(back_bind_group),
+            front_bind_group: Arc::new(front_bind_group),
         }
     }
 
@@ -67,8 +94,12 @@ impl Vram {
         &self.bind_group_layout
     }
 
-    pub fn bind_group(&self) -> &Arc<wgpu::BindGroup> {
-        &self.bind_group
+    pub fn back_bind_group(&self) -> &Arc<wgpu::BindGroup> {
+        &self.back_bind_group
+    }
+
+    pub fn front_bind_group(&self) -> &Arc<wgpu::BindGroup> {
+        &self.front_bind_group
     }
 
     pub fn copy_to_vram(&mut self, copy: CopyToVram) {
@@ -84,15 +115,23 @@ impl Vram {
             let row_start = (copy.y.value() as usize + row_index) * (VRAM_WIDTH as usize) * 8
                 + copy.x.value() as usize * 8;
 
-            self.ctx
-                .queue()
-                .write_buffer(&self.buffer, row_start as u64, row_padded.as_bytes());
+            self.ctx.queue().write_buffer(
+                &self.back_buffer,
+                row_start as u64,
+                row_padded.as_bytes(),
+            );
         }
 
         self.ctx.queue().submit([]);
     }
 
-    pub fn buffer(&self) -> &wgpu::Buffer {
-        &self.buffer
+    pub fn sync(&mut self) {
+        let mut encoder = self
+            .ctx
+            .device()
+            .create_command_encoder(&Default::default());
+
+        encoder.copy_buffer_to_buffer(&self.back_buffer, 0, &self.front_buffer, 0, 1024 * 512 * 8);
+        self.ctx.queue().submit([encoder.finish()]);
     }
 }

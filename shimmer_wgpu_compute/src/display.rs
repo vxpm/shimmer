@@ -116,7 +116,7 @@ impl DisplayRenderer {
 
             pipeline,
 
-            vram_bind_group: vram.bind_group().clone(),
+            vram_bind_group: vram.front_bind_group().clone(),
 
             top_left: [0; 2],
             dimensions: [0; 2],
@@ -138,8 +138,8 @@ impl DisplayRenderer {
         horizontal: HorizontalResolution,
         vertical: VerticalResolution,
     ) {
-        // self.dimensions = [1024, 512];
-        self.dimensions = [horizontal.value(), vertical.value()];
+        self.dimensions = [1024, 512];
+        // self.dimensions = [horizontal.value(), vertical.value()];
         self.ctx
             .queue()
             .write_buffer(&self.display_area, 4, self.dimensions.as_bytes());

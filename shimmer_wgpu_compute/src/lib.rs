@@ -77,6 +77,7 @@ impl Inner {
         match command {
             Command::VBlank => {
                 self.rasterizer.flush();
+                self.vram.sync();
             }
             Command::DrawTriangle(triangle) => {
                 self.rasterizer.enqueue_triangle(triangle);
