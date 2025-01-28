@@ -72,7 +72,7 @@ impl Interpreter {
                 }
             }
             State::CpuToVramBlit { dest: _dest, size } => {
-                let count = (size.width() * size.height() + 1) / 2;
+                let count = (size.width() as u32 * size.height() as u32 + 1) / 2;
                 if psx.gpu.render_queue.len() < count as usize {
                     return;
                 }
