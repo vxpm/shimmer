@@ -21,6 +21,9 @@ pub enum Reg {
     // Peripheral IO
     JoyData,
     JoyStat,
+    JoyMode,
+    JoyControl,
+    JoyBaud,
 
     // Memory Control 2
     RamSize,
@@ -257,10 +260,24 @@ pub enum Reg {
     // SPU Control
     MainVolume,
     ReverbVolume,
-    SRAMFifo,
+
+    VoiceKeyOn,
+    VoiceKeyOff,
+    VoiceChannelFmMode,
+    VoiceChannelNoiseMode,
+    VoiceChannelReverbMode,
+    VoiceChannelEnabled,
+
+    SramReverbAddress,
+    SramInterruptAddress,
+    SramAddress,
+    SramFifo,
     SpuControl,
-    SRAMControl,
+    SramControl,
     SpuStatus,
+
+    CdVolume,
+    ExternVolume,
 
     // Expansion Region 2
     Post,
@@ -284,6 +301,9 @@ impl Reg {
             // Peripheral IO
             Reg::JoyData => (0x1F80_1040, 4),
             Reg::JoyStat => (0x1F80_1044, 4),
+            Reg::JoyMode => (0x1F80_1048, 2),
+            Reg::JoyControl => (0x1F80_104A, 2),
+            Reg::JoyBaud => (0x1F80_104E, 2),
 
             // Memory Control 2
             Reg::RamSize => (0x1F80_1060, 4),
@@ -518,10 +538,24 @@ impl Reg {
             // SPU
             Reg::MainVolume => (0x1F80_1D80, 4),
             Reg::ReverbVolume => (0x1F80_1D84, 4),
-            Reg::SRAMFifo => (0x1F80_1DA8, 2),
+
+            Reg::VoiceKeyOn => (0x1F80_1D88, 4),
+            Reg::VoiceKeyOff => (0x1F80_1D8C, 4),
+            Reg::VoiceChannelFmMode => (0x1F80_1D90, 4),
+            Reg::VoiceChannelNoiseMode => (0x1F80_1D94, 4),
+            Reg::VoiceChannelReverbMode => (0x1F80_1D98, 4),
+            Reg::VoiceChannelEnabled => (0x1F80_1D9C, 4),
+
+            Reg::SramReverbAddress => (0x1F80_1DA2, 2),
+            Reg::SramInterruptAddress => (0x1F80_1DA4, 2),
+            Reg::SramAddress => (0x1F80_1DA6, 2),
+            Reg::SramFifo => (0x1F80_1DA8, 2),
             Reg::SpuControl => (0x1F80_1DAA, 2),
-            Reg::SRAMControl => (0x1F80_1DAC, 2),
+            Reg::SramControl => (0x1F80_1DAC, 2),
             Reg::SpuStatus => (0x1F80_1DAE, 2),
+
+            Reg::CdVolume => (0x1F80_1DB0, 4),
+            Reg::ExternVolume => (0x1F80_1DB4, 4),
 
             // Expansion Region 2
             Reg::Post => (0x1F80_2041, 1),

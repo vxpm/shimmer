@@ -368,7 +368,7 @@ impl PSX {
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                let ignore_list = [io::Reg::SRAMFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
+                let ignore_list = [io::Reg::SramFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
                 if !ignore_list.contains(&reg) && !reg.is_spu_voice() {
                     trace!(
                         self.loggers.bus,
@@ -536,7 +536,7 @@ impl PSX {
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                let ignore_list = [io::Reg::SRAMFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
+                let ignore_list = [io::Reg::SramFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
                 if !ignore_list.contains(&reg) && !reg.is_spu_voice() {
                     debug!(
                         self.loggers.bus,
