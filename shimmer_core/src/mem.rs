@@ -436,7 +436,7 @@ impl PSX {
                     let value = if let Some(value) = value {
                         value
                     } else {
-                        println!("yup...");
+                        warn!(self.loggers.gpu, "reading from empty response queue");
                         0
                     };
 

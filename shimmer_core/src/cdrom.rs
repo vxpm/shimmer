@@ -10,12 +10,10 @@ pub use interpreter::Interpreter;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
     Update,
-
-    /// Generick acknowledge interrupt, has STATUS as response.
-    AckGeneric,
-
-    AckInit,
+    Acknowledge,
     CompleteInit,
+    CompleteGetID,
+    Read,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,7 +33,7 @@ pub enum Command {
     Play,
     Forward,
     Backward,
-    ReadCount,
+    ReadN,
     Standby,
     Stop,
     Pause,
@@ -82,7 +80,7 @@ impl Command {
             0x03 => Self::Play,
             0x04 => Self::Forward,
             0x05 => Self::Backward,
-            0x06 => Self::ReadCount,
+            0x06 => Self::ReadN,
             0x07 => Self::Standby,
             0x08 => Self::Stop,
             0x09 => Self::Pause,
@@ -123,6 +121,27 @@ impl Command {
     }
 }
 
+#[bitos(8)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Status {
+    #[bits(0)]
+    pub error: bool,
+    #[bits(1)]
+    pub spindle_error: bool,
+    #[bits(2)]
+    pub seek_error: bool,
+    #[bits(3)]
+    pub id_error: bool,
+    #[bits(4)]
+    pub shell_open: bool,
+    #[bits(5)]
+    pub read: bool,
+    #[bits(6)]
+    pub seek: bool,
+    #[bits(7)]
+    pub play: bool,
+}
+
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, FromRepr)]
 pub enum Bank {
@@ -135,7 +154,7 @@ pub enum Bank {
 
 #[bitos(8)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Status {
+pub struct CommandStatus {
     /// Current register bank.
     #[bits(0..2)]
     pub bank: Bank,
@@ -242,6 +261,15 @@ pub struct Mode {
     pub speed: Speed,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Sector(pub u64);
+
+impl Sector {
+    pub fn new(minutes: u8, seconds: u8, frames: u8) -> Self {
+        Self(minutes as u64 * 60 * 75 + seconds as u64 * 60 + frames as u64)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RegWrite {
     pub reg: Reg,
@@ -252,9 +280,12 @@ pub struct RegWrite {
 #[derive(Debug, Clone, Default)]
 pub struct Controller {
     pub status: Status,
+    pub command_status: CommandStatus,
     pub interrupt_status: InterruptStatus,
     pub interrupt_mask: InterruptMask,
     pub mode: Mode,
+
+    pub location: Sector,
 
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
@@ -269,18 +300,18 @@ impl Controller {
     }
 
     pub fn update_status(&mut self) {
-        self.status
+        self.command_status
             .set_parameter_fifo_empty(self.parameter_queue.is_empty());
-        self.status.set_parameter_fifo_not_full(true);
-        self.status
+        self.command_status.set_parameter_fifo_not_full(true);
+        self.command_status
             .set_result_fifo_not_empty(!self.result_queue.is_empty());
     }
 
     pub fn read(&mut self, reg: Reg) -> u8 {
-        match (reg, self.status.bank()) {
+        match (reg, self.command_status.bank()) {
             (Reg::Reg0, _) => {
-                debug!(self.logger, "reading status: {:?}", self.status);
-                self.status.to_bits()
+                debug!(self.logger, "reading status: {:?}", self.command_status);
+                self.command_status.to_bits()
             }
             (Reg::Reg1, _) => {
                 let value = self.result_queue.pop_front().unwrap();

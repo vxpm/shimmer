@@ -5,8 +5,8 @@ mod interrupt;
 use std::collections::VecDeque;
 
 use super::{Bank, Event, InterruptKind, Mode, Reg, RegWrite};
-use crate::{PSX, interrupts::Interrupt};
-use tinylog::{debug, trace};
+use crate::{PSX, interrupts::Interrupt, scheduler};
+use tinylog::{debug, trace, warn};
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
@@ -30,10 +30,10 @@ impl Interpreter {
         match event {
             Event::Update => {
                 while let Some(RegWrite { reg, value }) = psx.cdrom.write_queue.pop_front() {
-                    match (reg, psx.cdrom.status.bank()) {
+                    match (reg, psx.cdrom.command_status.bank()) {
                         (Reg::Reg0, _) => {
                             let bank = Bank::from_repr(value as usize & 0b11).unwrap();
-                            psx.cdrom.status.set_bank(bank);
+                            psx.cdrom.command_status.set_bank(bank);
 
                             trace!(psx.loggers.cdrom, "switched to {:?}", bank);
                         }
@@ -41,28 +41,24 @@ impl Interpreter {
                         (Reg::Reg1, Bank::Bank0) => self.command(psx, value),
                         (Reg::Reg1, Bank::Bank1) => todo!(),
                         (Reg::Reg1, Bank::Bank2) => todo!(),
-                        (Reg::Reg1, Bank::Bank3) => todo!(),
+                        (Reg::Reg1, Bank::Bank3) => warn!(psx.loggers.cdrom, "ignoring ATV2 write"),
 
                         (Reg::Reg2, Bank::Bank0) => self.push_parameter(psx, value),
                         (Reg::Reg2, Bank::Bank1) => self.set_interrupt_mask(psx, value),
-                        (Reg::Reg2, Bank::Bank2) => todo!(),
-                        (Reg::Reg2, Bank::Bank3) => todo!(),
+                        (Reg::Reg2, Bank::Bank2) => warn!(psx.loggers.cdrom, "ignoring ATV0 write"),
+                        (Reg::Reg2, Bank::Bank3) => warn!(psx.loggers.cdrom, "ignoring ATV3 write"),
 
                         (Reg::Reg3, Bank::Bank0) => self.control_request(psx, value),
                         (Reg::Reg3, Bank::Bank1) => self.ack_interrupt_status(psx, value),
-                        (Reg::Reg3, Bank::Bank2) => todo!(),
-                        (Reg::Reg3, Bank::Bank3) => todo!(),
+                        (Reg::Reg3, Bank::Bank2) => warn!(psx.loggers.cdrom, "ignoring ATV1 write"),
+                        (Reg::Reg3, Bank::Bank3) => {
+                            warn!(psx.loggers.cdrom, "ignoring ADPCTL write")
+                        }
                     }
                 }
             }
-            Event::AckGeneric => {
-                psx.cdrom.status.set_busy(false);
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Acknowledge);
-            }
-            Event::AckInit => {
-                psx.cdrom.status.set_busy(false);
-                debug!(psx.loggers.cdrom, "INIT ack");
+            Event::Acknowledge => {
+                psx.cdrom.command_status.set_busy(false);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
@@ -71,6 +67,23 @@ impl Interpreter {
                 psx.cdrom.mode = Mode::from_bits(0x20);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Complete);
+            }
+            Event::CompleteGetID => {
+                debug!(psx.loggers.cdrom, "GetID complete");
+                psx.cdrom
+                    .result_queue
+                    .extend([0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x42]);
+                self.interrupt_queue.push_back(InterruptKind::Complete);
+            }
+            Event::Read => {
+                psx.cdrom.command_status.set_data_request(true);
+                psx.cdrom.result_queue.push_back(0);
+                self.interrupt_queue.push_back(InterruptKind::DataReady);
+
+                psx.scheduler.schedule(
+                    scheduler::Event::Cdrom(Event::Read),
+                    2 * command::DEFAULT_DELAY,
+                );
             }
         }
 
