@@ -1,7 +1,7 @@
 mod interpreter;
 
 use bitos::{bitos, integer::u3};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, fs::File};
 use strum::FromRepr;
 use tinylog::{Logger, debug};
 
@@ -277,7 +277,7 @@ pub struct RegWrite {
 }
 
 /// The state of the CDROM controller.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug)]
 pub struct Controller {
     pub status: Status,
     pub command_status: CommandStatus,
@@ -291,10 +291,27 @@ pub struct Controller {
     pub parameter_queue: VecDeque<u8>,
     pub result_queue: VecDeque<u8>,
 
+    pub rom: Option<File>,
     pub logger: Logger,
 }
 
 impl Controller {
+    pub fn new(rom: Option<File>, logger: Logger) -> Self {
+        Self {
+            status: Default::default(),
+            command_status: Default::default(),
+            interrupt_status: Default::default(),
+            interrupt_mask: Default::default(),
+            mode: Default::default(),
+            location: Default::default(),
+            write_queue: Default::default(),
+            parameter_queue: Default::default(),
+            result_queue: Default::default(),
+            rom,
+            logger,
+        }
+    }
+
     pub fn set_interrupt_kind(&mut self, kind: InterruptKind) {
         self.interrupt_status.set_kind(kind);
     }

@@ -36,9 +36,12 @@ pub struct CliArgs {
     /// Path to the BIOS to use.
     #[arg(short, long)]
     pub bios: Option<PathBuf>,
-    /// Path to the ROM to sideload.
+    /// Path to the ROM.
     #[arg(short, long)]
     pub input: Option<PathBuf>,
+    /// Path to the EXE to sideload.
+    #[arg(short, long)]
+    pub sideload_exe: Option<PathBuf>,
 }
 
 /// shimmer psx emulator

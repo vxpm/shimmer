@@ -18,6 +18,7 @@ use parking_lot::Mutex;
 use shimmer_core::Emulator;
 use shimmer_wgpu::WgpuRenderer;
 use std::{
+    path::PathBuf,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -60,7 +61,7 @@ struct ExclusiveState {
 }
 
 impl ExclusiveState {
-    fn new(render_state: &RenderState, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(render_state: &RenderState, config: Config) -> Self {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
@@ -85,10 +86,18 @@ impl ExclusiveState {
             renderer_config,
         );
 
-        let mut emulator = Emulator::new(bios, root_logger, renderer.clone());
-        if let Some(rom) = sideload_rom {
+        let bios = std::fs::read(config.bios_path).expect("should be a valid bios path");
+        let emulator_config = shimmer_core::Config {
+            bios,
+            rom_path: config.rom_path,
+            logger: root_logger,
+        };
+
+        let mut emulator = Emulator::new(emulator_config, renderer.clone()).unwrap();
+        if let Some(path) = config.sideload_exe_path {
             use shimmer_core::binrw::BinReaderExt;
-            let exe: shimmer_core::exe::Executable = std::io::Cursor::new(rom).read_le().unwrap();
+            let exe = std::fs::read(path).expect("should be a valid sideload exe path");
+            let exe: shimmer_core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
             emulator.psx_mut().memory.sideload = Some(exe);
         }
 
@@ -117,24 +126,30 @@ struct SharedState {
     should_advance: AtomicBool,
 }
 
+#[derive(Debug, Clone)]
+struct Config {
+    bios_path: PathBuf,
+    rom_path: Option<PathBuf>,
+    sideload_exe_path: Option<PathBuf>,
+}
+
 /// State shared between the GUI and emulation threads.
 struct State {
-    bios: Vec<u8>,
     exclusive: Mutex<ExclusiveState>,
     shared: SharedState,
 }
 
 impl State {
-    fn new(render_state: &RenderState, bios: Vec<u8>, sideload_rom: Option<Vec<u8>>) -> Self {
+    fn new(render_state: &RenderState, config: Config) -> Self {
         Self {
-            bios: bios.clone(),
-            exclusive: Mutex::new(ExclusiveState::new(render_state, bios, sideload_rom)),
+            exclusive: Mutex::new(ExclusiveState::new(render_state, config)),
             shared: Default::default(),
         }
     }
 }
 
 struct App {
+    config: Config,
     dock: DockState<tab::Instance>,
     state: Arc<State>,
     id: u64,
@@ -144,15 +159,17 @@ struct App {
 impl App {
     fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
         let bios_path = cli.args.bios.clone().unwrap_or("resources/BIOS.BIN".into());
-        let bios = std::fs::read(bios_path).expect("bios file exists");
-
         let rom_path = cli.args.input.clone();
-        let rom = rom_path.map(|path| std::fs::read(path).expect("rom file exists"));
+        let sideload_exe_path = cli.args.sideload_exe.clone();
+        let config = Config {
+            bios_path,
+            rom_path,
+            sideload_exe_path,
+        };
 
         let state = Arc::new(State::new(
             cc.wgpu_render_state.as_ref().unwrap(),
-            bios,
-            rom,
+            config.clone(),
         ));
 
         let parker = Parker::new();
@@ -202,6 +219,7 @@ impl App {
         );
 
         Self {
+            config,
             dock,
             state,
             id: id + 1,
@@ -239,7 +257,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let mut reset = false;
         let mut dump = false;
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -324,11 +342,7 @@ impl eframe::App for App {
         if reset {
             let old = std::mem::replace(
                 &mut *exclusive,
-                ExclusiveState::new(
-                    _frame.wgpu_render_state().unwrap(),
-                    self.state.bios.clone(),
-                    None,
-                ),
+                ExclusiveState::new(frame.wgpu_render_state().unwrap(), self.config.clone()),
             );
             exclusive.controls.breakpoints = old.controls.breakpoints;
         }

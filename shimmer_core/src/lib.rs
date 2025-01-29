@@ -21,7 +21,9 @@ mod scheduler;
 mod util;
 
 use cpu::cop0;
+use easyerr::{Error, ResultExt};
 use scheduler::{Event, Scheduler};
+use std::path::PathBuf;
 use tinylog::Logger;
 
 pub use binrw;
@@ -69,6 +71,22 @@ pub struct PSX {
     pub cdrom: cdrom::Controller,
 }
 
+/// Emulator configuration.
+pub struct Config {
+    /// The BIOS ROM data.
+    pub bios: Vec<u8>,
+    /// The path to the ROM to run.
+    pub rom_path: Option<PathBuf>,
+    /// The root logger to use.
+    pub logger: Logger,
+}
+
+#[derive(Debug, Error)]
+pub enum EmulatorError {
+    #[error("couldn't open ROM file")]
+    RomOpen { source: std::io::Error },
+}
+
 /// The shimmer emulator.
 pub struct Emulator {
     /// The state of the system.
@@ -85,35 +103,36 @@ pub struct Emulator {
 impl Emulator {
     /// Creates a new [`Emulator`].
     pub fn new(
-        bios: Vec<u8>,
-        logger: Logger,
+        config: Config,
         renderer: impl gpu::renderer::Renderer + 'static,
-    ) -> Self {
+    ) -> Result<Self, EmulatorError> {
         let gpu_interpreter = gpu::Interpreter::new(renderer);
-        let loggers = Loggers::new(logger);
+        let loggers = Loggers::new(config.logger);
 
-        Self {
+        let rom = config
+            .rom_path
+            .map(|path| std::fs::File::open(path).context(EmulatorCtx::RomOpen))
+            .transpose()?;
+
+        Ok(Self {
             psx: PSX {
                 scheduler: Scheduler::new(),
 
-                memory: mem::Memory::with_bios(bios).expect("BIOS should fit"),
+                memory: mem::Memory::with_bios(config.bios).expect("BIOS should fit"),
                 timers: timers::Timers::default(),
                 dma: dma::Controller::default(),
                 cpu: cpu::Cpu::default(),
                 cop0: cop0::Cop0::default(),
                 interrupts: interrupts::Controller::default(),
                 gpu: gpu::Gpu::default(),
-                cdrom: cdrom::Controller {
-                    logger: loggers.cdrom.clone(),
-                    ..Default::default()
-                },
+                cdrom: cdrom::Controller::new(rom, loggers.cdrom.clone()),
 
                 loggers,
             },
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
             cdrom_interpreter: cdrom::Interpreter::default(),
-        }
+        })
     }
 
     /// Returns a reference to the state of the system.
