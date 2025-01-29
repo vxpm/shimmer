@@ -9,8 +9,9 @@ use cli::Cli;
 use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, menu},
-    egui_wgpu::RenderState,
+    egui_wgpu::{RenderState, WgpuSetup},
     epaint::Rounding,
+    wgpu,
 };
 use egui_dock::{DockArea, DockState, NodeIndex, SurfaceIndex};
 use parking_lot::Mutex;
@@ -384,6 +385,19 @@ fn main() {
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.inner_size = Some(egui::Vec2::new(1333.0, 1000.0));
     native_options.viewport.maximized = Some(true);
+    native_options.wgpu_options.wgpu_setup = WgpuSetup::CreateNew {
+        supported_backends: wgpu::Backends::default(),
+        power_preference: wgpu::PowerPreference::HighPerformance,
+        device_descriptor: Arc::new(|_| {
+            // for renderdoc
+            wgpu::DeviceDescriptor {
+                label: Some("device"),
+                required_features: wgpu::Features::default(),
+                required_limits: wgpu::Limits::default(),
+                memory_hints: wgpu::MemoryHints::default(),
+            }
+        }),
+    };
 
     let result = eframe::run_native(
         "shimmer - psx",

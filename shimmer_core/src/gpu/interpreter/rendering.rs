@@ -66,7 +66,7 @@ impl Interpreter {
             rectangle = rectangle.clone()
         );
 
-        // self.renderer.exec(Command::DrawRectangle(rectangle));
+        self.renderer.exec(Command::DrawRectangle(rectangle));
     }
 
     fn exec_polygon(&mut self, psx: &mut PSX, cmd: RenderingCommand) {

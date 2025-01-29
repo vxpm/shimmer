@@ -13,6 +13,7 @@ use shimmer_core::gpu::{
     renderer::{Rectangle as RendererRectangle, Triangle as RendererTriangle},
 };
 use std::sync::Arc;
+use tinylog::{debug, info, warn};
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
 
@@ -202,7 +203,7 @@ impl Rasterizer {
             );
 
             if self.dirty.is_dirty(region) {
-                println!("{:?} is dirty - flushing", region);
+                warn!(self.ctx.logger(), "{:?} is dirty - flushing", region);
                 self.flush();
             }
 
@@ -252,7 +253,7 @@ impl Rasterizer {
             );
 
             if self.dirty.is_dirty(region) {
-                println!("{:?} is dirty - flushing", region);
+                warn!(self.ctx.logger(), "{:?} is dirty - flushing", region);
                 self.flush();
             }
 
@@ -288,6 +289,8 @@ impl Rasterizer {
             texture_config,
         };
 
+        debug!(self.ctx.logger(), "enqueueing rectangle"; rectangle = primitive.clone());
+
         self.dirty.mark(primitive.bounding_region());
         self.commands.push(Command::Rectangle);
         self.rectangles.push(primitive);
@@ -297,6 +300,12 @@ impl Rasterizer {
         if self.commands.is_empty() {
             return;
         }
+
+        info!(self.ctx.logger(), "flushing rasterizer");
+        assert_eq!(
+            self.rectangles.len() + self.triangles.len(),
+            self.commands.len()
+        );
 
         // commands buffer
         let commands_buffer =
@@ -391,6 +400,7 @@ impl Rasterizer {
 
         self.commands.clear();
         self.triangles.clear();
+        self.rectangles.clear();
         self.dirty.clear();
     }
 }
