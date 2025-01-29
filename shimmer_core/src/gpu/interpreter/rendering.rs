@@ -63,7 +63,7 @@ impl Interpreter {
             ((width & 0x3FF) + 0xF) & !0xF,
             height & 0x1FF,
             color;
-            rectangle = rectangle.clone()
+            rectangle = rectangle
         );
 
         self.renderer.exec(Command::DrawRectangle(rectangle));
@@ -145,7 +145,7 @@ impl Interpreter {
             texture: texture_config,
         };
 
-        debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle.clone());
+        debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
         self.renderer.exec(Command::DrawTriangle(triangle));
 
         if cmd.polygon_mode() == PolygonMode::Rectangle {
@@ -155,7 +155,7 @@ impl Interpreter {
                 texture: texture_config,
             };
 
-            debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle.clone());
+            debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
             self.renderer.exec(Command::DrawTriangle(triangle));
         }
     }
@@ -277,7 +277,7 @@ impl Interpreter {
             texture: texture_config,
         };
 
-        info!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle.clone());
+        info!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle);
         self.renderer.exec(Command::DrawRectangle(rectangle));
     }
 

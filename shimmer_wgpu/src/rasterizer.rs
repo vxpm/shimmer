@@ -63,11 +63,11 @@ impl Triangle {
 
         for vertex in &self.vertices {
             let coords = vertex.coords;
-            min_x = min_x.min(coords.x.clamp(0, VRAM_WIDTH as i32) as u16);
-            max_x = max_x.max(coords.x.clamp(0, VRAM_WIDTH as i32) as u16);
+            min_x = min_x.min(coords.x.clamp(0, i32::from(VRAM_WIDTH)) as u16);
+            max_x = max_x.max(coords.x.clamp(0, i32::from(VRAM_WIDTH)) as u16);
 
-            min_y = min_y.min(coords.y.clamp(0, VRAM_HEIGHT as i32) as u16);
-            max_y = max_y.max(coords.y.clamp(0, VRAM_HEIGHT as i32) as u16);
+            min_y = min_y.min(coords.y.clamp(0, i32::from(VRAM_HEIGHT)) as u16);
+            max_y = max_y.max(coords.y.clamp(0, i32::from(VRAM_HEIGHT)) as u16);
         }
 
         Region::from_extremes((min_x, min_y), (max_x, max_y))
@@ -87,8 +87,8 @@ impl Rectangle {
     pub fn bounding_region(&self) -> Region {
         Region::new(
             (
-                self.top_left.x.clamp(0, VRAM_WIDTH as i32) as u16,
-                self.top_left.y.clamp(0, VRAM_WIDTH as i32) as u16,
+                self.top_left.x.clamp(0, i32::from(VRAM_WIDTH)) as u16,
+                self.top_left.y.clamp(0, i32::from(VRAM_WIDTH)) as u16,
             ),
             (self.dimensions.x as u16, self.dimensions.y as u16),
         )
@@ -106,7 +106,7 @@ pub struct Rasterizer {
     ctx: Arc<Context>,
 
     vram_bind_group: Arc<wgpu::BindGroup>,
-    rasterizer_bind_group_layout: wgpu::BindGroupLayout,
+    bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
 
     commands: Vec<Command>,
@@ -182,7 +182,7 @@ impl Rasterizer {
             ctx,
 
             vram_bind_group: vram.back_bind_group().clone(),
-            rasterizer_bind_group_layout,
+            bind_group_layout: rasterizer_bind_group_layout,
             pipeline,
 
             commands: Vec::with_capacity(64),
@@ -214,12 +214,12 @@ impl Rasterizer {
                     TexPageDepth::Full | TexPageDepth::Reserved => 3,
                 },
                 clut: UVec2::new(
-                    texture.clut.x_by_16().value() as u32 * 16,
-                    texture.clut.y().value() as u32,
+                    u32::from(texture.clut.x_by_16().value()) * 16,
+                    u32::from(texture.clut.y().value()),
                 ),
                 texpage: UVec2::new(
-                    texture.texpage.x_base().value() as u32 * 64,
-                    texture.texpage.y_base().value() as u32 * 256,
+                    u32::from(texture.texpage.x_base().value()) * 64,
+                    u32::from(texture.texpage.y_base().value()) * 256,
                 ),
             }
         } else {
@@ -228,9 +228,14 @@ impl Rasterizer {
 
         let mut primitive = Triangle {
             vertices: triangle.vertices.map(|v| Vertex {
-                coords: IVec2::new(v.x.value() as i32, v.y.value() as i32),
-                rgba: UVec4::new(v.color.r as u32, v.color.g as u32, v.color.b as u32, 255),
-                uv: UVec2::new(v.u as u32, v.v as u32),
+                coords: IVec2::new(i32::from(v.x.value()), i32::from(v.y.value())),
+                rgba: UVec4::new(
+                    u32::from(v.color.r),
+                    u32::from(v.color.g),
+                    u32::from(v.color.b),
+                    255,
+                ),
+                uv: UVec2::new(u32::from(v.u), u32::from(v.v)),
             }),
             shading_mode: triangle.shading as u32,
             texture_config,
@@ -264,12 +269,12 @@ impl Rasterizer {
                     TexPageDepth::Full | TexPageDepth::Reserved => 3,
                 },
                 clut: UVec2::new(
-                    texture.clut.x_by_16().value() as u32 * 16,
-                    texture.clut.y().value() as u32,
+                    u32::from(texture.clut.x_by_16().value()) * 16,
+                    u32::from(texture.clut.y().value()),
                 ),
                 texpage: UVec2::new(
-                    texture.texpage.x_base().value() as u32 * 64,
-                    texture.texpage.y_base().value() as u32 * 256,
+                    u32::from(texture.texpage.x_base().value()) * 64,
+                    u32::from(texture.texpage.y_base().value()) * 256,
                 ),
             }
         } else {
@@ -277,13 +282,16 @@ impl Rasterizer {
         };
 
         let primitive = Rectangle {
-            top_left: IVec2::new(rectangle.x.value() as i32, rectangle.y.value() as i32),
-            top_left_uv: UVec2::new(rectangle.u as u32, rectangle.v as u32),
-            dimensions: UVec2::new(rectangle.width as u32, rectangle.height as u32),
+            top_left: IVec2::new(
+                i32::from(rectangle.x.value()),
+                i32::from(rectangle.y.value()),
+            ),
+            top_left_uv: UVec2::new(u32::from(rectangle.u), u32::from(rectangle.v)),
+            dimensions: UVec2::new(u32::from(rectangle.width), u32::from(rectangle.height)),
             rgba: UVec4::new(
-                rectangle.color.r as u32,
-                rectangle.color.g as u32,
-                rectangle.color.b as u32,
+                u32::from(rectangle.color.r),
+                u32::from(rectangle.color.g),
+                u32::from(rectangle.color.b),
                 255,
             ),
             texture_config,
@@ -314,7 +322,7 @@ impl Rasterizer {
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("commands"),
                     usage: wgpu::BufferUsages::STORAGE,
-                    contents: &self.commands.as_bytes(),
+                    contents: self.commands.as_bytes(),
                 });
 
         // primitives
@@ -350,7 +358,7 @@ impl Rasterizer {
                 .device()
                 .create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("rasterizer data"),
-                    layout: &self.rasterizer_bind_group_layout,
+                    layout: &self.bind_group_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
                             binding: 0,

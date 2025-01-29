@@ -15,7 +15,7 @@ pub struct Transfers {
     ctx: Arc<Context>,
 
     vram_bind_group: Arc<wgpu::BindGroup>,
-    transfers_bind_group_layout: wgpu::BindGroupLayout,
+    bind_group_layout: wgpu::BindGroupLayout,
     vram_to_cpu_pipeline: wgpu::ComputePipeline,
     cpu_to_vram_pipeline: wgpu::ComputePipeline,
 }
@@ -88,7 +88,7 @@ impl Transfers {
             ctx,
 
             vram_bind_group: vram.back_bind_group().clone(),
-            transfers_bind_group_layout,
+            bind_group_layout: transfers_bind_group_layout,
             vram_to_cpu_pipeline,
             cpu_to_vram_pipeline,
         }
@@ -97,8 +97,8 @@ impl Transfers {
     pub fn copy_from_vram(&mut self, copy: CopyFromVram) {
         // create config
         let config = Config {
-            position: UVec2::new(copy.x as u32, copy.y as u32),
-            dimensions: UVec2::new(copy.width as u32, copy.height as u32),
+            position: UVec2::new(u32::from(copy.x), u32::from(copy.y)),
+            dimensions: UVec2::new(u32::from(copy.width), u32::from(copy.height)),
         };
 
         let mut data = StorageBuffer::new(Vec::new());
@@ -116,7 +116,7 @@ impl Transfers {
         // create buffer
         let buffer = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("transfer"),
-            size: 8 * copy.width as u64 * copy.height as u64,
+            size: 8 * u64::from(copy.width) * u64::from(copy.height),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -127,7 +127,7 @@ impl Transfers {
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("transfer data"),
-                layout: &self.transfers_bind_group_layout,
+                layout: &self.bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,
@@ -183,11 +183,11 @@ impl Transfers {
         self.ctx.device().poll(wgpu::Maintain::Wait);
     }
 
-    pub fn copy_to_vram(&mut self, copy: CopyToVram) {
+    pub fn copy_to_vram(&mut self, copy: &CopyToVram) {
         // create config
         let config = Config {
-            position: UVec2::new(copy.x as u32, copy.y as u32),
-            dimensions: UVec2::new(copy.width as u32, copy.height as u32),
+            position: UVec2::new(u32::from(copy.x), u32::from(copy.y)),
+            dimensions: UVec2::new(u32::from(copy.width), u32::from(copy.height)),
         };
 
         let mut data = StorageBuffer::new(Vec::new());
@@ -206,7 +206,7 @@ impl Transfers {
             .data
             .iter()
             .copied()
-            .flat_map(|value| (value as u32).to_le_bytes())
+            .flat_map(|value| u32::from(value).to_le_bytes())
             .collect::<Vec<_>>();
 
         // create buffer
@@ -225,7 +225,7 @@ impl Transfers {
             .device()
             .create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("transfer data"),
-                layout: &self.transfers_bind_group_layout,
+                layout: &self.bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
                         binding: 0,

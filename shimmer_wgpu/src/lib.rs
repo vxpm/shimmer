@@ -42,7 +42,7 @@ impl From<shimmer_core::gpu::cmd::environment::TexPageDepth> for TextureKind {
 }
 
 struct Inner {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
 
     vram: Vram,
     rasterizer: Rasterizer,
@@ -64,7 +64,7 @@ impl Inner {
         let transfers = Transfers::new(ctx.clone(), &vram);
 
         Self {
-            ctx,
+            _ctx: ctx,
 
             vram,
             rasterizer,
@@ -101,7 +101,7 @@ impl Inner {
             }
             Command::CopyToVram(copy) => {
                 self.rasterizer.flush();
-                self.transfers.copy_to_vram(copy);
+                self.transfers.copy_to_vram(&copy);
             }
         }
     }

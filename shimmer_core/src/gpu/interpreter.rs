@@ -16,7 +16,6 @@ use crate::{
     interrupts::Interrupt,
     scheduler::Event,
 };
-use bitos::integer::u10;
 use tinylog::debug;
 
 use super::renderer::Renderer;
@@ -86,7 +85,7 @@ impl Interpreter {
                         ((size.height() - 1) & 0x1FF) + 1
                     };
 
-                    let count = (real_width as u32 * real_height as u32).div_ceil(2);
+                    let count = (u32::from(real_width) * u32::from(real_height)).div_ceil(2);
                     if psx.gpu.render_queue.len() < count as usize {
                         return;
                     }

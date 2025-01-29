@@ -45,7 +45,7 @@ pub struct TextureConfig {
 }
 
 /// A triangle primitive.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Triangle {
     pub vertices: [Vertex; 3],
     pub shading: ShadingMode,
@@ -53,7 +53,7 @@ pub struct Triangle {
 }
 
 /// A rectangle primitive.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
     pub color: Rgba8,
     pub x: i11,

@@ -7,7 +7,7 @@ use crate::{
     },
     scheduler::Event,
 };
-use tinylog::{debug, error, trace, warn};
+use tinylog::{error, trace, warn};
 
 impl Interpreter {
     /// Executes the given display command.
