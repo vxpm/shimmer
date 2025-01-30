@@ -29,10 +29,10 @@ pub struct DrawingSettingsCmd {
 
 /// A drawing offset command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureWindowSettingsCmd {
     #[bits(..20)]
-    texwindow: TexWindow,
+    pub texwindow: TexWindow,
 }
 
 /// A drawing area corner command.
@@ -40,9 +40,9 @@ pub struct TextureWindowSettingsCmd {
 #[derive(Debug, Clone)]
 pub struct DrawingAreaCornerCmd {
     #[bits(0..10)]
-    x: u10,
+    pub x: u10,
     #[bits(10..19)]
-    y: u9,
+    pub y: u9,
 }
 
 /// A drawing offset command.
@@ -50,9 +50,9 @@ pub struct DrawingAreaCornerCmd {
 #[derive(Debug)]
 pub struct DrawingOffsetCmd {
     #[bits(0..11)]
-    x: i11,
+    pub x: i11,
     #[bits(11..22)]
-    y: i11,
+    pub y: i11,
 }
 
 /// A drawing offset command.

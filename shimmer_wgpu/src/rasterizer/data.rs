@@ -34,6 +34,8 @@ pub struct TexConfig {
     mode: u32,
     clut: UVec2,
     texpage: UVec2,
+    texwindow_mask: UVec2,
+    texwindow_offset: UVec2,
 }
 
 impl TexConfig {
@@ -51,6 +53,14 @@ impl TexConfig {
             texpage: UVec2::new(
                 u32::from(texconfig.texpage.x_base().value()) * 64,
                 u32::from(texconfig.texpage.y_base().value()) * 256,
+            ),
+            texwindow_mask: UVec2::new(
+                u32::from(texconfig.texwindow.mask_x().value()),
+                u32::from(texconfig.texwindow.mask_y().value()),
+            ),
+            texwindow_offset: UVec2::new(
+                u32::from(texconfig.texwindow.offset_x().value()),
+                u32::from(texconfig.texwindow.offset_y().value()),
             ),
         }
     }

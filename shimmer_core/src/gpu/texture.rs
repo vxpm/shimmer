@@ -48,13 +48,13 @@ pub struct TexPage {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TexWindow {
     #[bits(0..5)]
-    mask_x: u5,
+    pub mask_x: u5,
     #[bits(5..10)]
-    mask_y: u5,
+    pub mask_y: u5,
     #[bits(10..15)]
-    offset_x: u5,
+    pub offset_x: u5,
     #[bits(15..20)]
-    offset_y: u5,
+    pub offset_y: u5,
 }
 
 /// Color LookUp table coordinates.

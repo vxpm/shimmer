@@ -62,7 +62,7 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) {
             let rgba_norm = rgba8_normalize(rectangle.color);
             color = rgba_norm_to_rgb5m(rgba_norm);
         }
-        case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8, TEXTURE_MODE_FULL {
+        case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8 {
             let uv = rectangle_uv(rectangle, vram_coords);
             let texel = texture_texel(rectangle.texture, uv);
 
@@ -71,6 +71,10 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) {
             } else {
                 color = texel;
             }
+        }
+        case TEXTURE_MODE_FULL {
+            let uv = rectangle_uv(rectangle, vram_coords);
+            color = texture_texel(rectangle.texture, uv);
         }
         default: {
             color = RGB5M_PLACEHOLDER;

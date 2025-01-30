@@ -196,6 +196,13 @@ impl Interpreter {
         psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
     }
 
+    #[expect(clippy::unused_self, reason = "consistency")]
+    fn exec_texwindow_settings(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let settings = cmd.texture_window_settings_cmd();
+        info!(psx.loggers.gpu, "updating texwindow settings"; settings = settings.clone());
+        psx.gpu.environment.texwindow = settings.texwindow();
+    }
+
     fn exec_cpu_to_vram_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
         let dest = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
         let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
@@ -345,6 +352,7 @@ impl Interpreter {
             },
             RenderingOpcode::Environment => match cmd.environment_opcode().unwrap() {
                 EnvironmentOpcode::DrawingSettings => self.exec_drawing_settings(psx, cmd),
+                EnvironmentOpcode::TexWindowSettings => self.exec_texwindow_settings(psx, cmd),
                 _ => error!(
                     psx.loggers.gpu,
                     "unimplemented rendering (environment) command: {:?}",

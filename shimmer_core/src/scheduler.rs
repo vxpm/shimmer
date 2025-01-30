@@ -7,7 +7,7 @@ use crate::cdrom;
 pub enum Event {
     /// Execute the next CPU instruction.
     Cpu,
-    /// Fire a VSync.
+    /// Fire a VBlank.
     VBlank,
     /// Update the GPU state machine.
     Gpu,

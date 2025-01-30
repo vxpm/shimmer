@@ -17,8 +17,9 @@ use texture::{TexPage, TexWindow, TransparencyMode};
 pub use interpreter::Interpreter;
 
 #[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum HorizontalResolution {
+    #[default]
     R256,
     R320,
     R512,
@@ -37,8 +38,9 @@ impl HorizontalResolution {
 }
 
 #[bitos(1)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum VerticalResolution {
+    #[default]
     R240,
     R480,
 }

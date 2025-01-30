@@ -1,9 +1,11 @@
 mod display;
 mod rendering;
 
+use super::interface::Renderer;
 use crate::{
     PSX,
     gpu::{
+        VerticalResolution,
         cmd::{
             DisplayCommand, RenderingCommand,
             rendering::{
@@ -17,8 +19,6 @@ use crate::{
     scheduler::Event,
 };
 use tinylog::debug;
-
-use super::interface::Renderer;
 
 /// The state of the interpreter.
 #[derive(Debug, Default)]
@@ -181,9 +181,14 @@ impl Interpreter {
 
     /// Performs a VBlank.
     pub fn vblank(&mut self, psx: &mut PSX) {
-        psx.gpu
-            .status
-            .set_interlace_odd(!psx.gpu.status.interlace_odd());
+        if psx.gpu.status.vertical_resolution() == VerticalResolution::R480 {
+            psx.gpu
+                .status
+                .set_interlace_odd(!psx.gpu.status.interlace_odd());
+        } else {
+            psx.gpu.status.set_interlace_odd(false);
+        }
+
         psx.interrupts.status.request(Interrupt::VBlank);
         psx.scheduler
             .schedule(Event::VBlank, u64::from(psx.gpu.cycles_per_vblank()));

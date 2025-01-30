@@ -9,14 +9,24 @@ struct TextureConfig {
     mode: TextureMode,
     clut: vec2u,
     texpage: vec2u,
+    texwindow_mask: vec2u,
+    texwindow_offset: vec2u,
+}
+
+fn apply_texwindow(config: TextureConfig, coords: vec2u) -> vec2u {
+    return vec2u(
+        (coords.x & ~(config.texwindow_mask.x * 8u)) | ((config.texwindow_offset.x & config.texwindow_mask.x) * 8),
+        (coords.y & ~(config.texwindow_mask.y * 8u)) | ((config.texwindow_offset.y & config.texwindow_mask.y) * 8),
+    );
 }
 
 fn texture_texel(config: TextureConfig, uv: vec2u) -> Rgb5m {
     switch config.mode {
         case TEXTURE_MODE_LUT4 {
             var texpage_vram_coords = config.texpage + uv / vec2u(4, 1);
-            var texel_index_group = vram_get_color_rgb5m(texpage_vram_coords);
+            texpage_vram_coords = apply_texwindow(config, texpage_vram_coords);
 
+            var texel_index_group = vram_get_color_rgb5m(texpage_vram_coords);
             var clut_index = extractBits(texel_index_group.value, 4 * (uv.x % 4), 4u);
             var texel = vram_get_color_rgb5m(config.clut + vec2u(clut_index, 0));
 
@@ -24,8 +34,9 @@ fn texture_texel(config: TextureConfig, uv: vec2u) -> Rgb5m {
         }
         case TEXTURE_MODE_LUT8 {
             var texpage_vram_coords = config.texpage + uv / vec2u(2, 1);
-            var texel_index_group = vram_get_color_rgb5m(texpage_vram_coords);
+            texpage_vram_coords = apply_texwindow(config, texpage_vram_coords);
 
+            var texel_index_group = vram_get_color_rgb5m(texpage_vram_coords);
             var clut_index = extractBits(texel_index_group.value, 8 * (uv.x % 2), 8u);
             var texel = vram_get_color_rgb5m(config.clut + vec2u(clut_index, 0));
 
@@ -33,6 +44,8 @@ fn texture_texel(config: TextureConfig, uv: vec2u) -> Rgb5m {
         }
         case TEXTURE_MODE_FULL {
             var texpage_vram_coords = config.texpage + uv;
+            texpage_vram_coords = apply_texwindow(config, texpage_vram_coords);
+
             var texel = vram_get_color_rgb5m(texpage_vram_coords);
             return texel;
         }
