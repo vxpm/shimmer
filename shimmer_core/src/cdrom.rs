@@ -13,7 +13,8 @@ pub enum Event {
     Acknowledge,
     CompleteInit,
     CompleteGetID,
-    Read,
+    CompletePause,
+    Read(bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,7 +128,7 @@ pub struct Status {
     #[bits(0)]
     pub error: bool,
     #[bits(1)]
-    pub spindle_error: bool,
+    pub motor_on: bool,
     #[bits(2)]
     pub seek_error: bool,
     #[bits(3)]
@@ -232,12 +233,30 @@ pub enum SectorSize {
     Whole,
 }
 
+impl SectorSize {
+    pub fn value(self) -> usize {
+        match self {
+            SectorSize::DataOnly => 0x800,
+            SectorSize::Whole => 0x924,
+        }
+    }
+}
+
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Speed {
     #[default]
     Normal,
     Double,
+}
+
+impl Speed {
+    pub fn factor(self) -> u64 {
+        match self {
+            Speed::Normal => 1,
+            Speed::Double => 2,
+        }
+    }
 }
 
 #[bitos(8)]
@@ -290,6 +309,7 @@ pub struct Controller {
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
     pub result_queue: VecDeque<u8>,
+    pub data_queue: VecDeque<u8>,
 
     pub rom: Option<File>,
     pub logger: Logger,
@@ -298,15 +318,21 @@ pub struct Controller {
 impl Controller {
     pub fn new(rom: Option<File>, logger: Logger) -> Self {
         Self {
-            status: Default::default(),
+            status: Status::default()
+                .with_shell_open(rom.is_none())
+                .with_motor_on(true),
             command_status: Default::default(),
             interrupt_status: Default::default(),
             interrupt_mask: Default::default(),
             mode: Default::default(),
+
             location: Default::default(),
+
             write_queue: Default::default(),
             parameter_queue: Default::default(),
             result_queue: Default::default(),
+            data_queue: Default::default(),
+
             rom,
             logger,
         }
@@ -322,17 +348,20 @@ impl Controller {
         self.command_status.set_parameter_fifo_not_full(true);
         self.command_status
             .set_result_fifo_not_empty(!self.result_queue.is_empty());
+        self.command_status
+            .set_data_request(!self.data_queue.is_empty());
     }
 
     pub fn read(&mut self, reg: Reg) -> u8 {
+        self.update_status();
+
         match (reg, self.command_status.bank()) {
             (Reg::Reg0, _) => {
-                debug!(self.logger, "reading status: {:?}", self.command_status);
+                debug!(self.logger, "reading command status"; status = self.command_status);
                 self.command_status.to_bits()
             }
             (Reg::Reg1, _) => {
                 let value = self.result_queue.pop_front().unwrap();
-                self.update_status();
 
                 debug!(self.logger, "reading result from queue: {value:#02X}");
                 value
@@ -341,14 +370,16 @@ impl Controller {
             (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => {
                 debug!(
                     self.logger,
-                    "reading interrupt mask: {:?}", self.interrupt_mask
+                    "reading interrupt mask";
+                    mask = self.interrupt_mask
                 );
                 self.interrupt_mask.to_bits()
             }
             (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => {
                 debug!(
                     self.logger,
-                    "reading interrupt status: {:?}", self.interrupt_status
+                    "reading interrupt status";
+                    status = self.interrupt_status
                 );
                 self.interrupt_status.to_bits()
             }

@@ -2,11 +2,14 @@ mod command;
 mod control;
 mod interrupt;
 
-use std::collections::VecDeque;
+use std::{
+    collections::VecDeque,
+    io::{Read, Seek},
+};
 
 use super::{Bank, Event, InterruptKind, Mode, Reg, RegWrite};
 use crate::{PSX, interrupts::Interrupt, scheduler};
-use tinylog::{debug, trace, warn};
+use tinylog::{debug, info, trace, warn};
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
@@ -58,32 +61,65 @@ impl Interpreter {
                 }
             }
             Event::Acknowledge => {
+                info!(psx.loggers.cdrom, "acknowledged command");
                 psx.cdrom.command_status.set_busy(false);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
             Event::CompleteInit => {
-                debug!(psx.loggers.cdrom, "INIT complete");
+                info!(psx.loggers.cdrom, "init complete");
                 psx.cdrom.mode = Mode::from_bits(0x20);
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::Complete);
             }
             Event::CompleteGetID => {
-                debug!(psx.loggers.cdrom, "GetID complete");
+                debug!(psx.loggers.cdrom, "get id complete");
                 psx.cdrom
                     .result_queue
                     .extend([0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x42]);
                 self.interrupt_queue.push_back(InterruptKind::Complete);
             }
-            Event::Read => {
-                psx.cdrom.command_status.set_data_request(true);
-                psx.cdrom.result_queue.push_back(0);
+            Event::Read(first) => {
+                if first {
+                    psx.cdrom.status.set_read(true);
+                }
+
+                let mut rom = psx.cdrom.rom.as_ref().unwrap();
+                let size = psx.cdrom.mode.sector_size().value();
+
+                let mut buf = vec![0; size];
+                let byte_index = psx.cdrom.location.0 * 0x930;
+                let offset = match psx.cdrom.mode.sector_size() {
+                    super::SectorSize::DataOnly => 0x18,
+                    super::SectorSize::Whole => 0x0C,
+                };
+
+                info!(
+                    psx.loggers.cdrom,
+                    "read from sector {}", psx.cdrom.location.0
+                );
+
+                rom.seek(std::io::SeekFrom::Start(byte_index + offset as u64))
+                    .unwrap();
+                rom.read_exact(&mut buf).unwrap();
+                psx.cdrom.data_queue.extend(buf);
+
+                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::DataReady);
 
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::Read),
-                    2 * command::DEFAULT_DELAY,
-                );
+                if psx.cdrom.status.read() {
+                    psx.cdrom.location.0 += 1;
+                    psx.scheduler.schedule(
+                        scheduler::Event::Cdrom(Event::Read(false)),
+                        command::READ_DELAY / psx.cdrom.mode.speed().factor(),
+                    );
+                }
+            }
+            Event::CompletePause => {
+                info!(psx.loggers.cdrom, "pause complete");
+                psx.cdrom.status.set_read(false);
+                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                self.interrupt_queue.push_back(InterruptKind::Complete);
             }
         }
 

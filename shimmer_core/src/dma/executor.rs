@@ -1,7 +1,7 @@
 //! An executor for DMA transfers.
 
 use crate::{
-    PSX,
+    PSX, cdrom,
     dma::{Channel, DataDirection, TransferDirection, TransferMode},
     interrupts::Interrupt,
     mem::Address,
@@ -57,6 +57,35 @@ impl BurstTransfer {
                     }
 
                     Progress::Finished
+                }
+            }
+            Channel::CDROM => {
+                let data = [
+                    psx.cdrom.data_queue.pop_front().unwrap(),
+                    psx.cdrom.data_queue.pop_front().unwrap(),
+                    psx.cdrom.data_queue.pop_front().unwrap(),
+                    psx.cdrom.data_queue.pop_front().unwrap(),
+                ];
+
+                psx.write::<_, true>(Address(self.current_addr), u32::from_le_bytes(data))
+                    .unwrap();
+
+                self.remaining -= 1;
+
+                if self.remaining == 0 {
+                    // alt behaviour
+                    let channel_state = &mut psx.dma.channels[self.channel as usize];
+                    if channel_state.control.alternative_behaviour() {
+                        channel_state.base.set_addr(u24::new(self.current_addr));
+                        channel_state.block_control.set_len(0);
+                    }
+
+                    psx.scheduler
+                        .schedule(Event::Cdrom(cdrom::Event::Update), 0);
+
+                    Progress::Finished
+                } else {
+                    Progress::Ongoing
                 }
             }
             _ => {
@@ -194,6 +223,10 @@ impl Executor {
                 psx.scheduler.schedule(Event::Gpu, 0);
             }
             Channel::OTC => (),
+            Channel::CDROM => {
+                psx.scheduler
+                    .schedule(Event::Cdrom(cdrom::Event::Update), 0);
+            }
             _ => todo!("{:?}", channel),
         }
 

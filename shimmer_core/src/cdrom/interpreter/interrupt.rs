@@ -24,12 +24,12 @@ struct InterruptFlags {
 impl Interpreter {
     pub fn set_interrupt_mask(&mut self, psx: &mut PSX, value: u8) {
         let mask = InterruptMask::from_bits(value);
+        debug!(psx.loggers.cdrom, "setting interrupts mask to {value:?}");
         psx.cdrom.interrupt_mask = mask;
-        info!(psx.loggers.cdrom, "setting interrupts mask to {value:?}");
     }
 
     pub fn ack_interrupt_status(&mut self, psx: &mut PSX, value: u8) {
-        info!(psx.loggers.cdrom, "acknowledging interrupts status");
+        debug!(psx.loggers.cdrom, "acknowledging interrupts status");
         let cmd = InterruptFlags::from_bits(value);
 
         let status = psx.cdrom.interrupt_status.to_bits();

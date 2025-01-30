@@ -154,7 +154,9 @@ impl TableDelegate for LogTableDelegate<'_> {
                                         "(opaque)".to_string()
                                     };
 
-                                    ui.label(RichText::new(format!("{key:?}: {}", value)).small());
+                                    ui.label(
+                                        RichText::new(format!("{key:?}: {}", value)).small().weak(),
+                                    );
                                 }
                             }
                         });
