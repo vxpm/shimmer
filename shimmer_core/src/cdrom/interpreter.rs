@@ -84,30 +84,30 @@ impl Interpreter {
                     psx.cdrom.status.set_read(true);
                 }
 
-                let mut rom = psx.cdrom.rom.as_ref().unwrap();
-                let size = psx.cdrom.mode.sector_size().value();
-
-                let mut buf = vec![0; size];
-                let byte_index = psx.cdrom.location.0 * 0x930;
-                let offset = match psx.cdrom.mode.sector_size() {
-                    super::SectorSize::DataOnly => 0x18,
-                    super::SectorSize::Whole => 0x0C,
-                };
-
-                info!(
-                    psx.loggers.cdrom,
-                    "read from sector {}", psx.cdrom.location.0
-                );
-
-                rom.seek(std::io::SeekFrom::Start(byte_index + offset as u64))
-                    .unwrap();
-                rom.read_exact(&mut buf).unwrap();
-                psx.cdrom.data_queue.extend(buf);
-
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::DataReady);
-
                 if psx.cdrom.status.read() {
+                    let mut rom = psx.cdrom.rom.as_ref().unwrap();
+                    let size = psx.cdrom.mode.sector_size().value();
+
+                    let mut buf = vec![0; size];
+                    let byte_index = psx.cdrom.location.0 * 0x930;
+                    let offset = match psx.cdrom.mode.sector_size() {
+                        super::SectorSize::DataOnly => 0x18,
+                        super::SectorSize::Whole => 0x0C,
+                    };
+
+                    info!(
+                        psx.loggers.cdrom,
+                        "read from sector {}", psx.cdrom.location.0
+                    );
+
+                    rom.seek(std::io::SeekFrom::Start(byte_index + offset as u64))
+                        .unwrap();
+                    rom.read_exact(&mut buf).unwrap();
+                    psx.cdrom.data_queue.extend(buf);
+
+                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                    self.interrupt_queue.push_back(InterruptKind::DataReady);
+
                     psx.cdrom.location.0 += 1;
                     psx.scheduler.schedule(
                         scheduler::Event::Cdrom(Event::Read(false)),

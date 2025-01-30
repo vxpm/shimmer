@@ -285,7 +285,7 @@ pub struct Sector(pub u64);
 
 impl Sector {
     pub fn new(minutes: u8, seconds: u8, frames: u8) -> Self {
-        Self(minutes as u64 * 60 * 75 + seconds as u64 * 60 + frames as u64)
+        Self(minutes as u64 * 60 * 75 + seconds as u64 * 75 + frames as u64)
     }
 }
 

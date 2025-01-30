@@ -61,10 +61,14 @@ impl Interpreter {
                 let minutes = psx.cdrom.parameter_queue.pop_front().unwrap();
                 let seconds = psx.cdrom.parameter_queue.pop_front().unwrap();
                 let frames = psx.cdrom.parameter_queue.pop_front().unwrap();
-                let decode_bcd = |value| value & 0x0F + 10 * value & (0xF0 >> 4);
+                let decode_bcd = |value| (value & 0x0F) + 10u8 * ((value & 0xF0) >> 4);
 
-                psx.cdrom.location =
-                    Sector::new(decode_bcd(minutes), decode_bcd(seconds), decode_bcd(frames));
+                psx.cdrom.location = Sector::new(
+                    decode_bcd(minutes),
+                    decode_bcd(seconds - 2),
+                    decode_bcd(frames),
+                );
+
                 psx.scheduler
                     .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
             }
