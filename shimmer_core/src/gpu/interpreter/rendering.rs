@@ -13,7 +13,7 @@ use crate::{
     },
     scheduler::Event,
 };
-use bitos::integer::{i11, u1};
+use bitos::integer::i11;
 use tinylog::{debug, error, info, trace, warn};
 
 #[derive(Default)]
@@ -127,13 +127,13 @@ impl Interpreter {
             let stat = &mut psx.gpu.status;
             stat.set_texpage_x_base(texpage.x_base());
             stat.set_texpage_y_base(texpage.y_base());
-            stat.set_semi_transparency_mode(texpage.semi_transparency_mode());
+            stat.set_transparency_mode(texpage.transparency_mode());
             stat.set_texpage_depth(texpage.depth());
 
             if psx.gpu.environment.double_vram {
-                stat.set_texpage_y_base_2(texpage.y_base_2());
+                stat.set_texture_disable(vertex_b.uv.texture_disable());
             } else {
-                stat.set_texpage_y_base_2(u1::new(0));
+                stat.set_texture_disable(false);
             }
 
             texture_config
@@ -168,15 +168,15 @@ impl Interpreter {
         let stat = &mut psx.gpu.status;
         stat.set_texpage_x_base(settings.texpage().x_base());
         stat.set_texpage_y_base(settings.texpage().y_base());
-        stat.set_semi_transparency_mode(settings.texpage().semi_transparency_mode());
+        stat.set_transparency_mode(settings.texpage().transparency_mode());
         stat.set_texpage_depth(settings.texpage().depth());
         stat.set_compression_mode(settings.compression_mode());
         stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
 
         if psx.gpu.environment.double_vram {
-            stat.set_texpage_y_base_2(settings.texpage_y_base_2());
+            stat.set_texture_disable(settings.texture_disable());
         } else {
-            stat.set_texpage_y_base_2(u1::new(0));
+            stat.set_texture_disable(false);
         }
 
         psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();

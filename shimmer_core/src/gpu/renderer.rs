@@ -2,10 +2,8 @@
 
 use super::{
     HorizontalResolution, VerticalResolution,
-    cmd::{
-        environment::TexPage,
-        rendering::{Clut, ShadingMode},
-    },
+    cmd::rendering::ShadingMode,
+    texture::{Clut, TexPage},
 };
 use bitos::integer::{i11, u9, u10};
 use zerocopy::{FromBytes, Immutable, IntoBytes};

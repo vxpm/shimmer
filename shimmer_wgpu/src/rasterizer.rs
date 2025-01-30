@@ -8,10 +8,8 @@ use crate::{
 use dirty::{DirtyRegions, Region};
 use encase::{ShaderType, StorageBuffer};
 use glam::{IVec2, UVec2, UVec4};
-use shimmer_core::gpu::{
-    cmd::environment::TexPageDepth,
-    renderer::{Rectangle as RendererRectangle, Triangle as RendererTriangle},
-};
+use shimmer_core::gpu::renderer::{Rectangle as RendererRectangle, Triangle as RendererTriangle};
+use shimmer_core::gpu::texture::Depth as TexDepth;
 use std::sync::Arc;
 use tinylog::{debug, info, warn};
 use wgpu::util::DeviceExt;
@@ -209,9 +207,9 @@ impl Rasterizer {
 
             TextureConfig {
                 mode: match texture.texpage.depth() {
-                    TexPageDepth::Nibble => 1,
-                    TexPageDepth::Byte => 2,
-                    TexPageDepth::Full | TexPageDepth::Reserved => 3,
+                    TexDepth::Nibble => 1,
+                    TexDepth::Byte => 2,
+                    TexDepth::Full | TexDepth::Reserved => 3,
                 },
                 clut: UVec2::new(
                     u32::from(texture.clut.x_by_16().value()) * 16,
@@ -264,9 +262,9 @@ impl Rasterizer {
 
             TextureConfig {
                 mode: match texture.texpage.depth() {
-                    TexPageDepth::Nibble => 1,
-                    TexPageDepth::Byte => 2,
-                    TexPageDepth::Full | TexPageDepth::Reserved => 3,
+                    TexDepth::Nibble => 1,
+                    TexDepth::Byte => 2,
+                    TexDepth::Full | TexDepth::Reserved => 3,
                 },
                 clut: UVec2::new(
                     u32::from(texture.clut.x_by_16().value()) * 16,

@@ -2,6 +2,7 @@
 
 pub mod cmd;
 pub mod renderer;
+pub mod texture;
 
 mod interpreter;
 
@@ -10,8 +11,8 @@ use bitos::{
     bitos,
     integer::{u1, u4, u9, u10, u12},
 };
-use cmd::environment::{CompressionMode, SemiTransparencyMode, TexPage, TexPageDepth};
 use std::{collections::VecDeque, ops::Range};
+use texture::{TexPage, TransparencyMode};
 
 pub use interpreter::Interpreter;
 
@@ -69,6 +70,16 @@ pub enum DisplayDepth {
     Full,
 }
 
+/// The compression mode of colors.
+#[bitos(1)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CompressionMode {
+    /// Strip LSBs.
+    Strip,
+    /// Perform dithering.
+    Dither,
+}
+
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DmaDirection {
@@ -87,9 +98,9 @@ pub struct Status {
     #[bits(4..5)]
     pub texpage_y_base: u1,
     #[bits(5..7)]
-    pub semi_transparency_mode: SemiTransparencyMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(7..9)]
-    pub texpage_depth: TexPageDepth,
+    pub texpage_depth: texture::Depth,
     #[bits(9)]
     pub compression_mode: CompressionMode,
     #[bits(10)]
@@ -105,7 +116,7 @@ pub struct Status {
     #[bits(14)]
     pub flip_screen_x: bool,
     #[bits(15)]
-    pub texpage_y_base_2: u1,
+    pub texture_disable: bool,
     #[bits(16..18)]
     pub horizontal_resolution: HorizontalResolution,
     #[bits(18)]
@@ -157,9 +168,8 @@ impl Status {
         TexPage::default()
             .with_x_base(self.texpage_x_base())
             .with_y_base(self.texpage_y_base())
-            .with_semi_transparency_mode(self.semi_transparency_mode())
+            .with_transparency_mode(self.transparency_mode())
             .with_depth(self.texpage_depth())
-            .with_y_base_2(self.texpage_y_base_2())
     }
 }
 

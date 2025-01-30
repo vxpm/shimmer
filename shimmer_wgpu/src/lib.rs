@@ -9,6 +9,7 @@ use context::Context;
 use display::DisplayRenderer;
 use rasterizer::Rasterizer;
 use shimmer_core::gpu::renderer::{Command, Renderer};
+use shimmer_core::gpu::texture::Depth as TexDepth;
 use std::sync::{
     Arc, Mutex,
     mpsc::{Sender, channel},
@@ -30,13 +31,13 @@ enum TextureKind {
     Full,
 }
 
-impl From<shimmer_core::gpu::cmd::environment::TexPageDepth> for TextureKind {
-    fn from(value: shimmer_core::gpu::cmd::environment::TexPageDepth) -> Self {
+impl From<TexDepth> for TextureKind {
+    fn from(value: TexDepth) -> Self {
         match value {
-            shimmer_core::gpu::cmd::environment::TexPageDepth::Nibble => Self::Nibble,
-            shimmer_core::gpu::cmd::environment::TexPageDepth::Byte => Self::Byte,
-            shimmer_core::gpu::cmd::environment::TexPageDepth::Full => Self::Full,
-            shimmer_core::gpu::cmd::environment::TexPageDepth::Reserved => Self::Full,
+            TexDepth::Nibble => Self::Nibble,
+            TexDepth::Byte => Self::Byte,
+            TexDepth::Full => Self::Full,
+            TexDepth::Reserved => Self::Full,
         }
     }
 }

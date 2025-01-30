@@ -131,7 +131,6 @@ pub struct RenderingCommand {
     pub line_cmd: LineCmd,
     #[bits(..)]
     pub rectangle_cmd: RectangleCmd,
-
     #[bits(..)]
     pub drawing_settings_cmd: DrawingSettingsCmd,
     #[bits(..)]

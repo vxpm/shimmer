@@ -1,90 +1,38 @@
 //! Environment commands.
 
+use crate::gpu::{
+    CompressionMode,
+    texture::{TexPage, TexWindow},
+};
 use bitos::{
     bitos,
-    integer::{u1, u4, u5, u9, u10, u11},
+    integer::{i11, u9, u10},
 };
-
-/// The shading mode of a rendering command.
-#[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SemiTransparencyMode {
-    /// Final Color = Old / 2 + New / 2
-    Half = 0,
-    /// Final Color = Old + New
-    Add = 1,
-    /// Final Color = Old - New
-    Sub = 2,
-    /// Final Color = Old + New / 4
-    Quarter = 3,
-}
-
-/// The bit depth of the texture page.
-#[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TexPageDepth {
-    Nibble = 0,
-    Byte = 1,
-    /// 15 Bit
-    Full = 2,
-    Reserved = 3,
-}
-
-/// The compression mode of colors.
-#[bitos(1)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CompressionMode {
-    /// Strip LSBs.
-    Strip = 0,
-    /// Perform dithering.
-    Dither = 1,
-}
-
-#[bitos(12)]
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TexPage {
-    #[bits(0..4)]
-    pub x_base: u4,
-    #[bits(4)]
-    pub y_base: u1,
-    #[bits(5..7)]
-    pub semi_transparency_mode: SemiTransparencyMode,
-    #[bits(7..9)]
-    pub depth: TexPageDepth,
-    #[bits(11)]
-    pub y_base_2: u1,
-}
 
 /// A drawing settings command.
 #[bitos(32)]
 #[derive(Debug, Clone)]
 pub struct DrawingSettingsCmd {
-    #[bits(0..12)]
+    #[bits(0..9)]
     pub texpage: TexPage,
     #[bits(9)]
     pub compression_mode: CompressionMode,
     #[bits(10)]
     pub enable_drawing_to_display: bool,
     #[bits(11)]
-    pub texpage_y_base_2: u1,
+    pub texture_disable: bool,
     #[bits(12)]
     pub textured_rect_flip_x: bool,
     #[bits(13)]
     pub textured_rect_flip_y: bool,
 }
 
-/// A texture window settings command.
+/// A drawing offset command.
 #[bitos(32)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TextureWindowSettingsCmd {
-    #[bits(0..5)]
-    tex_window_mask_x: u5,
-    #[bits(5..10)]
-    tex_window_mask_y: u5,
-    #[bits(10..15)]
-    tex_window_offset_x: u5,
-    #[bits(15..20)]
-    tex_window_offset_y: u5,
+    #[bits(..20)]
+    texwindow: TexWindow,
 }
 
 /// A drawing area corner command.
@@ -102,9 +50,9 @@ pub struct DrawingAreaCornerCmd {
 #[derive(Debug)]
 pub struct DrawingOffsetCmd {
     #[bits(0..11)]
-    unsigned_x: u11,
+    x: i11,
     #[bits(11..22)]
-    unsigned_y: u11,
+    y: i11,
 }
 
 /// A drawing offset command.

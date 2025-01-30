@@ -1,10 +1,7 @@
 //! Rendering commands.
 
-use super::TexPage;
-use bitos::{
-    bitos,
-    integer::{i11, u6, u9},
-};
+use crate::gpu::texture::{Clut, TexPage};
+use bitos::{bitos, integer::i11};
 
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]
@@ -72,16 +69,6 @@ pub struct VertexPositionPacket {
     pub y: i11,
 }
 
-/// CLUT information of a textured vertex.
-#[bitos(16)]
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Clut {
-    #[bits(0..6)]
-    pub x_by_16: u6,
-    #[bits(6..15)]
-    pub y: u9,
-}
-
 /// A vertex UV packet.
 #[bitos(32)]
 #[derive(Debug, Clone, Default)]
@@ -93,8 +80,10 @@ pub struct VertexUVPacket {
 
     #[bits(16..32)]
     pub clut: Clut,
-    #[bits(16..28)]
+    #[bits(16..25)]
     pub texpage: TexPage,
+    #[bits(26)]
+    pub texture_disable: bool,
 }
 
 /// The Polygon mode of a [`PolygonCmd`].
