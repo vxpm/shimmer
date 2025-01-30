@@ -1,3 +1,5 @@
+//! Items related to textures.
+
 use bitos::{
     bitos,
     integer::{u1, u4, u5, u6, u9},
@@ -13,6 +15,7 @@ pub enum Depth {
     Reserved = 3,
 }
 
+/// The transparency mode of a texture.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransparencyMode {
@@ -26,6 +29,7 @@ pub enum TransparencyMode {
     Quarter = 3,
 }
 
+/// A texture page.
 #[bitos(9)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TexPage {
@@ -39,8 +43,9 @@ pub struct TexPage {
     pub depth: Depth,
 }
 
+/// A texture window.
 #[bitos(20)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct TexWindow {
     #[bits(0..5)]
     mask_x: u5,

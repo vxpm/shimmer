@@ -3,7 +3,7 @@ use crate::{
     gpu::{
         Interpreter, Status,
         cmd::{DisplayCommand, DisplayOpcode},
-        renderer::{Command, DisplayResolution, DisplayTopLeft},
+        interface::{Command, DisplayResolution, DisplayTopLeft},
     },
     scheduler::Event,
 };

@@ -1,97 +1,16 @@
+mod data;
 mod dirty;
 
-use crate::{
-    context::Context,
-    util::ShaderSlice,
-    vram::{VRAM_HEIGHT, VRAM_WIDTH, Vram},
+use crate::{context::Context, util::ShaderSlice, vram::Vram};
+use dirty::DirtyRegions;
+use encase::StorageBuffer;
+use shimmer_core::gpu::interface::{
+    primitive::Rectangle as RendererRectangle, primitive::Triangle as InterfaceTriangle,
 };
-use dirty::{DirtyRegions, Region};
-use encase::{ShaderType, StorageBuffer};
-use glam::{IVec2, UVec2, UVec4};
-use shimmer_core::gpu::renderer::{Rectangle as RendererRectangle, Triangle as RendererTriangle};
-use shimmer_core::gpu::texture::Depth as TexDepth;
 use std::sync::Arc;
-use tinylog::{debug, info, warn};
+use tinylog::{info, warn};
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
-
-#[derive(Debug, Clone, ShaderType)]
-struct Vertex {
-    coords: IVec2,
-    rgba: UVec4,
-    uv: UVec2,
-}
-
-impl Vertex {
-    /// Sorts an slice of vertices in counter-clockwise order.
-    pub fn sort(vertices: &mut [Self]) {
-        let center =
-            vertices.iter().fold(IVec2::ZERO, |acc, v| acc + v.coords) / (vertices.len() as i32);
-
-        vertices.sort_by_key(|v| {
-            let relative = v.coords - center;
-            let x = relative.x as f32;
-            let y = relative.y as f32;
-
-            ordered_float::OrderedFloat(y.atan2(x))
-        });
-    }
-}
-
-#[derive(Debug, Clone, ShaderType, Default)]
-struct TextureConfig {
-    mode: u32,
-    clut: UVec2,
-    texpage: UVec2,
-}
-
-#[derive(Debug, Clone, ShaderType)]
-struct Triangle {
-    vertices: [Vertex; 3],
-    shading_mode: u32,
-    texture_config: TextureConfig,
-}
-
-impl Triangle {
-    pub fn bounding_region(&self) -> Region {
-        let mut min_x = u16::MAX;
-        let mut max_x = u16::MIN;
-        let mut min_y = u16::MAX;
-        let mut max_y = u16::MIN;
-
-        for vertex in &self.vertices {
-            let coords = vertex.coords;
-            min_x = min_x.min(coords.x.clamp(0, i32::from(VRAM_WIDTH)) as u16);
-            max_x = max_x.max(coords.x.clamp(0, i32::from(VRAM_WIDTH)) as u16);
-
-            min_y = min_y.min(coords.y.clamp(0, i32::from(VRAM_HEIGHT)) as u16);
-            max_y = max_y.max(coords.y.clamp(0, i32::from(VRAM_HEIGHT)) as u16);
-        }
-
-        Region::from_extremes((min_x, min_y), (max_x, max_y))
-    }
-}
-
-#[derive(Debug, Clone, ShaderType)]
-struct Rectangle {
-    top_left: IVec2,
-    top_left_uv: UVec2,
-    dimensions: UVec2,
-    rgba: UVec4,
-    texture_config: TextureConfig,
-}
-
-impl Rectangle {
-    pub fn bounding_region(&self) -> Region {
-        Region::new(
-            (
-                self.top_left.x.clamp(0, i32::from(VRAM_WIDTH)) as u16,
-                self.top_left.y.clamp(0, i32::from(VRAM_WIDTH)) as u16,
-            ),
-            (self.dimensions.x as u16, self.dimensions.y as u16),
-        )
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoBytes, Immutable)]
 #[repr(u32)]
@@ -108,8 +27,8 @@ pub struct Rasterizer {
     pipeline: wgpu::ComputePipeline,
 
     commands: Vec<Command>,
-    triangles: Vec<Triangle>,
-    rectangles: Vec<Rectangle>,
+    triangles: Vec<data::Triangle>,
+    rectangles: Vec<data::Rectangle>,
     dirty: DirtyRegions,
 }
 
@@ -190,116 +109,38 @@ impl Rasterizer {
         }
     }
 
-    pub fn enqueue_triangle(&mut self, triangle: RendererTriangle) {
-        let texture_config = if let Some(texture) = &triangle.texture {
-            let region = Region::new(
-                (
-                    u16::from(texture.texpage.x_base().value()) * 64,
-                    u16::from(texture.texpage.y_base().value()) * 256,
-                ),
-                (64, 256),
+    pub fn enqueue_triangle(&mut self, triangle: InterfaceTriangle) {
+        let triangle = data::Triangle::new(triangle);
+        if let Some(sampling_region) = triangle.texconfig().sampling_region()
+            && self.dirty.is_dirty(sampling_region)
+        {
+            warn!(
+                self.ctx.logger(),
+                "{:?} is dirty - flushing", sampling_region
             );
+            self.flush();
+        }
 
-            if self.dirty.is_dirty(region) {
-                warn!(self.ctx.logger(), "{:?} is dirty - flushing", region);
-                self.flush();
-            }
-
-            TextureConfig {
-                mode: match texture.texpage.depth() {
-                    TexDepth::Nibble => 1,
-                    TexDepth::Byte => 2,
-                    TexDepth::Full | TexDepth::Reserved => 3,
-                },
-                clut: UVec2::new(
-                    u32::from(texture.clut.x_by_16().value()) * 16,
-                    u32::from(texture.clut.y().value()),
-                ),
-                texpage: UVec2::new(
-                    u32::from(texture.texpage.x_base().value()) * 64,
-                    u32::from(texture.texpage.y_base().value()) * 256,
-                ),
-            }
-        } else {
-            TextureConfig::default()
-        };
-
-        let mut primitive = Triangle {
-            vertices: triangle.vertices.map(|v| Vertex {
-                coords: IVec2::new(i32::from(v.x.value()), i32::from(v.y.value())),
-                rgba: UVec4::new(
-                    u32::from(v.color.r),
-                    u32::from(v.color.g),
-                    u32::from(v.color.b),
-                    255,
-                ),
-                uv: UVec2::new(u32::from(v.u), u32::from(v.v)),
-            }),
-            shading_mode: triangle.shading as u32,
-            texture_config,
-        };
-
-        Vertex::sort(&mut primitive.vertices);
-        self.dirty.mark(primitive.bounding_region());
+        self.dirty.mark(triangle.bounding_region());
         self.commands.push(Command::Triangle);
-        self.triangles.push(primitive);
+        self.triangles.push(triangle);
     }
 
     pub fn enqueue_rectangle(&mut self, rectangle: RendererRectangle) {
-        let texture_config = if let Some(texture) = &rectangle.texture {
-            let region = Region::new(
-                (
-                    u16::from(texture.texpage.x_base().value()) * 64,
-                    u16::from(texture.texpage.y_base().value()) * 256,
-                ),
-                (64, 256),
+        let rectangle = data::Rectangle::new(rectangle);
+        if let Some(sampling_region) = rectangle.texconfig().sampling_region()
+            && self.dirty.is_dirty(sampling_region)
+        {
+            warn!(
+                self.ctx.logger(),
+                "{:?} is dirty - flushing", sampling_region
             );
+            self.flush();
+        }
 
-            if self.dirty.is_dirty(region) {
-                warn!(self.ctx.logger(), "{:?} is dirty - flushing", region);
-                self.flush();
-            }
-
-            TextureConfig {
-                mode: match texture.texpage.depth() {
-                    TexDepth::Nibble => 1,
-                    TexDepth::Byte => 2,
-                    TexDepth::Full | TexDepth::Reserved => 3,
-                },
-                clut: UVec2::new(
-                    u32::from(texture.clut.x_by_16().value()) * 16,
-                    u32::from(texture.clut.y().value()),
-                ),
-                texpage: UVec2::new(
-                    u32::from(texture.texpage.x_base().value()) * 64,
-                    u32::from(texture.texpage.y_base().value()) * 256,
-                ),
-            }
-        } else {
-            TextureConfig::default()
-        };
-
-        let primitive = Rectangle {
-            top_left: IVec2::new(
-                i32::from(rectangle.x.value()),
-                i32::from(rectangle.y.value()),
-            ),
-            top_left_uv: UVec2::new(u32::from(rectangle.u), u32::from(rectangle.v)),
-            dimensions: UVec2::new(u32::from(rectangle.width), u32::from(rectangle.height)),
-            rgba: UVec4::new(
-                u32::from(rectangle.color.r),
-                u32::from(rectangle.color.g),
-                u32::from(rectangle.color.b),
-                255,
-            ),
-            texture_config,
-        };
-
-        debug!(self.ctx.logger(), "enqueueing rectangle"; rectangle = primitive.clone());
-
-        self.dirty.mark(primitive.bounding_region());
+        self.dirty.mark(rectangle.bounding_region());
         self.commands.push(Command::Rectangle);
-        self.rectangles.push(primitive);
+        self.rectangles.push(rectangle);
     }
 
     pub fn flush(&mut self) {

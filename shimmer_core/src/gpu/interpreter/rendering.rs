@@ -8,8 +8,11 @@ use crate::{
                 VertexColorPacket, VertexPositionPacket, VertexUVPacket,
             },
         },
+        interface::{
+            Command, CopyFromVram, Rgba8, TexConfig,
+            primitive::{Primitive, Rectangle, Triangle, Vertex},
+        },
         interpreter::{Interpreter, State},
-        renderer::{Command, CopyFromVram, Rectangle, Rgba8, TextureConfig, Triangle, Vertex},
     },
     scheduler::Event,
 };
@@ -52,7 +55,7 @@ impl Interpreter {
             v: 0,
             width: ((width & 0x3FF) + 0xF) & !0xF,
             height: height & 0x1FF,
-            texture: None,
+            texconfig: None,
         };
 
         warn!(
@@ -66,7 +69,9 @@ impl Interpreter {
             rectangle = rectangle
         );
 
-        self.renderer.exec(Command::DrawRectangle(rectangle));
+        self.renderer.exec(Command::Draw {
+            primitive: Primitive::Rectangle(rectangle),
+        });
     }
 
     fn exec_polygon(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
@@ -119,10 +124,14 @@ impl Interpreter {
             vertex_d.to_vertex(),
         ];
 
-        let texture_config = cmd.textured().then(|| {
+        let texconfig = cmd.textured().then(|| {
             let clut = vertex_a.uv.clut();
             let texpage = vertex_b.uv.texpage();
-            let texture_config = TextureConfig { clut, texpage };
+            let texconfig = TexConfig {
+                clut,
+                texpage,
+                texwindow: psx.gpu.environment.texwindow,
+            };
 
             let stat = &mut psx.gpu.status;
             stat.set_texpage_x_base(texpage.x_base());
@@ -136,27 +145,31 @@ impl Interpreter {
                 stat.set_texture_disable(false);
             }
 
-            texture_config
+            texconfig
         });
 
         let triangle = Triangle {
             vertices: tri_1,
             shading: cmd.shading_mode(),
-            texture: texture_config,
+            texconfig,
         };
 
         debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
-        self.renderer.exec(Command::DrawTriangle(triangle));
+        self.renderer.exec(Command::Draw {
+            primitive: Primitive::Triangle(triangle),
+        });
 
         if cmd.polygon_mode() == PolygonMode::Rectangle {
             let triangle = Triangle {
                 vertices: tri_2,
                 shading: cmd.shading_mode(),
-                texture: texture_config,
+                texconfig,
             };
 
             debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
-            self.renderer.exec(Command::DrawTriangle(triangle));
+            self.renderer.exec(Command::Draw {
+                primitive: Primitive::Triangle(triangle),
+            });
         }
     }
 
@@ -244,11 +257,12 @@ impl Interpreter {
         let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
         let position = VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
 
-        let (uv, texture_config) = if cmd.textured() {
+        let (uv, texconfig) = if cmd.textured() {
             let uv = VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
-            let config = TextureConfig {
+            let config = TexConfig {
                 clut: uv.clut(),
                 texpage: psx.gpu.status.texpage(),
+                texwindow: psx.gpu.environment.texwindow,
             };
 
             (uv, Some(config))
@@ -274,11 +288,13 @@ impl Interpreter {
             v: uv.v(),
             width,
             height,
-            texture: texture_config,
+            texconfig,
         };
 
         info!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle);
-        self.renderer.exec(Command::DrawRectangle(rectangle));
+        self.renderer.exec(Command::Draw {
+            primitive: Primitive::Rectangle(rectangle),
+        });
     }
 
     fn exec_line(&mut self, psx: &mut PSX, cmd: RenderingCommand) {

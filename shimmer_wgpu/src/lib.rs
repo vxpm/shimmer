@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 mod context;
 mod display;
 mod rasterizer;
@@ -8,7 +10,8 @@ mod vram;
 use context::Context;
 use display::DisplayRenderer;
 use rasterizer::Rasterizer;
-use shimmer_core::gpu::renderer::{Command, Renderer};
+use shimmer_core::gpu::interface::primitive::Primitive;
+use shimmer_core::gpu::interface::{Command, Renderer};
 use shimmer_core::gpu::texture::Depth as TexDepth;
 use std::sync::{
     Arc, Mutex,
@@ -80,12 +83,10 @@ impl Inner {
                 self.rasterizer.flush();
                 self.vram.sync();
             }
-            Command::DrawTriangle(triangle) => {
-                self.rasterizer.enqueue_triangle(triangle);
-            }
-            Command::DrawRectangle(rectangle) => {
-                self.rasterizer.enqueue_rectangle(rectangle);
-            }
+            Command::Draw { primitive } => match primitive {
+                Primitive::Triangle(triangle) => self.rasterizer.enqueue_triangle(triangle),
+                Primitive::Rectangle(rectangle) => self.rasterizer.enqueue_rectangle(rectangle),
+            },
             Command::SetDisplayTopLeft(display_top_left) => {
                 self.display_renderer
                     .set_display_top_left(display_top_left.x, display_top_left.y);

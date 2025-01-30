@@ -103,17 +103,7 @@ impl PolygonMode {
     }
 }
 
-/// A polygon rendering command. This command always requires some data packets, with the
-/// amount changing depending on some of it's values.
-///
-/// The data required by this command is vertex data, and it is received in the following
-/// sequence:
-/// - If doing gouraud shading, a [`VertexColorPacket`].
-/// - A [`VertexPositionPacket`].
-/// - If doing textured polygons, a [`VertexUVPacket`].
-///
-/// If the `polygon_mode` of this command is [`PolygonMode::Triangle`], 3 vertices are
-/// required. Otherwise, 4 are required. Pretty intuitive!
+/// A polygon rendering command.
 #[bitos(32)]
 #[derive(Debug)]
 pub struct PolygonCmd {
@@ -143,16 +133,7 @@ pub enum LineMode {
     Poly = 1,
 }
 
-/// A line rendering command. This command always requires some data packets, with the
-/// amount changing depending on some of it's values.
-///
-/// The data required by this command is vertex data, and it is received in the following
-/// sequence:
-/// - If doing gouraud shading, a [`VertexColorPacket`].
-/// - A [`VertexPositionPacket`].
-///
-/// If the `polyline` mode is enabled, vertexes are received forever until a packet equal to
-/// 0x5000_5000 is received.
+/// A line rendering command.
 #[bitos(32)]
 #[derive(Debug)]
 pub struct LineCmd {
@@ -180,15 +161,7 @@ pub enum RectangleMode {
     Sprite16 = 3,
 }
 
-/// A rectangle rendering command. This command always requires some data packets, with the
-/// amount changing depending on some of it's values.
-///
-/// The data required by this command is vertex data, and it is received in the following
-/// sequence:
-/// - A [`VertexPositionPacket`], interpreted as the top-left corner of the Rectangle.
-/// - If doing textured rectangle, a [`VertexUVPacket`].
-/// - If doing variable sized rectangle, a [`VertexPositionPacket`] interpreted as the width and
-/// height of the rectangle.
+/// A rectangle rendering command.
 #[bitos(32)]
 #[derive(Debug)]
 pub struct RectangleCmd {

@@ -104,7 +104,7 @@ impl Emulator {
     /// Creates a new [`Emulator`].
     pub fn new(
         config: Config,
-        renderer: impl gpu::renderer::Renderer + 'static,
+        renderer: impl gpu::interface::Renderer + 'static,
     ) -> Result<Self, EmulatorError> {
         let gpu_interpreter = gpu::Interpreter::new(renderer);
         let loggers = Loggers::new(config.logger);

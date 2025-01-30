@@ -1,7 +1,7 @@
 //! Items related to the GPU of the PSX.
 
 pub mod cmd;
-pub mod renderer;
+pub mod interface;
 pub mod texture;
 
 mod interpreter;
@@ -12,7 +12,7 @@ use bitos::{
     integer::{u1, u4, u9, u10, u12},
 };
 use std::{collections::VecDeque, ops::Range};
-use texture::{TexPage, TransparencyMode};
+use texture::{TexPage, TexWindow, TransparencyMode};
 
 pub use interpreter::Interpreter;
 
@@ -180,6 +180,8 @@ pub struct EnvironmentState {
 
     pub textured_rect_flip_x: bool,
     pub textured_rect_flip_y: bool,
+
+    pub texwindow: TexWindow,
 }
 
 /// Display configuration of the GPU.

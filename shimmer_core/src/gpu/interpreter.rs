@@ -11,14 +11,14 @@ use crate::{
                 VertexPositionPacket,
             },
         },
-        renderer::{Command, CopyToVram},
+        interface::{Command, CopyToVram},
     },
     interrupts::Interrupt,
     scheduler::Event,
 };
 use tinylog::debug;
 
-use super::renderer::Renderer;
+use super::interface::Renderer;
 
 /// The state of the interpreter.
 #[derive(Debug, Default)]

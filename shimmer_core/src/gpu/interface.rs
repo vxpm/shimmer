@@ -1,16 +1,16 @@
-//! The rendering interface for renderer implementations.
+//! The interface for renderer implementations.
+
+pub mod primitive;
 
 use super::{
     HorizontalResolution, VerticalResolution,
-    cmd::rendering::ShadingMode,
-    texture::{Clut, TexPage},
+    texture::{Clut, TexPage, TexWindow},
 };
-use bitos::integer::{i11, u9, u10};
-use zerocopy::{FromBytes, Immutable, IntoBytes};
+use bitos::integer::{u9, u10};
+use primitive::Primitive;
 
-/// Full 32-bit RGBA color.
-#[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes, Default)]
-#[repr(C)]
+/// 32-bit RGBA color.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Rgba8 {
     pub r: u8,
     pub g: u8,
@@ -25,42 +25,12 @@ impl Rgba8 {
     }
 }
 
-/// A single triangle vertex.
-#[derive(Debug, Clone, Copy, Immutable, FromBytes, IntoBytes)]
-pub struct Vertex {
-    pub color: Rgba8,
-    pub x: i11,
-    pub y: i11,
-    pub u: u8,
-    pub v: u8,
-}
-
-/// Texture configuration.
+/// Drawing configuration.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct TextureConfig {
+pub struct TexConfig {
     pub clut: Clut,
     pub texpage: TexPage,
-}
-
-/// A triangle primitive.
-#[derive(Debug, Clone, Copy)]
-pub struct Triangle {
-    pub vertices: [Vertex; 3],
-    pub shading: ShadingMode,
-    pub texture: Option<TextureConfig>,
-}
-
-/// A rectangle primitive.
-#[derive(Debug, Clone, Copy)]
-pub struct Rectangle {
-    pub color: Rgba8,
-    pub x: i11,
-    pub y: i11,
-    pub u: u8,
-    pub v: u8,
-    pub width: u16,
-    pub height: u16,
-    pub texture: Option<TextureConfig>,
+    pub texwindow: TexWindow,
 }
 
 /// A data copy to VRAM.
@@ -111,9 +81,8 @@ pub enum Command {
     CopyToVram(CopyToVram),
     CopyFromVram(CopyFromVram),
 
-    // Draw stuff
-    DrawTriangle(Triangle),
-    DrawRectangle(Rectangle),
+    // Draw
+    Draw { primitive: Primitive },
 }
 
 /// Renderer interface.
