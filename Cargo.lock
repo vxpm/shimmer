@@ -2634,7 +2634,6 @@ checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 [[package]]
 name = "tinylog"
 version = "0.1.0"
-source = "git+https://github.com/vxpm/tinylog.git#a74a2ae024a9cd83e7ca591532d99f0e97b90593"
 dependencies = [
  "chrono",
  "easyerr",

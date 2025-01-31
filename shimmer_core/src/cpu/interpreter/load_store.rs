@@ -30,14 +30,11 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.psx.read::<u32, false>(addr) {
+            self.cancel_load(instr.rt());
             self.psx.cpu.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value,
             });
-
-            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-                self.pending_load = None;
-            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -85,14 +82,11 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.psx.read::<i8, false>(addr) {
+            self.cancel_load(instr.rt());
             self.psx.cpu.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: i32::from(value) as u32,
             });
-
-            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-                self.pending_load = None;
-            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -106,14 +100,11 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.psx.read::<u8, false>(addr) {
+            self.cancel_load(instr.rt());
             self.psx.cpu.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: u32::from(value),
             });
-
-            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-                self.pending_load = None;
-            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -127,14 +118,11 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.psx.read::<u16, false>(addr) {
+            self.cancel_load(instr.rt());
             self.psx.cpu.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: u32::from(value),
             });
-
-            if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-                self.pending_load = None;
-            }
         } else {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
@@ -148,6 +136,7 @@ impl Interpreter<'_> {
         let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
 
         if let Ok(value) = self.psx.read::<i16, false>(addr) {
+            self.cancel_load(instr.rt());
             self.psx.cpu.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: i32::from(value) as u32,
@@ -165,12 +154,14 @@ impl Interpreter<'_> {
 
     /// `rd = LO`.
     pub fn mflo(&mut self, instr: Instruction) -> u64 {
+        self.cancel_load(instr.rd());
         self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.lo);
         DEFAULT_CYCLE_COUNT
     }
 
     /// `rd = HI`.
     pub fn mfhi(&mut self, instr: Instruction) -> u64 {
+        self.cancel_load(instr.rd());
         self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.hi);
         DEFAULT_CYCLE_COUNT
     }
@@ -206,14 +197,11 @@ impl Interpreter<'_> {
             *byte = self.psx.read_unaligned::<u8, false>(addr);
         }
 
+        self.cancel_load(instr.rt());
         self.psx.cpu.load_delay_slot = Some(RegLoad {
             reg: instr.rt(),
             value: u32::from_be_bytes(result),
         });
-
-        if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-            self.pending_load = None;
-        }
 
         MEMORY_CYCLE_COUNT
     }
@@ -237,14 +225,11 @@ impl Interpreter<'_> {
             *byte = self.psx.read_unaligned::<u8, false>(addr);
         }
 
+        self.cancel_load(instr.rt());
         self.psx.cpu.load_delay_slot = Some(RegLoad {
             reg: instr.rt(),
             value: u32::from_le_bytes(result),
         });
-
-        if self.pending_load.is_some_and(|load| load.reg == instr.rt()) {
-            self.pending_load = None;
-        }
 
         MEMORY_CYCLE_COUNT
     }

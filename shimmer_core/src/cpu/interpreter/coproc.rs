@@ -45,6 +45,7 @@ impl Interpreter<'_> {
             }
         };
 
+        self.cancel_load(instr.rt());
         self.psx.cpu.load_delay_slot = Some(RegLoad {
             reg: instr.rt(),
             value: rd,

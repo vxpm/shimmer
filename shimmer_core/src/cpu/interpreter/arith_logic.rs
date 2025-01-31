@@ -6,6 +6,7 @@ impl Interpreter<'_> {
     pub fn lui(&mut self, instr: Instruction) -> u64 {
         let result = u32::from(instr.imm16()) << 16;
         self.psx.cpu.regs.write(instr.rt(), result);
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -15,6 +16,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rs | u32::from(instr.imm16());
         self.psx.cpu.regs.write(instr.rt(), result);
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -24,6 +26,7 @@ impl Interpreter<'_> {
         let rt = self.psx.cpu.regs.read(instr.rt());
         let result = rt.unbounded_shl(u32::from(instr.imm5().value()));
         self.psx.cpu.regs.write(instr.rd(), result);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -33,6 +36,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rs.wrapping_add_signed(i32::from(instr.signed_imm16()));
         self.psx.cpu.regs.write(instr.rt(), result);
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -42,6 +46,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), rs | rt);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -53,6 +58,7 @@ impl Interpreter<'_> {
 
         if let Some(value) = result {
             self.psx.cpu.regs.write(instr.rt(), value as u32);
+            self.cancel_load(instr.rt());
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }
@@ -65,6 +71,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), u32::from(rs < rt));
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -74,6 +81,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), rs.wrapping_add(rt));
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -83,6 +91,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rs & u32::from(instr.imm16());
         self.psx.cpu.regs.write(instr.rt(), result);
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -92,6 +101,7 @@ impl Interpreter<'_> {
         let rt = self.psx.cpu.regs.read(instr.rt());
         let result = rt.unbounded_shr(u32::from(instr.imm5().value()));
         self.psx.cpu.regs.write(instr.rd(), result);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -101,6 +111,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), rs & rt);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -113,6 +124,7 @@ impl Interpreter<'_> {
         let result = rs.checked_add(rt);
         if let Some(value) = result {
             self.psx.cpu.regs.write(instr.rd(), value as u32);
+            self.cancel_load(instr.rd());
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }
@@ -125,6 +137,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs()) as i32;
         let result = rs < i32::from(instr.signed_imm16());
         self.psx.cpu.regs.write(instr.rt(), u32::from(result));
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -134,6 +147,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), rs.wrapping_sub(rt));
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -143,6 +157,7 @@ impl Interpreter<'_> {
         let rt = self.psx.cpu.regs.read(instr.rt()) as i32;
         let result = rt.unbounded_shr(u32::from(instr.imm5().value()));
         self.psx.cpu.regs.write(instr.rd(), result as u32);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -172,6 +187,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rs < (i32::from(instr.signed_imm16()) as u32);
         self.psx.cpu.regs.write(instr.rt(), u32::from(result));
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -181,6 +197,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs()) as i32;
         let rt = self.psx.cpu.regs.read(instr.rt()) as i32;
         self.psx.cpu.regs.write(instr.rd(), u32::from(rs < rt));
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -206,6 +223,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rt.unbounded_shl(rs & 0x1F);
         self.psx.cpu.regs.write(instr.rd(), result);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -215,6 +233,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), !(rs | rt));
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -225,6 +244,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rt.unbounded_shr(rs & 0x1F);
         self.psx.cpu.regs.write(instr.rd(), result as u32);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -235,6 +255,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rt.unbounded_shr(rs & 0x1F);
         self.psx.cpu.regs.write(instr.rd(), result);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -257,6 +278,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let rt = self.psx.cpu.regs.read(instr.rt());
         self.psx.cpu.regs.write(instr.rd(), rs ^ rt);
+        self.cancel_load(instr.rd());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -266,6 +288,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         let result = rs ^ u32::from(instr.imm16());
         self.psx.cpu.regs.write(instr.rt(), result);
+        self.cancel_load(instr.rt());
 
         DEFAULT_CYCLE_COUNT
     }
@@ -291,6 +314,7 @@ impl Interpreter<'_> {
         let result = rs.checked_sub(rt);
         if let Some(value) = result {
             self.psx.cpu.regs.write(instr.rd(), value as u32);
+            self.cancel_load(instr.rd());
         } else {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }

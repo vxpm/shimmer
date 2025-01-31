@@ -13,7 +13,7 @@ use std::{
     collections::VecDeque,
     io::{Read, Seek},
 };
-use tinylog::{info, trace, warn};
+use tinylog::{debug, info, trace, warn};
 
 pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
 
@@ -72,8 +72,6 @@ impl Interpreter {
                 }
             }
             Event::Acknowledge(cmd) => {
-                info!(psx.loggers.cdrom, "acknowledging {cmd:?}");
-
                 assert!(psx.cdrom.command_status.busy());
                 psx.cdrom.command_status.set_busy(false);
 
@@ -112,8 +110,6 @@ impl Interpreter {
                         } else {
                             COMPLETE_PAUSE_NOP_DELAY
                         };
-
-                        psx.cdrom.status.set_read(false);
                         sched_complete(psx, delay);
                     }
                     Command::SeekL => {
@@ -128,7 +124,7 @@ impl Interpreter {
                         let decode_bcd = |value| (value & 0x0F) + 10u8 * ((value & 0xF0) >> 4);
                         psx.cdrom.location = Sector::new(
                             decode_bcd(minutes),
-                            decode_bcd(seconds - 2),
+                            decode_bcd(seconds) - 2,
                             decode_bcd(frames),
                         );
 
@@ -136,7 +132,7 @@ impl Interpreter {
                             psx.loggers.cdrom,
                             "set location {}:{}:{}",
                             decode_bcd(minutes),
-                            decode_bcd(seconds - 2),
+                            decode_bcd(seconds) - 2,
                             decode_bcd(frames); sector = psx.cdrom.location.0
                         );
                     }
@@ -148,14 +144,13 @@ impl Interpreter {
                     _ => todo!("ack {cmd:?}"),
                 }
 
+                debug!(psx.loggers.cdrom, "acknowledging {cmd:?}"; stat = psx.cdrom.status);
                 if push_stat {
                     psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 }
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
             Event::Complete(cmd) => {
-                info!(psx.loggers.cdrom, "completing {cmd:?}");
-
                 let mut push_stat = true;
                 match cmd {
                     Command::Init => {
@@ -176,6 +171,7 @@ impl Interpreter {
                     _ => todo!("complete {cmd:?}"),
                 }
 
+                debug!(psx.loggers.cdrom, "completing {cmd:?}"; stat = psx.cdrom.status);
                 if push_stat {
                     psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 }
@@ -201,7 +197,7 @@ impl Interpreter {
                     .unwrap();
                 rom.read_exact(&mut buf).unwrap();
 
-                if psx.cdrom.sector_queue.len() == 2 {
+                if psx.cdrom.sector_queue.len() == 1 {
                     psx.cdrom.sector_queue.pop_back();
                 }
                 psx.cdrom.sector_queue.push_back(VecDeque::from(buf));

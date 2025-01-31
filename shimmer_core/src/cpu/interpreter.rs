@@ -174,6 +174,13 @@ impl<'ctx> Interpreter<'ctx> {
         );
     }
 
+    /// Cancels a pending load to the given register, if it exists.
+    fn cancel_load(&mut self, reg: Reg) {
+        if self.pending_load.is_some_and(|load| load.reg == reg) {
+            self.pending_load = None;
+        }
+    }
+
     fn check_interrupts(&mut self) -> bool {
         let masked_interrupt_status = self.psx.interrupts.status.mask(&self.psx.interrupts.mask);
         let requested_interrupt = masked_interrupt_status.requested();

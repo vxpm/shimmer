@@ -46,9 +46,7 @@ impl Interpreter<'_> {
         let addr = high | low;
 
         self.psx.cpu.regs.write(Reg::RA, self.psx.cpu.regs.pc);
-        if self.pending_load.is_some_and(|load| load.reg == Reg::RA) {
-            self.pending_load = None;
-        }
+        self.cancel_load(Reg::RA);
 
         self.psx.cpu.regs.pc = addr;
 
@@ -79,10 +77,7 @@ impl Interpreter<'_> {
     pub fn jalr(&mut self, instr: Instruction) -> u64 {
         let rs = self.psx.cpu.regs.read(instr.rs());
         self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.pc);
-
-        if self.pending_load.is_some_and(|load| load.reg == instr.rd()) {
-            self.pending_load = None;
-        }
+        self.cancel_load(instr.rd());
 
         self.psx.cpu.regs.pc = rs;
 

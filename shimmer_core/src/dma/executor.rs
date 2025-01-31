@@ -230,7 +230,12 @@ impl Executor {
                 psx.scheduler
                     .schedule(Event::Cdrom(cdrom::Event::Update), 0);
             }
-            _ => todo!("{:?}", channel),
+            _ => {
+                error!(
+                    psx.loggers.cdrom,
+                    "advancing unimplemented channel: {channel:?}"
+                )
+            }
         }
 
         match progress {

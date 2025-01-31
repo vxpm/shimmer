@@ -65,6 +65,10 @@ impl ExclusiveState {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
+            .with_drain(
+                tinylog::drain::fmt::FmtDrain::new(std::io::stdout(), false)
+                    .filter(tinylog::logger::Context::new("psx::cdrom")),
+            )
             .build();
 
         let level = if cfg!(debug_assertions) {

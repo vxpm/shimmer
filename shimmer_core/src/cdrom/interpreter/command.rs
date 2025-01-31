@@ -3,7 +3,7 @@ use crate::{
     cdrom::{Command, Interpreter, interpreter::Event},
     scheduler,
 };
-use tinylog::{info, trace};
+use tinylog::trace;
 
 pub const ACK_DEFAULT_DELAY: u64 = 50401;
 pub const ACK_INIT_DELAY: u64 = 81102;
@@ -18,7 +18,7 @@ impl Interpreter {
         psx.cdrom.command_status.set_busy(true);
 
         let cmd = Command::new(value);
-        info!(psx.loggers.cdrom, "received command {cmd:?}"; stat = psx.cdrom.status);
+        // info!(psx.loggers.cdrom, "received command {cmd:?}"; stat = psx.cdrom.status);
 
         let delay = match cmd {
             Command::Nop
