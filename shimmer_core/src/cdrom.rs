@@ -3,22 +3,16 @@ mod interpreter;
 use bitos::{bitos, integer::u3};
 use std::{collections::VecDeque, fs::File};
 use strum::FromRepr;
-use tinylog::{Logger, debug, trace};
+use tinylog::{Logger, trace};
 
 pub use interpreter::Interpreter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
     Update,
-    Acknowledge,
-    AcknowledgeSeekL,
-
-    CompleteInit,
-    CompleteGetID,
-    CompletePause,
-    CompleteSeekL,
-
-    Read(bool),
+    Acknowledge(Command),
+    Complete(Command),
+    Read,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -400,6 +394,10 @@ impl Controller {
     }
 
     pub fn read_from_sector(&mut self) -> u8 {
+        if self.lock_data_queue {
+            return 0;
+        }
+
         let front = self.sector_queue.front_mut().unwrap();
         let value = front.pop_front().unwrap();
 

@@ -2,14 +2,26 @@ mod command;
 mod control;
 mod interrupt;
 
+use super::{Bank, Event, InterruptKind, Mode, Reg, RegWrite};
+use crate::{
+    PSX,
+    cdrom::{Command, Sector},
+    interrupts::Interrupt,
+    scheduler,
+};
 use std::{
     collections::VecDeque,
     io::{Read, Seek},
 };
+use tinylog::{info, trace, warn};
 
-use super::{Bank, Event, InterruptKind, Mode, Reg, RegWrite};
-use crate::{PSX, interrupts::Interrupt, scheduler};
-use tinylog::{debug, info, trace, warn};
+pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
+
+pub const COMPLETE_GETID_DELAY: u64 = 18944;
+pub const COMPLETE_PAUSE_DELAY: u64 = 2168860;
+pub const COMPLETE_PAUSE_NOP_DELAY: u64 = 7666;
+pub const READ_DELAY: u64 = 451021;
+pub const SEEK_DELAY: u64 = 33869;
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
@@ -59,39 +71,117 @@ impl Interpreter {
                     }
                 }
             }
-            Event::Acknowledge => {
-                info!(psx.loggers.cdrom, "acknowledged generic");
+            Event::Acknowledge(cmd) => {
+                info!(psx.loggers.cdrom, "acknowledging {cmd:?}");
+
+                assert!(psx.cdrom.command_status.busy());
                 psx.cdrom.command_status.set_busy(false);
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Acknowledge);
-            }
-            Event::AcknowledgeSeekL => {
-                info!(psx.loggers.cdrom, "acknowledged seekl");
-                psx.cdrom.command_status.set_busy(false);
-                psx.cdrom.status.set_read(false);
-                psx.cdrom.status.set_play(false);
-                psx.cdrom.status.set_seek(true);
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Acknowledge);
-            }
-            Event::CompleteInit => {
-                info!(psx.loggers.cdrom, "init complete");
-                psx.cdrom.mode = Mode::from_bits(0x20);
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Complete);
-            }
-            Event::CompleteGetID => {
-                info!(psx.loggers.cdrom, "get id complete");
-                psx.cdrom
-                    .result_queue
-                    .extend([0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x42]);
-                self.interrupt_queue.push_back(InterruptKind::Complete);
-            }
-            Event::Read(first) => {
-                if first {
-                    psx.cdrom.status.set_read(true);
+
+                let sched_complete = |psx: &mut PSX, delay| {
+                    psx.scheduler
+                        .schedule(scheduler::Event::Cdrom(Event::Complete(cmd)), delay);
+                };
+
+                let mut push_stat = true;
+                match cmd {
+                    Command::Nop | Command::Demute | Command::Mute => (),
+                    Command::Init => {
+                        sched_complete(psx, READ_DELAY);
+                    }
+                    Command::Test => {
+                        let param = psx.cdrom.parameter_queue.pop_front().unwrap_or_default();
+                        if param != 0x20 {
+                            todo!("cdrom test command with parameter {param}")
+                        }
+
+                        psx.cdrom.result_queue.extend(CDROM_VERSION);
+                        push_stat = false;
+                    }
+                    Command::GetID => sched_complete(psx, COMPLETE_GETID_DELAY),
+                    Command::ReadN => {
+                        assert!(!psx.cdrom.status.seek());
+                        psx.cdrom.status.set_read(true);
+                        psx.scheduler.schedule(
+                            scheduler::Event::Cdrom(Event::Read),
+                            READ_DELAY / psx.cdrom.mode.speed().factor(),
+                        );
+                    }
+                    Command::Pause => {
+                        let delay = if psx.cdrom.status.read() {
+                            COMPLETE_PAUSE_DELAY / psx.cdrom.mode.speed().factor()
+                        } else {
+                            COMPLETE_PAUSE_NOP_DELAY
+                        };
+
+                        psx.cdrom.status.set_read(false);
+                        sched_complete(psx, delay);
+                    }
+                    Command::SeekL => {
+                        assert!(!psx.cdrom.status.read());
+                        psx.cdrom.status.set_seek(true);
+                        sched_complete(psx, SEEK_DELAY);
+                    }
+                    Command::SetLocation => {
+                        let minutes = psx.cdrom.parameter_queue.pop_front().unwrap();
+                        let seconds = psx.cdrom.parameter_queue.pop_front().unwrap();
+                        let frames = psx.cdrom.parameter_queue.pop_front().unwrap();
+                        let decode_bcd = |value| (value & 0x0F) + 10u8 * ((value & 0xF0) >> 4);
+                        psx.cdrom.location = Sector::new(
+                            decode_bcd(minutes),
+                            decode_bcd(seconds - 2),
+                            decode_bcd(frames),
+                        );
+
+                        info!(
+                            psx.loggers.cdrom,
+                            "set location {}:{}:{}",
+                            decode_bcd(minutes),
+                            decode_bcd(seconds - 2),
+                            decode_bcd(frames); sector = psx.cdrom.location.0
+                        );
+                    }
+                    Command::SetMode => {
+                        psx.cdrom.mode =
+                            Mode::from_bits(psx.cdrom.parameter_queue.pop_front().unwrap());
+                        info!(psx.loggers.cdrom, "set mode"; mode = psx.cdrom.mode);
+                    }
+                    _ => todo!("ack {cmd:?}"),
                 }
 
+                if push_stat {
+                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                }
+                self.interrupt_queue.push_back(InterruptKind::Acknowledge);
+            }
+            Event::Complete(cmd) => {
+                info!(psx.loggers.cdrom, "completing {cmd:?}");
+
+                let mut push_stat = true;
+                match cmd {
+                    Command::Init => {
+                        psx.cdrom.mode = Mode::from_bits(0x20);
+                    }
+                    Command::GetID => {
+                        psx.cdrom
+                            .result_queue
+                            .extend([0x02, 0x00, 0x20, 0x00, 0x53, 0x43, 0x45, 0x41]);
+                        push_stat = false;
+                    }
+                    Command::Pause => {
+                        psx.cdrom.status.set_read(false);
+                    }
+                    Command::SeekL => {
+                        psx.cdrom.status.set_seek(false);
+                    }
+                    _ => todo!("complete {cmd:?}"),
+                }
+
+                if push_stat {
+                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                }
+                self.interrupt_queue.push_back(InterruptKind::Complete);
+            }
+            Event::Read => {
                 if !psx.cdrom.status.read() {
                     return;
                 }
@@ -116,26 +206,14 @@ impl Interpreter {
                 }
                 psx.cdrom.sector_queue.push_back(VecDeque::from(buf));
 
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::DataReady);
-
                 psx.cdrom.location.0 += 1;
                 psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::Read(false)),
-                    command::READ_DELAY / psx.cdrom.mode.speed().factor(),
+                    scheduler::Event::Cdrom(Event::Read),
+                    READ_DELAY / psx.cdrom.mode.speed().factor(),
                 );
-            }
-            Event::CompletePause => {
-                info!(psx.loggers.cdrom, "pause complete");
-                psx.cdrom.status.set_read(false);
+
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Complete);
-            }
-            Event::CompleteSeekL => {
-                info!(psx.loggers.cdrom, "completed seekl");
-                psx.cdrom.status.set_seek(false);
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::Complete);
+                self.interrupt_queue.push_back(InterruptKind::DataReady);
             }
         }
 

@@ -22,7 +22,7 @@ use crate::{
     mem::{Address, Region, io},
     util::cold_path,
 };
-use tinylog::{debug, error, info, warn};
+use tinylog::{debug, error, info, trace, warn};
 
 /// An interpreter of the R3000 CPU. This struct does not have any persistent state and is mostly
 /// just convenience for the implementation. It is intended to be created whenever you want to
@@ -71,6 +71,29 @@ impl<'ctx> Interpreter<'ctx> {
 
             info!(self.psx.loggers.cpu, "sideloaded!");
         }
+
+        // write args
+        let args = [c"auto", c"console", c"release"];
+        self.psx
+            .write::<_, true>(Address(0x1F80_0000), args.len() as u32)
+            .unwrap();
+
+        let mut offset = 0;
+        for (index, arg) in args.iter().enumerate() {
+            self.psx
+                .write::<_, true>(
+                    Address(0x1F80_0004 + index as u32 * 4),
+                    0x1F80_0044 + offset,
+                )
+                .unwrap();
+
+            for &byte in arg.to_bytes_with_nul() {
+                self.psx
+                    .write::<_, true>(Address(0x1F80_0044 + offset), byte)
+                    .unwrap();
+                offset += 1;
+            }
+        }
     }
 
     fn trigger_exception_at(
@@ -91,6 +114,15 @@ impl<'ctx> Interpreter<'ctx> {
 
         if exception != Exception::Interrupt {
             info!(
+                self.psx.loggers.cpu,
+                "triggered exception {:?} at {} (next would be: {})",
+                exception,
+                address,
+                delay_slot;
+                in_branch_delay = in_branch_delay,
+            );
+        } else {
+            trace!(
                 self.psx.loggers.cpu,
                 "triggered exception {:?} at {} (next would be: {})",
                 exception,

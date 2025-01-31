@@ -1,15 +1,12 @@
 use crate::{
     PSX,
-    cdrom::{Command, Interpreter, Mode, Sector, interpreter::Event},
+    cdrom::{Command, Interpreter, interpreter::Event},
     scheduler,
 };
 use tinylog::{info, trace};
 
-pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
-pub const DEFAULT_DELAY: u64 = 50401;
-pub const INIT_ACK_DELAY: u64 = 81102;
-pub const PAUSE_DELAY: u64 = 7666;
-pub const READ_DELAY: u64 = 451021;
+pub const ACK_DEFAULT_DELAY: u64 = 50401;
+pub const ACK_INIT_DELAY: u64 = 81102;
 
 impl Interpreter {
     pub fn push_parameter(&mut self, psx: &mut PSX, value: u8) {
@@ -18,102 +15,27 @@ impl Interpreter {
     }
 
     pub fn command(&mut self, psx: &mut PSX, value: u8) {
+        psx.cdrom.command_status.set_busy(true);
+
         let cmd = Command::new(value);
         info!(psx.loggers.cdrom, "received command {cmd:?}"; stat = psx.cdrom.status);
 
-        psx.cdrom.command_status.set_busy(true);
-        match cmd {
-            Command::Nop => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-            }
-            Command::Init => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), INIT_ACK_DELAY);
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::CompleteInit),
-                    INIT_ACK_DELAY + DEFAULT_DELAY,
-                );
-            }
-            Command::Demute => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-            }
-            Command::Test => {
-                let param = psx.cdrom.parameter_queue.pop_front().unwrap_or_default();
-                if param != 0x20 {
-                    todo!()
-                }
+        let delay = match cmd {
+            Command::Nop
+            | Command::Test
+            | Command::Mute
+            | Command::Demute
+            | Command::GetID
+            | Command::SetLocation
+            | Command::SetMode
+            | Command::ReadN
+            | Command::Pause
+            | Command::SeekL => ACK_DEFAULT_DELAY,
+            Command::Init => ACK_INIT_DELAY,
+            _ => todo!("schedule {cmd:?}"),
+        };
 
-                psx.cdrom.result_queue.extend(CDROM_VERSION);
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-            }
-            Command::GetID => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::CompleteGetID),
-                    2 * DEFAULT_DELAY,
-                );
-            }
-            Command::SetLocation => {
-                let minutes = psx.cdrom.parameter_queue.pop_front().unwrap();
-                let seconds = psx.cdrom.parameter_queue.pop_front().unwrap();
-                let frames = psx.cdrom.parameter_queue.pop_front().unwrap();
-                let decode_bcd = |value| (value & 0x0F) + 10u8 * ((value & 0xF0) >> 4);
-
-                psx.cdrom.location = Sector::new(
-                    decode_bcd(minutes),
-                    decode_bcd(seconds - 2),
-                    decode_bcd(frames),
-                );
-
-                info!(
-                    psx.loggers.cdrom,
-                    "set location {}:{}:{}",
-                    decode_bcd(minutes),
-                    decode_bcd(seconds - 2),
-                    decode_bcd(frames); sector = psx.cdrom.location.0
-                );
-
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-            }
-            Command::SetMode => {
-                psx.cdrom.mode = Mode::from_bits(psx.cdrom.parameter_queue.pop_front().unwrap());
-                info!(psx.loggers.cdrom, "set mode"; mode = psx.cdrom.mode);
-
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-            }
-            Command::ReadN => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::Read(true)),
-                    DEFAULT_DELAY + READ_DELAY / psx.cdrom.mode.speed().factor(),
-                );
-            }
-            Command::Pause => {
-                psx.scheduler
-                    .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::CompletePause),
-                    DEFAULT_DELAY + PAUSE_DELAY,
-                );
-            }
-            Command::SeekL => {
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::AcknowledgeSeekL),
-                    DEFAULT_DELAY,
-                );
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::CompleteSeekL),
-                    2 * DEFAULT_DELAY,
-                );
-            }
-            _ => todo!("{:?}", cmd),
-        }
+        psx.scheduler
+            .schedule(scheduler::Event::Cdrom(Event::Acknowledge(cmd)), delay);
     }
 }
