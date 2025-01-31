@@ -110,7 +110,11 @@ impl Interpreter {
                 rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
                     .unwrap();
                 rom.read_exact(&mut buf).unwrap();
-                psx.cdrom.data_queue.extend(buf);
+
+                if psx.cdrom.sector_queue.len() == 2 {
+                    psx.cdrom.sector_queue.pop_back();
+                }
+                psx.cdrom.sector_queue.push_back(VecDeque::from(buf));
 
                 psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 self.interrupt_queue.push_back(InterruptKind::DataReady);

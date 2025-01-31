@@ -64,10 +64,10 @@ impl BurstTransfer {
                     [0; 4]
                 } else {
                     [
-                        psx.cdrom.data_queue.pop_front().unwrap(),
-                        psx.cdrom.data_queue.pop_front().unwrap(),
-                        psx.cdrom.data_queue.pop_front().unwrap(),
-                        psx.cdrom.data_queue.pop_front().unwrap(),
+                        psx.cdrom.read_from_sector(),
+                        psx.cdrom.read_from_sector(),
+                        psx.cdrom.read_from_sector(),
+                        psx.cdrom.read_from_sector(),
                     ]
                 };
 
@@ -75,7 +75,6 @@ impl BurstTransfer {
                     .unwrap();
 
                 self.remaining -= 1;
-
                 if self.remaining == 0 {
                     // alt behaviour
                     let channel_state = &mut psx.dma.channels[self.channel as usize];
