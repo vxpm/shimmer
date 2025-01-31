@@ -140,8 +140,8 @@ impl DisplayRenderer {
     ) {
         self.dimensions = [horizontal.value(), vertical.value()];
 
-        // // HACK: show all of vram
-        // self.dimensions = [1024, 512];
+        // HACK: show all of vram
+        self.dimensions = [1024, 512];
 
         self.ctx
             .queue()

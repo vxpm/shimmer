@@ -3,7 +3,7 @@ use crate::{
     cdrom::{Command, Interpreter, Mode, Sector, interpreter::Event},
     scheduler,
 };
-use tinylog::info;
+use tinylog::{info, trace};
 
 pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
 pub const DEFAULT_DELAY: u64 = 50401;
@@ -13,7 +13,7 @@ pub const READ_DELAY: u64 = 451021;
 
 impl Interpreter {
     pub fn push_parameter(&mut self, psx: &mut PSX, value: u8) {
-        info!(psx.loggers.cdrom, "received parameter {value:#02X}");
+        trace!(psx.loggers.cdrom, "received parameter {value:#02X}");
         psx.cdrom.parameter_queue.push_back(value);
     }
 
@@ -69,6 +69,14 @@ impl Interpreter {
                     decode_bcd(frames),
                 );
 
+                info!(
+                    psx.loggers.cdrom,
+                    "set location {}:{}:{}",
+                    decode_bcd(minutes),
+                    decode_bcd(seconds - 2),
+                    decode_bcd(frames); sector = psx.cdrom.location.0
+                );
+
                 psx.scheduler
                     .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
             }
@@ -92,7 +100,17 @@ impl Interpreter {
                     .schedule(scheduler::Event::Cdrom(Event::Acknowledge), DEFAULT_DELAY);
                 psx.scheduler.schedule(
                     scheduler::Event::Cdrom(Event::CompletePause),
-                    DEFAULT_DELAY + PAUSE_DELAY / psx.cdrom.mode.speed().factor(),
+                    DEFAULT_DELAY + PAUSE_DELAY,
+                );
+            }
+            Command::SeekL => {
+                psx.scheduler.schedule(
+                    scheduler::Event::Cdrom(Event::AcknowledgeSeekL),
+                    DEFAULT_DELAY,
+                );
+                psx.scheduler.schedule(
+                    scheduler::Event::Cdrom(Event::CompleteSeekL),
+                    2 * DEFAULT_DELAY,
                 );
             }
             _ => todo!("{:?}", cmd),

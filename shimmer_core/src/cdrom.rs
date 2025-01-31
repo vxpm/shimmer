@@ -3,7 +3,7 @@ mod interpreter;
 use bitos::{bitos, integer::u3};
 use std::{collections::VecDeque, fs::File};
 use strum::FromRepr;
-use tinylog::{Logger, debug};
+use tinylog::{Logger, debug, trace};
 
 pub use interpreter::Interpreter;
 
@@ -11,9 +11,13 @@ pub use interpreter::Interpreter;
 pub enum Event {
     Update,
     Acknowledge,
+    AcknowledgeSeekL,
+
     CompleteInit,
     CompleteGetID,
     CompletePause,
+    CompleteSeekL,
+
     Read(bool),
 }
 
@@ -240,6 +244,13 @@ impl SectorSize {
             SectorSize::Whole => 0x924,
         }
     }
+
+    pub fn offset(self) -> usize {
+        match self {
+            SectorSize::DataOnly => 0x18,
+            SectorSize::Whole => 0xC,
+        }
+    }
 }
 
 #[bitos(1)]
@@ -305,6 +316,7 @@ pub struct Controller {
     pub mode: Mode,
 
     pub location: Sector,
+    pub lock_data_queue: bool,
 
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
@@ -327,6 +339,7 @@ impl Controller {
             mode: Default::default(),
 
             location: Default::default(),
+            lock_data_queue: true,
 
             write_queue: Default::default(),
             parameter_queue: Default::default(),
@@ -357,18 +370,18 @@ impl Controller {
 
         match (reg, self.command_status.bank()) {
             (Reg::Reg0, _) => {
-                debug!(self.logger, "reading command status"; status = self.command_status);
+                trace!(self.logger, "reading command status"; status = self.command_status);
                 self.command_status.to_bits()
             }
             (Reg::Reg1, _) => {
                 let value = self.result_queue.pop_front().unwrap();
 
-                debug!(self.logger, "reading result from queue: {value:#02X}");
+                trace!(self.logger, "reading result from queue: {value:#02X}");
                 value
             }
             (Reg::Reg2, _) => todo!(),
             (Reg::Reg3, Bank::Bank0 | Bank::Bank2) => {
-                debug!(
+                trace!(
                     self.logger,
                     "reading interrupt mask";
                     mask = self.interrupt_mask
@@ -376,7 +389,7 @@ impl Controller {
                 self.interrupt_mask.to_bits()
             }
             (Reg::Reg3, Bank::Bank1 | Bank::Bank3) => {
-                debug!(
+                trace!(
                     self.logger,
                     "reading interrupt status";
                     status = self.interrupt_status

@@ -60,12 +60,16 @@ impl BurstTransfer {
                 }
             }
             Channel::CDROM => {
-                let data = [
-                    psx.cdrom.data_queue.pop_front().unwrap(),
-                    psx.cdrom.data_queue.pop_front().unwrap(),
-                    psx.cdrom.data_queue.pop_front().unwrap(),
-                    psx.cdrom.data_queue.pop_front().unwrap(),
-                ];
+                let data = if psx.cdrom.lock_data_queue {
+                    [0; 4]
+                } else {
+                    [
+                        psx.cdrom.data_queue.pop_front().unwrap(),
+                        psx.cdrom.data_queue.pop_front().unwrap(),
+                        psx.cdrom.data_queue.pop_front().unwrap(),
+                        psx.cdrom.data_queue.pop_front().unwrap(),
+                    ]
+                };
 
                 psx.write::<_, true>(Address(self.current_addr), u32::from_le_bytes(data))
                     .unwrap();

@@ -17,5 +17,6 @@ impl Interpreter {
     pub fn control_request(&mut self, psx: &mut PSX, value: u8) {
         let cmd = ControlRequest::from_bits(value);
         info!(psx.loggers.cdrom, "control request"; request = cmd);
+        psx.cdrom.lock_data_queue = !cmd.request_sector_buffer_read();
     }
 }
