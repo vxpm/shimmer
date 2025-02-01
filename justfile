@@ -28,14 +28,4 @@ get-tests:
     @rm resources/tests/amidogs_cpu.zip
     @rm resources/tests/amidogs_cpx.zip
 
-    @echo -e "\n=> Downloading Amidog's CPU tests..."
-    @wget {{amidogs_cpu}} --output-document resources/tests/amidogs_cpu.zip -q --show-progress
-    @wget {{amidogs_cpx}} --output-document resources/tests/amidogs_cpx.zip -q --show-progress
-
-    @echo -e "Extracting Amidog's CPU tests..."
-    @unzip -n -q resources/tests/amidogs_cpu.zip -d resources/tests/amidogs
-    @unzip -n -q resources/tests/amidogs_cpx.zip -d resources/tests/amidogs
-    @rm resources/tests/amidogs_cpu.zip
-    @rm resources/tests/amidogs_cpx.zip
-
     @echo -e "\n{{BOLD}}=> All done!{{NORMAL}}"
