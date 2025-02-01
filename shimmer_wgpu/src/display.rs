@@ -128,6 +128,10 @@ impl DisplayRenderer {
 
     pub fn set_display_top_left(&mut self, x: u10, y: u9) {
         self.top_left = [x.value(), y.value()];
+
+        // HACK: show all of vram
+        self.top_left = [0, 0];
+
         self.ctx
             .queue()
             .write_buffer(&self.display_area, 0, self.top_left.as_bytes());

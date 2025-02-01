@@ -35,15 +35,18 @@ impl Tab for Screen {
     }
 
     fn ui(&mut self, ui: &mut Ui, ctx: Context) {
+        // let aspect_ratio = 1.333; // 4:3
+        let aspect_ratio = 2.0; // 2:1
+
         let rect = if ui.available_width() < ui.available_height() {
             ui.allocate_exact_size(
-                Vec2::new(ui.available_width(), ui.available_width() / 1.333),
+                Vec2::new(ui.available_width(), ui.available_width() / aspect_ratio),
                 egui::Sense::click(),
             )
             .0
         } else {
             ui.allocate_exact_size(
-                Vec2::new(ui.available_height() * 1.333, ui.available_height()),
+                Vec2::new(ui.available_height() * aspect_ratio, ui.available_height()),
                 egui::Sense::click(),
             )
             .0

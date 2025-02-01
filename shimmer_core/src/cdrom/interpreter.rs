@@ -96,7 +96,7 @@ impl Interpreter {
                         push_stat = false;
                     }
                     Command::GetID => sched_complete(psx, COMPLETE_GETID_DELAY),
-                    Command::ReadN => {
+                    Command::ReadN | Command::ReadS => {
                         assert!(!psx.cdrom.status.seek());
                         psx.cdrom.status.set_read(true);
                         psx.scheduler.schedule(
@@ -140,6 +140,11 @@ impl Interpreter {
                         psx.cdrom.mode =
                             Mode::from_bits(psx.cdrom.parameter_queue.pop_front().unwrap());
                         info!(psx.loggers.cdrom, "set mode"; mode = psx.cdrom.mode);
+                    }
+                    Command::SetFilter => {
+                        let file = psx.cdrom.parameter_queue.pop_front().unwrap();
+                        let channel = psx.cdrom.parameter_queue.pop_front().unwrap();
+                        info!(psx.loggers.cdrom, "set filter"; file = file, channel = channel);
                     }
                     _ => todo!("ack {cmd:?}"),
                 }

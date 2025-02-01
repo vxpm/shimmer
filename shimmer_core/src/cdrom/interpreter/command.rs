@@ -29,8 +29,10 @@ impl Interpreter {
             | Command::SetLocation
             | Command::SetMode
             | Command::ReadN
+            | Command::ReadS
             | Command::Pause
-            | Command::SeekL => ACK_DEFAULT_DELAY,
+            | Command::SeekL
+            | Command::SetFilter => ACK_DEFAULT_DELAY,
             Command::Init => ACK_INIT_DELAY,
             _ => todo!("schedule {cmd:?}"),
         };
