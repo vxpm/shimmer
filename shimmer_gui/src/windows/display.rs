@@ -8,6 +8,7 @@ use shimmer_wgpu::WgpuRenderer;
 
 pub struct RendererCallback {
     renderer: WgpuRenderer,
+    vram: bool,
 }
 
 impl CallbackTrait for RendererCallback {
@@ -17,32 +18,46 @@ impl CallbackTrait for RendererCallback {
         render_pass: &mut eframe::wgpu::RenderPass<'static>,
         _callback_resources: &egui_wgpu::CallbackResources,
     ) {
-        self.renderer.render(render_pass);
+        if self.vram {
+            self.renderer.render_vram(render_pass);
+        } else {
+            self.renderer.render_display(render_pass);
+        }
     }
 }
 
 pub struct Display {
     _id: Id,
+    vram: bool,
 }
 
-impl WindowUi for Display {
-    fn new(id: Id) -> Self
+impl Display {
+    pub fn new(id: Id, vram: bool) -> Self
     where
         Self: Sized,
     {
-        Self { _id: id }
+        Self { _id: id, vram }
     }
+}
 
+impl WindowUi for Display {
     fn build<'open>(&mut self, open: &'open mut bool) -> Window<'open> {
-        Window::new("Display")
+        let title = if self.vram { "VRAM" } else { "Display" };
+        let min_size = if self.vram {
+            Vec2::new(200.0, 100.0)
+        } else {
+            Vec2::new(200.0, 150.0)
+        };
+
+        Window::new(title)
             .open(open)
             .fade_in(false)
             .fade_out(false)
-            .min_size(Vec2::new(200.0, 150.0))
+            .min_size(min_size)
     }
 
     fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
-        let aspect_ratio = 1.333; // 4:3
+        let aspect_ratio = if self.vram { 2.0 } else { 4.0 / 3.0 };
         let rect = if ui.available_width() < ui.available_height() {
             ui.allocate_exact_size(
                 Vec2::new(ui.available_width(), ui.available_width() / aspect_ratio),
@@ -61,6 +76,7 @@ impl WindowUi for Display {
             rect,
             RendererCallback {
                 renderer: state.renderer.clone(),
+                vram: self.vram,
             },
         ));
     }

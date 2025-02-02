@@ -882,6 +882,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui_taffy"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94e23a53666d41c52122a71f59db0310ba1e5e56202a21ab681158149e3cc298"
+dependencies = [
+ "egui",
+ "log",
+ "taffy",
+]
+
+[[package]]
 name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1239,6 +1250,12 @@ checksum = "fdf242682df893b86f33a73828fb09ca4b2d3bb6cc95249707fc684d27484b91"
 dependencies = [
  "bitflags 2.8.0",
 ]
+
+[[package]]
+name = "grid"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36119f3a540b086b4e436bb2b588cf98a68863470e0e880f4d0842f112a3183a"
 
 [[package]]
 name = "hashbrown"
@@ -2310,6 +2327,7 @@ dependencies = [
  "crossbeam",
  "eframe",
  "egui-file-dialog",
+ "egui_taffy",
  "parking_lot",
  "ron",
  "serde",
@@ -2532,6 +2550,18 @@ dependencies = [
  "core-foundation-sys",
  "libc",
  "windows 0.57.0",
+]
+
+[[package]]
+name = "taffy"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "944a2a0b6070d217b69afb819f65f84ba093c43d627571fdac1c46f03a14d326"
+dependencies = [
+ "arrayvec",
+ "grid",
+ "serde",
+ "slotmap",
 ]
 
 [[package]]

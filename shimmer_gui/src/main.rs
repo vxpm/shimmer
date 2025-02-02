@@ -153,6 +153,10 @@ struct App {
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
+        cc.egui_ctx.style_mut(|style| {
+            style.wrap_mode = Some(egui::TextWrapMode::Extend);
+        });
+
         let bios_path = cli.args.bios.clone().unwrap_or("resources/BIOS.BIN".into());
         let rom_path = cli.args.input.clone();
         let sideload_exe_path = cli.args.sideload_exe.clone();
@@ -196,15 +200,13 @@ impl App {
             unparker,
 
             windows,
-            file_dialog: FileDialog::new(),
+            file_dialog: FileDialog::new().as_modal(true),
         }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.file_dialog.update(ctx);
-
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -214,6 +216,10 @@ impl eframe::App for App {
                 });
 
                 ui.separator();
+
+                if ui.button("Organize").clicked() {
+                    ui.ctx().memory_mut(|mem| mem.reset_areas());
+                }
             });
         });
 
@@ -226,6 +232,7 @@ impl eframe::App for App {
         egui::CentralPanel::default()
             .frame(Frame::canvas(&Style::default()))
             .show(ctx, |ui| {
+                self.file_dialog.update(ctx);
                 self.windows.retain_mut(|window| {
                     let response = window.show(&mut exclusive, ui);
                     response.is_some()
@@ -243,13 +250,23 @@ impl eframe::App for App {
                     }
 
                     if ui.button("VRAM").clicked() {
-                        // open VRAM
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Vram,
+                            Id::new(random::<u64>()),
+                        ));
+                        ui.close_menu();
+                    }
+
+                    if ui.button("Control").clicked() {
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Control,
+                            Id::new(random::<u64>()),
+                        ));
                         ui.close_menu();
                     }
                 });
             });
 
-        exclusive.controls.running = true;
         if exclusive.controls.running {
             exclusive.timing.running_timer.resume();
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));

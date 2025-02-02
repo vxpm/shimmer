@@ -155,9 +155,14 @@ impl WgpuRenderer {
         Self { inner, sender }
     }
 
-    pub fn render(&self, pass: &mut wgpu::RenderPass<'_>) {
+    pub fn render_display(&self, pass: &mut wgpu::RenderPass<'_>) {
         let inner = self.inner.lock().unwrap();
         inner.display_renderer.render(pass);
+    }
+
+    pub fn render_vram(&self, pass: &mut wgpu::RenderPass<'_>) {
+        let inner = self.inner.lock().unwrap();
+        inner.display_renderer.render_all(pass);
     }
 }
 

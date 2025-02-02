@@ -1,3 +1,4 @@
+mod control;
 mod display;
 
 use crate::ExclusiveState;
@@ -5,16 +6,13 @@ use eframe::egui::{Id, InnerResponse, Ui, Window};
 use serde::{Deserialize, Serialize};
 
 trait WindowUi {
-    fn new(id: Id) -> Self
-    where
-        Self: Sized;
-
     fn build<'open>(&mut self, open: &'open mut bool) -> Window<'open>;
     fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AppWindowKind {
+    Control,
     Display,
     Vram,
 }
@@ -31,10 +29,11 @@ impl AppWindow {
         Self {
             id,
             kind,
-            window: Box::new(match kind {
-                AppWindowKind::Display => display::Display::new(id),
-                AppWindowKind::Vram => todo!(),
-            }),
+            window: match kind {
+                AppWindowKind::Control => Box::new(control::Control::new(id)),
+                AppWindowKind::Display => Box::new(display::Display::new(id, false)),
+                AppWindowKind::Vram => Box::new(display::Display::new(id, true)),
+            },
             open: true,
         }
     }

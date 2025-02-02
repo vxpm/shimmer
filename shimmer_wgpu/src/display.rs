@@ -18,6 +18,7 @@ pub struct DisplayRenderer {
 
     display_area: wgpu::Buffer,
     display_area_bg: wgpu::BindGroup,
+    all_of_vram_bg: wgpu::BindGroup,
 }
 
 impl DisplayRenderer {
@@ -95,7 +96,15 @@ impl DisplayRenderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("display coordinates"),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                contents: [0u32, 0u32, 0u32, 0u32].as_bytes(),
+                contents: [0u32, 0u32].as_bytes(),
+            });
+
+        let all_of_vram = ctx
+            .device()
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("display coordinates"),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                contents: [0u32, (512 << 16) | 1024].as_bytes(),
             });
 
         let display_area_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -105,6 +114,19 @@ impl DisplayRenderer {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
                     buffer: &display_area,
+                    offset: 0,
+                    size: None,
+                }),
+            }],
+        });
+
+        let all_of_vram_bg = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("display coordinates (all of vram)"),
+            layout: &coordinates_bg_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                    buffer: &all_of_vram,
                     offset: 0,
                     size: None,
                 }),
@@ -123,14 +145,12 @@ impl DisplayRenderer {
 
             display_area,
             display_area_bg,
+            all_of_vram_bg,
         }
     }
 
     pub fn set_display_top_left(&mut self, x: u10, y: u9) {
         self.top_left = [x.value(), y.value()];
-
-        // HACK: show all of vram
-        self.top_left = [0, 0];
 
         self.ctx
             .queue()
@@ -144,9 +164,6 @@ impl DisplayRenderer {
     ) {
         self.dimensions = [horizontal.value(), vertical.value()];
 
-        // HACK: show all of vram
-        self.dimensions = [1024, 512];
-
         self.ctx
             .queue()
             .write_buffer(&self.display_area, 4, self.dimensions.as_bytes());
@@ -156,6 +173,13 @@ impl DisplayRenderer {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &*self.vram_bind_group, &[]);
         pass.set_bind_group(1, &self.display_area_bg, &[]);
+        pass.draw(0..4, 0..1);
+    }
+
+    pub fn render_all(&self, pass: &mut wgpu::RenderPass) {
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
+        pass.set_bind_group(1, &self.all_of_vram_bg, &[]);
         pass.draw(0..4, 0..1);
     }
 }
