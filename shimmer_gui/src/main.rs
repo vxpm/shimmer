@@ -153,10 +153,6 @@ struct App {
 
 impl App {
     fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Self {
-        cc.egui_ctx.style_mut(|style| {
-            style.wrap_mode = Some(egui::TextWrapMode::Extend);
-        });
-
         let bios_path = cli.args.bios.clone().unwrap_or("resources/BIOS.BIN".into());
         let rom_path = cli.args.input.clone();
         let sideload_exe_path = cli.args.sideload_exe.clone();
@@ -241,6 +237,14 @@ impl eframe::App for App {
             .response
             .context_menu(|ui| {
                 ui.menu_button("🖵 Windows", |ui| {
+                    if ui.button("Control").clicked() {
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Control,
+                            Id::new(random::<u64>()),
+                        ));
+                        ui.close_menu();
+                    }
+
                     if ui.button("Display").clicked() {
                         self.windows.push(AppWindow::open(
                             AppWindowKind::Display,
@@ -249,17 +253,17 @@ impl eframe::App for App {
                         ui.close_menu();
                     }
 
-                    if ui.button("VRAM").clicked() {
+                    if ui.button("Logs").clicked() {
                         self.windows.push(AppWindow::open(
-                            AppWindowKind::Vram,
+                            AppWindowKind::Logs,
                             Id::new(random::<u64>()),
                         ));
                         ui.close_menu();
                     }
 
-                    if ui.button("Control").clicked() {
+                    if ui.button("VRAM").clicked() {
                         self.windows.push(AppWindow::open(
-                            AppWindowKind::Control,
+                            AppWindowKind::Vram,
                             Id::new(random::<u64>()),
                         ));
                         ui.close_menu();

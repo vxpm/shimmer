@@ -1,5 +1,6 @@
 mod control;
 mod display;
+mod logs;
 
 use crate::ExclusiveState;
 use eframe::egui::{Id, InnerResponse, Ui, Window};
@@ -14,6 +15,7 @@ trait WindowUi {
 pub enum AppWindowKind {
     Control,
     Display,
+    Logs,
     Vram,
 }
 
@@ -32,6 +34,7 @@ impl AppWindow {
             window: match kind {
                 AppWindowKind::Control => Box::new(control::Control::new(id)),
                 AppWindowKind::Display => Box::new(display::Display::new(id, false)),
+                AppWindowKind::Logs => Box::new(logs::LogViewer::new(id)),
                 AppWindowKind::Vram => Box::new(display::Display::new(id, true)),
             },
             open: true,
