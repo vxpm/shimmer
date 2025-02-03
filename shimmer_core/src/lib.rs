@@ -15,6 +15,7 @@ pub mod gpu;
 pub mod interrupts;
 pub mod kernel;
 pub mod mem;
+pub mod sio;
 pub mod timers;
 
 mod scheduler;
@@ -69,6 +70,7 @@ pub struct PSX {
     pub interrupts: interrupts::Controller,
     pub gpu: gpu::Gpu,
     pub cdrom: cdrom::Controller,
+    pub sio: sio::Interface,
 }
 
 /// Emulator configuration.
@@ -126,6 +128,7 @@ impl Emulator {
                 interrupts: interrupts::Controller::default(),
                 gpu: gpu::Gpu::default(),
                 cdrom: cdrom::Controller::new(rom, loggers.cdrom.clone()),
+                sio: sio::Interface::default(),
 
                 loggers,
             },

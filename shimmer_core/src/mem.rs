@@ -444,8 +444,6 @@ impl PSX {
                 }
                 io::Reg::Gp1 => {
                     let bytes = self.gpu.status.as_bytes();
-                    trace!(self.loggers.bus, "{:?}", self.gpu.status);
-
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::Cdrom0 | io::Reg::Cdrom1 | io::Reg::Cdrom2 | io::Reg::Cdrom3 => {
@@ -468,8 +466,18 @@ impl PSX {
                     let bytes = self.timers.timer2.target.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
-                // io::Reg::JoyStat => P::read_from_buf(&[0xFF, 0xFF, 0xFF, 0xFF]),
-                io::Reg::JoyStat => P::read_from_buf(&0b000_0000_0111u32.to_le_bytes()),
+                io::Reg::JoyStat => {
+                    let bytes = self.sio.controllers[0].status.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::JoyMode => {
+                    let bytes = self.sio.controllers[0].mode.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::JoyControl => {
+                    let bytes = self.sio.controllers[0].control.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
                 _ => default(),
             };
 
@@ -702,6 +710,18 @@ impl PSX {
                 }
                 io::Reg::Timer2Target => {
                     let bytes = self.timers.timer2.value.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::JoyStat => {
+                    let bytes = self.sio.controllers[0].status.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::JoyMode => {
+                    let bytes = self.sio.controllers[0].mode.as_mut_bytes();
+                    value.write_to(&mut bytes[offset..]);
+                }
+                io::Reg::JoyControl => {
+                    let bytes = self.sio.controllers[0].control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                 }
                 _ => default(),
