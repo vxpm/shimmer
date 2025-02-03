@@ -406,6 +406,9 @@ impl<'ctx> Interpreter<'ctx> {
     /// Executes the next instruction and returns how many cycles it takes to complete.
     pub fn exec_next(&mut self) -> u64 {
         if self.psx.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
+            // self.psx.cpu.instr_delay_slot = (Instruction::NOP, Address(0x8003_0000));
+            // self.psx.cpu.regs.pc = self.psx.cpu.regs.read(Reg::RA);
+
             cold_path();
             self.sideload();
         }

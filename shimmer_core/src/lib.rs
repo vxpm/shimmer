@@ -39,6 +39,7 @@ pub struct Loggers {
     pub kernel: Logger,
     pub gpu: Logger,
     pub cdrom: Logger,
+    pub sio: Logger,
 }
 
 impl Loggers {
@@ -50,6 +51,7 @@ impl Loggers {
             kernel: logger.child("kernel", tinylog::Level::Trace),
             gpu: logger.child("gpu", tinylog::Level::Trace),
             cdrom: logger.child("cdrom", tinylog::Level::Trace),
+            sio: logger.child("sio", tinylog::Level::Trace),
             root: logger,
         }
     }
@@ -100,6 +102,8 @@ pub struct Emulator {
     dma_executor: dma::Executor,
     /// The CDROM command interpreter.
     cdrom_interpreter: cdrom::Interpreter,
+    /// The SIO interpreter.
+    sio_interpreter: sio::Interpreter,
 }
 
 impl Emulator {
@@ -135,6 +139,7 @@ impl Emulator {
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
             cdrom_interpreter: cdrom::Interpreter::default(),
+            sio_interpreter: sio::Interpreter::default(),
         })
     }
 
@@ -202,6 +207,9 @@ impl Emulator {
                     Event::Cdrom(event) => {
                         self.cdrom_interpreter.update(&mut self.psx, event);
                     }
+                }
+                Event::SIO => {
+                    self.sio_interpreter.update(&mut self.psx);
                 }
             }
         }

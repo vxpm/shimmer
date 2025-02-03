@@ -17,6 +17,8 @@ pub enum Event {
     DmaAdvance,
     /// Update the CDROM state machine.
     Cdrom(cdrom::Event),
+    /// Update the SIO state machine.
+    SIO,
     /// Advance Timer1.
     Timer1,
     /// Advance Timer2.
@@ -32,6 +34,7 @@ impl Event {
             Event::DmaUpdate => 3,
             Event::DmaAdvance => 4,
             Event::Cdrom(_) => 5,
+            Event::SIO => 5,
             Event::Timer1 => 6,
             Event::Timer2 => 6,
         }

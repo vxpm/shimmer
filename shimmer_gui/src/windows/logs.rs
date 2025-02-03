@@ -187,7 +187,7 @@ impl LogViewer {
             .auto_shrink([false; 2])
             .stick_to_bottom(true)
             .striped(true)
-            .column(Column::auto().at_least(90.0))
+            .column(Column::auto().at_least(110.0))
             .column(Column::auto().at_least(50.0))
             .column(Column::auto().at_least(90.0))
             .column(Column::remainder())
@@ -221,7 +221,7 @@ impl LogViewer {
 
         row.col(|ui| {
             ui.label(
-                RichText::new(log.value.time().format("%H:%M:%S%.3f").to_string())
+                RichText::new(log.value.time().format("%H:%M:%S%.6f").to_string())
                     .monospace()
                     .weak(),
             );

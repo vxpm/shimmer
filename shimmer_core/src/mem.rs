@@ -466,6 +466,29 @@ impl PSX {
                     let bytes = self.timers.timer2.target.as_bytes();
                     P::read_from_buf(&bytes[offset..])
                 }
+                io::Reg::JoyData => {
+                    let data = [
+                        self.sio.controllers[0].rx_queue.pop_front().unwrap_or(0xFF),
+                        self.sio.controllers[0]
+                            .rx_queue
+                            .get(0)
+                            .copied()
+                            .unwrap_or(0xFF),
+                        self.sio.controllers[0]
+                            .rx_queue
+                            .get(1)
+                            .copied()
+                            .unwrap_or(0xFF),
+                        self.sio.controllers[0]
+                            .rx_queue
+                            .get(2)
+                            .copied()
+                            .unwrap_or(0xFF),
+                    ];
+
+                    self.scheduler.schedule(Event::SIO, 0);
+                    P::read_from_buf(&data[offset..])
+                }
                 io::Reg::JoyStat => {
                     let bytes = self.sio.controllers[0].status.as_bytes();
                     P::read_from_buf(&bytes[offset..])
@@ -712,17 +735,27 @@ impl PSX {
                     let bytes = self.timers.timer2.value.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                 }
-                io::Reg::JoyStat => {
-                    let bytes = self.sio.controllers[0].status.as_mut_bytes();
+                io::Reg::JoyData => {
+                    let mut bytes = [0; 4];
                     value.write_to(&mut bytes[offset..]);
+
+                    self.sio.controllers[0].tx_queue.push_back(bytes[0]);
+                    self.scheduler.schedule(Event::SIO, 0);
+                }
+                io::Reg::JoyStat => {
+                    // read only
                 }
                 io::Reg::JoyMode => {
                     let bytes = self.sio.controllers[0].mode.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
+                    self.scheduler.schedule(Event::SIO, 0);
                 }
                 io::Reg::JoyControl => {
                     let bytes = self.sio.controllers[0].control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
+                    self.scheduler.schedule(Event::SIO, 0);
+
+                    debug!(self.loggers.sio, "{:?}", self.sio.controllers[0].control);
                 }
                 _ => default(),
             };
