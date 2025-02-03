@@ -357,6 +357,7 @@ impl<'ctx> Interpreter<'ctx> {
             let ignore = [
                 kernel::Function::Rand,
                 kernel::Function::ReturnFromException,
+                kernel::Function::TestEvent,
             ];
 
             if ignore.contains(&func) {

@@ -1,5 +1,6 @@
 mod control;
 mod display;
+mod instructions;
 mod logs;
 
 use crate::ExclusiveState;
@@ -15,6 +16,7 @@ trait WindowUi {
 pub enum AppWindowKind {
     Control,
     Display,
+    Instructions,
     Logs,
     Vram,
 }
@@ -34,6 +36,7 @@ impl AppWindow {
             window: match kind {
                 AppWindowKind::Control => Box::new(control::Control::new(id)),
                 AppWindowKind::Display => Box::new(display::Display::new(id, false)),
+                AppWindowKind::Instructions => Box::new(instructions::InstructionViewer::new(id)),
                 AppWindowKind::Logs => Box::new(logs::LogViewer::new(id)),
                 AppWindowKind::Vram => Box::new(display::Display::new(id, true)),
             },

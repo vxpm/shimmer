@@ -253,6 +253,14 @@ impl eframe::App for App {
                         ui.close_menu();
                     }
 
+                    if ui.button("Instructions").clicked() {
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Instructions,
+                            Id::new(random::<u64>()),
+                        ));
+                        ui.close_menu();
+                    }
+
                     if ui.button("Logs").clicked() {
                         self.windows.push(AppWindow::open(
                             AppWindowKind::Logs,
