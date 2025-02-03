@@ -34,12 +34,47 @@ fn ascii_score(bytes: impl Iterator<Item = u8>) -> u16 {
     score + consecutive.saturating_sub(1)
 }
 
+fn fetch_instr(state: &mut ExclusiveState, addr: Address) -> (Instruction, bool) {
+    let prev_instr = state
+        .emulator
+        .psx_mut()
+        .read_unaligned::<u32, true>(Address(addr.value().saturating_sub(4)));
+    let instr = state.emulator.psx_mut().read_unaligned::<u32, true>(addr);
+    let next_instr = state
+        .emulator
+        .psx_mut()
+        .read_unaligned::<u32, true>(Address(addr.value().saturating_add(4)));
+
+    // heuristic to determine if it is likely to be a real instruction or not
+    let bytes = prev_instr
+        .to_le_bytes()
+        .into_iter()
+        .chain(instr.to_le_bytes())
+        .chain(next_instr.to_le_bytes());
+
+    let invalid_score = || {
+        let ascii_score = ascii_score(bytes);
+        let illegal_score = match (
+            Instruction::from_bits(prev_instr).is_illegal(),
+            Instruction::from_bits(next_instr).is_illegal(),
+        ) {
+            (true, true) => 6,
+            (false, false) => -1,
+            _ => 2,
+        };
+
+        ascii_score.saturating_add_signed(illegal_score)
+    };
+
+    let instr = Instruction::from_bits(instr);
+    let valid = !instr.is_illegal() && invalid_score() <= 5;
+    (instr, valid)
+}
+
 pub struct InstructionViewer {
     target: u32,
     target_text: String,
-    target_view: u32,
     follow_next: bool,
-    old_next: u32,
 }
 
 impl InstructionViewer {
@@ -57,7 +92,6 @@ impl InstructionViewer {
                 if target_response.changed() {
                     self.target_text.retain(|c| c.is_ascii_hexdigit());
                     self.target = u32::from_str_radix(&self.target_text, 16).unwrap_or(0) & !0b11;
-                    self.target_view = self.target;
                 }
 
                 if target_response.lost_focus() {
@@ -144,13 +178,11 @@ impl InstructionViewer {
         const MNEMONIC_COLOR: Color32 = Color32::LIGHT_YELLOW;
 
         let address = Address(begin_addr + row.index() as u32 * 4);
-        let instr =
-            Instruction::from_bits(state.emulator.psx_mut().read::<_, true>(address).unwrap());
+        let (instr, valid) = fetch_instr(state, address);
 
         let mnemonic = instr.mnemonic().unwrap_or_else(|| "ILLEGAL".into());
         let description = "TODO";
         let args = instr.args().unwrap_or_default();
-        let valid = true;
 
         row.col(|ui| {
             ui.label(
@@ -184,9 +216,7 @@ impl InstructionViewer {
 
     fn draw_body(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
         let count = 1024;
-        let begin_addr = self
-            .target_view
-            .saturating_sub((4 * (count & !1) / 2) as u32);
+        let begin_addr = self.target.saturating_sub((4 * (count & !1) / 2) as u32);
 
         let builder = TableBuilder::new(ui)
             .auto_shrink([false; 2])
@@ -268,10 +298,8 @@ impl InstructionViewer {
     pub fn new(_id: Id) -> Self {
         Self {
             target: 0xBFC0_0000,
-            target_view: 0xBFC0_0000,
             target_text: String::from("BFC00000"),
             follow_next: true,
-            old_next: 0,
         }
     }
 }
@@ -283,10 +311,8 @@ impl WindowUi for InstructionViewer {
 
     fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
         let next = state.emulator.psx().cpu.instr_delay_slot().1;
-        if self.follow_next && next != self.old_next {
+        if self.follow_next {
             self.target = next.value();
-            self.target_view = next.value();
-            self.old_next = next.value();
         }
 
         ui.vertical(|ui| {
