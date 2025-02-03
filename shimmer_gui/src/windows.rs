@@ -2,6 +2,7 @@ mod control;
 mod display;
 mod instructions;
 mod logs;
+mod registers;
 
 use crate::ExclusiveState;
 use eframe::egui::{Id, InnerResponse, Ui, Window};
@@ -18,6 +19,7 @@ pub enum AppWindowKind {
     Display,
     Instructions,
     Logs,
+    Registers,
     Vram,
 }
 
@@ -38,6 +40,7 @@ impl AppWindow {
                 AppWindowKind::Display => Box::new(display::Display::new(id, false)),
                 AppWindowKind::Instructions => Box::new(instructions::InstructionViewer::new(id)),
                 AppWindowKind::Logs => Box::new(logs::LogViewer::new(id)),
+                AppWindowKind::Registers => Box::new(registers::Registers::new(id)),
                 AppWindowKind::Vram => Box::new(display::Display::new(id, true)),
             },
             open: true,

@@ -269,6 +269,14 @@ impl eframe::App for App {
                         ui.close_menu();
                     }
 
+                    if ui.button("Registers").clicked() {
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Registers,
+                            Id::new(random::<u64>()),
+                        ));
+                        ui.close_menu();
+                    }
+
                     if ui.button("VRAM").clicked() {
                         self.windows.push(AppWindow::open(
                             AppWindowKind::Vram,
