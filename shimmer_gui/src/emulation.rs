@@ -24,22 +24,13 @@ pub fn run(state: Arc<State>, parker: Parker) {
         let cycles_to_run = FREQUENCY as f64 * time_behind.as_secs_f64();
         let full_cycles_to_run = cycles_to_run as u64;
 
+        const CYCLE_GROUP: u64 = 128 * 1024;
         let mut cycles_left = full_cycles_to_run;
-        'outer: while cycles_left > 0 {
-            let taken = 4096.min(cycles_left);
+        while cycles_left > 0 {
+            let taken = CYCLE_GROUP.min(cycles_left);
+            cycles_left -= taken;
 
-            for _ in 0..taken {
-                exclusive.emulator.cycle();
-                cycles_left -= 1;
-
-                let addr = exclusive.emulator.psx().cpu.instr_delay_slot().1.value();
-                if exclusive.controls.breakpoints.contains(&addr) {
-                    exclusive.controls.running = false;
-                    exclusive.timing.running_timer.pause();
-                    state.shared.should_advance.store(false, Ordering::Relaxed);
-                    break 'outer;
-                }
-            }
+            exclusive.emulator.cycle_for(taken);
 
             let should_advance = state.shared.should_advance.load(Ordering::Relaxed);
             if !should_advance {

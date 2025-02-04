@@ -74,46 +74,25 @@ impl Default for Scheduler {
 
 impl Scheduler {
     pub fn new() -> Self {
-        Self {
+        let mut scheduler = Self {
             elapsed: 0,
-            scheduled: vec![
-                ScheduledEvent {
-                    happens_at: 0,
-                    event: Event::Cpu,
-                },
-                ScheduledEvent {
-                    happens_at: 0,
-                    event: Event::VBlank,
-                },
-                ScheduledEvent {
-                    happens_at: 0,
-                    event: Event::Timer1,
-                },
-                ScheduledEvent {
-                    happens_at: 0,
-                    event: Event::Timer2,
-                },
-            ],
-        }
+            scheduled: Vec::with_capacity(16),
+        };
+
+        scheduler.schedule(Event::Cpu, 0);
+        scheduler.schedule(Event::VBlank, 0);
+        scheduler.schedule(Event::Timer1, 0);
+        scheduler.schedule(Event::Timer2, 0);
+
+        scheduler
     }
 
     #[inline(always)]
     pub fn schedule(&mut self, event: Event, after: u64) {
-        let event = ScheduledEvent {
+        self.scheduled.push(ScheduledEvent {
             event,
             happens_at: self.elapsed + after,
-        };
-
-        let mut pos = self.scheduled.len();
-        for i in 0..pos {
-            let elem = unsafe { self.scheduled.get_unchecked(i) };
-            if elem <= &event {
-                pos = i;
-                break;
-            }
-        }
-
-        self.scheduled.insert(pos, event);
+        });
     }
 
     #[inline(always)]
@@ -122,21 +101,24 @@ impl Scheduler {
     }
 
     #[inline(always)]
-    pub fn advance(&mut self) {
-        self.elapsed += 1;
+    pub fn advance(&mut self, count: u64) {
+        self.elapsed += count;
+    }
+
+    #[inline(always)]
+    pub fn until_next(&self) -> Option<u64> {
+        self.scheduled
+            .iter()
+            .min_by_key(|e| e.happens_at)
+            .map(|e| e.happens_at - self.elapsed)
     }
 
     #[inline(always)]
     pub fn pop(&mut self) -> Option<Event> {
-        if self
-            .scheduled
-            .last()
-            .is_some_and(|e| e.happens_at.saturating_sub(self.elapsed) == 0)
-        {
-            self.scheduled.pop().map(|e| e.event)
-        } else {
-            None
-        }
+        self.scheduled
+            .iter()
+            .position(|e| e.happens_at <= self.elapsed)
+            .map(|i| self.scheduled.swap_remove(i).event)
     }
 
     #[inline(always)]

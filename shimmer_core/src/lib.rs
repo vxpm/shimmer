@@ -150,58 +150,60 @@ impl Emulator {
         &mut self.psx
     }
 
-    /// Executes a single system cycle.
-    pub fn cycle(&mut self) {
-        self.psx.scheduler.advance();
+    pub fn cycle_for(&mut self, cycles: u64) {
+        let mut remaining = cycles;
+        loop {
+            let until_next = self.psx.scheduler.until_next().unwrap();
+            if until_next <= remaining {
+                self.psx.scheduler.advance(until_next);
+                remaining -= until_next;
+            } else {
+                self.psx.scheduler.advance(remaining);
+                return;
+            }
 
-        while let Some(e) = self.psx.scheduler.pop() {
-            match e {
-                Event::Cpu => {
-                    // TODO: make CPU like gpu interpreter, dma executor, etc
+            while let Some(e) = self.psx.scheduler.pop() {
+                match e {
+                    Event::Cpu => {
+                        // TODO: make CPU like gpu interpreter, dma executor, etc
 
-                    // stall cpu while DMA is ongoing
-                    if self.dma_executor.ongoing() {
-                        cold_path();
-                        self.psx.scheduler.schedule(Event::Cpu, 16);
-                        continue;
+                        // stall cpu while DMA is ongoing
+                        if self.dma_executor.ongoing() {
+                            cold_path();
+                            self.psx.scheduler.schedule(Event::Cpu, 16);
+                            continue;
+                        }
+
+                        let mut interpreter = cpu::Interpreter::new(&mut self.psx);
+                        let cycles = interpreter.exec_next();
+
+                        self.psx.scheduler.schedule(Event::Cpu, cycles);
                     }
-
-                    let mut interpreter = cpu::Interpreter::new(&mut self.psx);
-                    let cycles = interpreter.exec_next();
-
-                    self.psx.scheduler.schedule(Event::Cpu, cycles);
-                }
-                Event::VBlank => {
-                    self.gpu_interpreter.vblank(&mut self.psx);
-                }
-                Event::Timer1 => {
-                    let cycles = self.psx.timers.timer1.tick();
-                    self.psx.scheduler.schedule(Event::Timer1, cycles);
-                }
-                Event::Timer2 => {
-                    let cycles = self.psx.timers.timer2.tick();
-                    self.psx.scheduler.schedule(Event::Timer2, cycles);
-                }
-                Event::Gpu => {
-                    self.gpu_interpreter.exec_queued(&mut self.psx);
-                }
-                Event::DmaUpdate => {
-                    self.dma_executor.update(&mut self.psx);
-                }
-                Event::DmaAdvance => {
-                    self.dma_executor.advance(&mut self.psx);
-                }
-                Event::Cdrom(event) => {
-                    self.cdrom_interpreter.update(&mut self.psx, event);
+                    Event::VBlank => {
+                        self.gpu_interpreter.vblank(&mut self.psx);
+                    }
+                    Event::Timer1 => {
+                        let cycles = self.psx.timers.timer1.tick();
+                        self.psx.scheduler.schedule(Event::Timer1, cycles);
+                    }
+                    Event::Timer2 => {
+                        let cycles = self.psx.timers.timer2.tick();
+                        self.psx.scheduler.schedule(Event::Timer2, cycles);
+                    }
+                    Event::Gpu => {
+                        self.gpu_interpreter.exec_queued(&mut self.psx);
+                    }
+                    Event::DmaUpdate => {
+                        self.dma_executor.update(&mut self.psx);
+                    }
+                    Event::DmaAdvance => {
+                        self.dma_executor.advance(&mut self.psx);
+                    }
+                    Event::Cdrom(event) => {
+                        self.cdrom_interpreter.update(&mut self.psx, event);
+                    }
                 }
             }
-        }
-    }
-
-    #[inline(always)]
-    pub fn cycle_for(&mut self, cycles: u64) {
-        for _ in 0..cycles {
-            self.cycle();
         }
     }
 }
