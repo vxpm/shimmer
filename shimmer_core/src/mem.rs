@@ -467,8 +467,9 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyData => {
+                    let stat = self.sio0.status;
                     let data = [self.sio0.read_rx(), 0xFF, 0xFF, 0xFF];
-                    debug!(self.loggers.sio, "read from joydata 0x{:02X}", data[0]; value = data[0]);
+                    debug!(self.loggers.sio, "read from joydata 0x{:02X}", data[0]; value = data[0], stat = stat);
 
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&data[offset..])
