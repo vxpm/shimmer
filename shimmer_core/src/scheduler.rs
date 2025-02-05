@@ -1,6 +1,6 @@
 //! The event scheduler of the [`PSX`](super::PSX).
 
-use crate::cdrom;
+use crate::{cdrom, sio0};
 
 /// Possible schedule events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,42 +18,14 @@ pub enum Event {
     /// Update the CDROM state machine.
     Cdrom(cdrom::Event),
     /// Update the SIO state machine.
-    SIO,
+    Sio(sio0::Event),
     /// Advance Timer1.
     Timer1,
     /// Advance Timer2.
     Timer2,
 }
 
-impl Event {
-    pub fn priority(self) -> u8 {
-        match self {
-            Event::Cpu => 0,
-            Event::VBlank => 1,
-            Event::Gpu => 2,
-            Event::DmaUpdate => 3,
-            Event::DmaAdvance => 4,
-            Event::Cdrom(_) => 5,
-            Event::SIO => 5,
-            Event::Timer1 => 6,
-            Event::Timer2 => 6,
-        }
-    }
-}
-
-impl PartialOrd for Event {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Event {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.priority().cmp(&other.priority())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ScheduledEvent {
     happens_at: u64,
     event: Event,

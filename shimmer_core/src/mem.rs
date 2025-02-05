@@ -4,7 +4,7 @@ pub mod io;
 
 mod primitive;
 
-use crate::{PSX, cdrom, dma, exe::Executable, scheduler::Event, util};
+use crate::{PSX, cdrom, dma, exe::Executable, scheduler::Event, sio0, util};
 use binrw::BinRead;
 use bitos::integer::u7;
 use easyerr::Error;
@@ -467,38 +467,43 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyData => {
-                    let data = [
-                        self.sio.controllers[0].rx_queue.pop_front().unwrap_or(0xFF),
-                        self.sio.controllers[0]
-                            .rx_queue
-                            .get(0)
-                            .copied()
-                            .unwrap_or(0xFF),
-                        self.sio.controllers[0]
-                            .rx_queue
-                            .get(1)
-                            .copied()
-                            .unwrap_or(0xFF),
-                        self.sio.controllers[0]
-                            .rx_queue
-                            .get(2)
-                            .copied()
-                            .unwrap_or(0xFF),
-                    ];
+                    let data = [self.sio0.read_rx(), 0xFF, 0xFF, 0xFF];
+                    debug!(self.loggers.sio, "read from joydata 0x{:02X}", data[0]; value = data[0]);
 
-                    self.scheduler.schedule(Event::SIO, 0);
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&data[offset..])
                 }
                 io::Reg::JoyStat => {
-                    let bytes = self.sio.controllers[0].status.as_bytes();
+                    let bytes = self.sio0.status.as_bytes();
+                    debug!(
+                        self.loggers.sio,
+                        "read from joystat";
+                        value = self.sio0.status
+                    );
+
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyMode => {
-                    let bytes = self.sio.controllers[0].mode.as_bytes();
+                    let bytes = self.sio0.mode.as_bytes();
+                    debug!(
+                        self.loggers.sio,
+                        "read from joymode";
+                        value = self.sio0.mode
+                    );
+
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyControl => {
-                    let bytes = self.sio.controllers[0].control.as_bytes();
+                    let bytes = self.sio0.control.as_bytes();
+                    debug!(
+                        self.loggers.sio,
+                        "read from joyctrl";
+                        value = self.sio0.control
+                    );
+
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])
                 }
                 _ => default(),
@@ -739,23 +744,39 @@ impl PSX {
                     let mut bytes = [0; 4];
                     value.write_to(&mut bytes[offset..]);
 
-                    self.sio.controllers[0].tx_queue.push_back(bytes[0]);
-                    self.scheduler.schedule(Event::SIO, 0);
+                    self.sio0.tx = Some(bytes[0]);
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
+
+                    debug!(
+                        self.loggers.sio,
+                        "write to joydata 0x{:02X}", self.sio0.tx.unwrap();
+                        value = self.sio0.tx.unwrap()
+                    );
                 }
                 io::Reg::JoyStat => {
                     // read only
                 }
                 io::Reg::JoyMode => {
-                    let bytes = self.sio.controllers[0].mode.as_mut_bytes();
+                    let bytes = self.sio0.mode.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
-                    self.scheduler.schedule(Event::SIO, 0);
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
+
+                    debug!(
+                        self.loggers.sio,
+                        "write to joymode 0x{:04X}", self.sio0.mode.to_bits();
+                        value = self.sio0.mode
+                    );
                 }
                 io::Reg::JoyControl => {
-                    let bytes = self.sio.controllers[0].control.as_mut_bytes();
+                    let bytes = self.sio0.control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
-                    self.scheduler.schedule(Event::SIO, 0);
+                    self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
 
-                    debug!(self.loggers.sio, "{:?}", self.sio.controllers[0].control);
+                    debug!(
+                        self.loggers.sio,
+                        "write to joyctrl 0x{:04X}", self.sio0.control.to_bits();
+                        value = self.sio0.control
+                    );
                 }
                 _ => default(),
             };

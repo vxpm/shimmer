@@ -1,42 +1,26 @@
 mod interpreter;
 
-use bitos::{bitos, integer::u21};
-use std::collections::VecDeque;
-
-pub use interpreter::Interpreter;
+use bitos::bitos;
+pub use interpreter::{Event, Interpreter};
 
 #[bitos(32)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Status {
     /// Whether the TX (PS1 -> Device) queue is not full.
     #[bits(0)]
-    pub tx_not_full: bool,
+    pub tx_ready: bool,
     /// Whether the RX (Device -> PS1) queue is not empty.
     #[bits(1)]
-    pub rx_not_empty: bool,
-    /// TODO
+    pub rx_ready: bool,
+    /// Whether the transmission has finished.
     #[bits(2)]
-    pub tx_idle: bool,
-    // #[bits(3)]
-    // pub rx_parity_error: bool,
-    // #[bits(4)]
-    // pub rx_overrun: bool, // SIO1 only
-    // #[bits(5)]
-    // pub rx_bad_stop_bit: bool, // SIO1 only
-    // #[bits(6)]
-    // pub rx_input_level: bool, // SIO1 only
-    /// Whether the device is ready to send data. (DSR)
+    pub tx_finished: bool,
+    /// Whether the device is ready to receive more data. (DSR) (/ACK)
     #[bits(7)]
-    pub device_ready_to_send: bool,
-    /// Whether the device is ready to receive data. (CTS)
-    #[bits(8)]
-    pub device_ready_to_receive: bool, // SIO1 only
-    /// Whether an interrupt is currently requested.
+    pub device_ready_to_receive: bool,
+    /// Whether an interrupt has been requested or not.
     #[bits(9)]
     pub interrupt_request: bool,
-    /// A baudrate timer.
-    #[bits(11..32)]
-    pub timer: u21,
 }
 
 #[bitos(2)]
@@ -57,16 +41,7 @@ pub enum CharacterLength {
     B8,
 }
 
-#[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StopLength {
-    Reserved,
-    B1,
-    B1_5,
-    B2,
-}
-
-#[bitos(32)]
+#[bitos(16)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Mode {
     /// A factor for which to multiply the baudrate by.
@@ -81,61 +56,44 @@ pub struct Mode {
     /// Whether the parity indicates the amount of even or odd bits.
     #[bits(5)]
     pub parity_odd: bool,
-    /// The length of the stop bit. For SIO0, always zero (it has no stop bit).
-    #[bits(6..8)]
-    pub stop_bit_length: StopLength, // SIO1 only
     /// The polarity of the clock. For SIO0, should always be disabled (high when idle).
     #[bits(8)]
     pub clock_polarity: bool,
 }
 
-#[bitos(2)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterruptMode {
-    QueueLength1,
-    QueueLength2,
-    QueueLength4,
-    QueueLength8,
-}
-
-#[bitos(32)]
+#[bitos(16)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Control {
     /// Controls whether the PS1 can start a transfer to the device.
     #[bits(0)]
     pub tx_enable: bool,
-    /// Whether the PS1 is ready to send data. (DTR)
+    /// Whether this controller is selected for transmission. (DTR) (/CS)
     #[bits(1)]
-    pub ready_to_send: bool,
+    pub selected: bool,
     /// For SIO0, controls whether it will force a receive even if CS is high (not asserted).
     #[bits(2)]
     pub rx_enable: bool,
-    // #[bits(3)]
-    // pub tx_output_level: bool, // SIO1 only
     /// Acknowledges the interrupt or a RX error.
     #[bits(4)]
     pub acknowledge: bool,
     /// Whether the PS1 is ready to receive data. (RTS)
     #[bits(5)]
-    pub ready_to_receive: bool, // SIO1 only
+    pub ready_to_receive: bool,
     /// Zeroes most registers (?).
     #[bits(6)]
     pub reset: bool,
-    /// Controls when to raise an interrupt for RX.
-    #[bits(8..10)]
-    pub rx_interrupt_mode: InterruptMode,
     /// Whether to raise an interrupt on TX.
     #[bits(10)]
     pub tx_interrupt_enable: bool,
     /// Whether to raise an interrupt on RX.
     #[bits(11)]
     pub rx_interrupt_enable: bool,
-    /// Whether to raise an interrupt when the device becomes ready to send.
+    /// Whether to raise an interrupt when the device becomes ready to receive more data.
     #[bits(12)]
-    pub device_ready_to_send_interrupt_enable: bool,
-    /// For SIO0, selects which serial port to communicate with.
+    pub device_ready_to_receive_interrupt_enable: bool,
+    /// Selects which serial port to communicate with.
     #[bits(13)]
-    pub port_select: bool, // SIO0 only
+    pub port_select: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -144,31 +102,26 @@ pub struct Controller {
     pub mode: Mode,
     pub control: Control,
 
-    pub tx_queue: VecDeque<u8>,
-    pub rx_queue: VecDeque<u8>,
+    pub tx: Option<u8>,
+    pub rx: Option<u8>,
 }
 
 impl Default for Controller {
     fn default() -> Self {
         Self {
-            status: Status::default().with_tx_not_full(true).with_tx_idle(true),
+            status: Status::default().with_tx_ready(true).with_tx_ready(true),
             mode: Default::default(),
             control: Default::default(),
 
-            tx_queue: Default::default(),
-            rx_queue: Default::default(),
+            tx: Default::default(),
+            rx: Default::default(),
         }
     }
 }
 
+/// The state of the SIO0 controller.
 impl Controller {
-    pub fn update_status(&mut self) {
-        self.status.set_rx_not_empty(!self.rx_queue.is_empty());
+    pub fn read_rx(&mut self) -> u8 {
+        self.rx.take().unwrap_or(0xFF)
     }
-}
-
-/// The state of the SIO interface.
-#[derive(Debug, Clone, Default)]
-pub struct Interface {
-    pub controllers: [Controller; 2],
 }

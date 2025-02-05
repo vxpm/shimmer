@@ -15,7 +15,7 @@ pub mod gpu;
 pub mod interrupts;
 pub mod kernel;
 pub mod mem;
-pub mod sio;
+pub mod sio0;
 pub mod timers;
 
 mod scheduler;
@@ -72,7 +72,7 @@ pub struct PSX {
     pub interrupts: interrupts::Controller,
     pub gpu: gpu::Gpu,
     pub cdrom: cdrom::Controller,
-    pub sio: sio::Interface,
+    pub sio0: sio0::Controller,
 }
 
 /// Emulator configuration.
@@ -102,8 +102,8 @@ pub struct Emulator {
     dma_executor: dma::Executor,
     /// The CDROM command interpreter.
     cdrom_interpreter: cdrom::Interpreter,
-    /// The SIO interpreter.
-    sio_interpreter: sio::Interpreter,
+    /// The SIO0 interpreter.
+    sio0_interpreter: sio0::Interpreter,
 }
 
 impl Emulator {
@@ -132,14 +132,14 @@ impl Emulator {
                 interrupts: interrupts::Controller::default(),
                 gpu: gpu::Gpu::default(),
                 cdrom: cdrom::Controller::new(rom, loggers.cdrom.clone()),
-                sio: sio::Interface::default(),
+                sio0: sio0::Controller::default(),
 
                 loggers,
             },
             dma_executor: dma::Executor::default(),
             gpu_interpreter,
             cdrom_interpreter: cdrom::Interpreter::default(),
-            sio_interpreter: sio::Interpreter::default(),
+            sio0_interpreter: sio0::Interpreter::default(),
         })
     }
 
@@ -207,9 +207,9 @@ impl Emulator {
                     Event::Cdrom(event) => {
                         self.cdrom_interpreter.update(&mut self.psx, event);
                     }
-                }
-                Event::SIO => {
-                    self.sio_interpreter.update(&mut self.psx);
+                    Event::Sio(event) => {
+                        self.sio0_interpreter.update(&mut self.psx, event);
+                    }
                 }
             }
         }
