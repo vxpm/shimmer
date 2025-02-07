@@ -4,7 +4,7 @@ use crate::{
     mem::Address,
 };
 
-const MEMORY_CYCLE_COUNT: u64 = 7;
+const MEMORY_CYCLE_COUNT: u64 = 2;
 
 impl Interpreter<'_> {
     /// `[rs + signed_imm16] = rt`

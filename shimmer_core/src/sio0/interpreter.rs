@@ -1,5 +1,5 @@
 use super::Snapshot;
-use crate::{PSX, cpu, scheduler};
+use crate::{PSX, cpu, interrupts::Interrupt, scheduler};
 use tinylog::trace;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,16 +22,19 @@ pub enum JoypadStage {
 enum State {
     #[default]
     Idle,
-    StartTransfer(u8),
+    StartTransfer,
     JoypadTransfer(JoypadStage),
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
     state: State,
+    in_progress: bool,
 }
 
-const DELAY: u64 = 3 * cpu::CYCLES_1_US as u64;
+const TRANSFER_DELAY: u64 = 1500;
+const START_ACK_DELAY: u64 = 100;
+const END_ACK_DELAY: u64 = 50;
 
 impl Interpreter {
     fn snap(&mut self, psx: &mut PSX) {
@@ -50,55 +53,61 @@ impl Interpreter {
         psx.sio0.status.set_rx_ready(psx.sio0.rx.is_some());
         psx.sio0
             .status
-            .set_tx_finished(psx.sio0.tx.is_none() && matches!(self.state, State::Idle));
+            .set_tx_finished(psx.sio0.tx.is_none() && !self.in_progress);
     }
 
     fn can_transfer(&mut self, psx: &mut PSX) -> bool {
-        psx.sio0.control.selected() && psx.sio0.control.tx_enable() && psx.sio0.tx.is_some()
+        psx.sio0.control.selected()
+            && psx.sio0.control.tx_enable()
+            && psx.sio0.tx.is_some()
+            && !self.in_progress
     }
 
     pub fn update(&mut self, psx: &mut PSX, event: Event) {
         self.snap(psx);
         self.update_status(psx);
 
+        if psx.sio0.control.acknowledge() {
+            psx.sio0.control.set_acknowledge(false);
+            psx.sio0.status.set_interrupt_request(false);
+        }
+
         // do something
         match (self.state, event) {
-            (State::Idle, Event::Update) => {
+            (_, Event::Update) => {
                 // check if a transfer should start
                 if self.can_transfer(psx) {
-                    let data = psx.sio0.tx.take().unwrap();
-                    self.state = State::StartTransfer(data);
+                    self.in_progress = true;
                     psx.scheduler
-                        .schedule(scheduler::Event::Sio(Event::Transfer), DELAY);
+                        .schedule(scheduler::Event::Sio(Event::Transfer), TRANSFER_DELAY);
                 }
             }
             (_, Event::StartAck) => {
                 trace!(psx.loggers.sio, "start ack");
                 psx.sio0.status.set_device_ready_to_receive(true);
                 psx.scheduler
-                    .schedule(scheduler::Event::Sio(Event::EndAck), DELAY);
+                    .schedule(scheduler::Event::Sio(Event::EndAck), END_ACK_DELAY);
 
                 if psx.sio0.control.device_ready_to_receive_interrupt_enable() {
+                    psx.sio0.status.set_interrupt_request(true);
                     psx.interrupts
                         .status
-                        .request(crate::interrupts::Interrupt::SIO);
-                    psx.sio0.status.set_interrupt_request(true);
+                        .request(Interrupt::ControllerAndMemCard);
                 }
             }
             (_, Event::EndAck) => {
                 trace!(psx.loggers.sio, "end ack");
                 psx.sio0.status.set_device_ready_to_receive(false);
-                psx.scheduler
-                    .schedule(scheduler::Event::Sio(Event::Transfer), DELAY);
             }
-            (State::StartTransfer(value), Event::Transfer) => {
-                match value {
+            (State::Idle, Event::Transfer) => {
+                psx.sio0.rx = Some(0xFF);
+                self.in_progress = false;
+
+                let address = psx.sio0.tx.take().unwrap();
+                match address {
                     0x01 => {
                         // joypad
                         self.state = State::JoypadTransfer(JoypadStage::IdLow);
-                        psx.sio0.rx = Some(0xFF);
-                        psx.scheduler
-                            .schedule(scheduler::Event::Sio(Event::StartAck), DELAY);
                     }
                     0x81 => {
                         // memcard
@@ -106,16 +115,21 @@ impl Interpreter {
                     }
                     _ => todo!("unknown device"),
                 }
+
+                psx.scheduler
+                    .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
             }
-            (State::JoypadTransfer(stage), Event::Update | Event::Transfer) => {
-                if self.can_transfer(psx) {
-                    let data = psx.sio0.tx.take().unwrap();
-                    match stage {
-                        JoypadStage::IdLow => assert_eq!(data, 0x43),
-                        JoypadStage::IdHigh => todo!(),
-                        JoypadStage::Rumble0 => todo!(),
-                        JoypadStage::Rumble1 => todo!(),
+            (State::JoypadTransfer(stage), Event::Transfer) => {
+                self.in_progress = false;
+
+                let data = psx.sio0.tx.take().unwrap();
+                match stage {
+                    JoypadStage::IdLow => {
+                        assert_eq!(data, 0x43);
                     }
+                    JoypadStage::IdHigh => todo!(),
+                    JoypadStage::Rumble0 => todo!(),
+                    JoypadStage::Rumble1 => todo!(),
                 }
             }
             _ => (),
