@@ -97,6 +97,16 @@ pub struct Control {
 }
 
 #[derive(Debug, Clone)]
+pub struct Snapshot {
+    pub cycle: u64,
+    pub status: Status,
+    pub mode: Mode,
+    pub control: Control,
+    pub tx: Option<u8>,
+    pub rx: Option<u8>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Controller {
     pub status: Status,
     pub mode: Mode,
@@ -104,6 +114,8 @@ pub struct Controller {
 
     pub tx: Option<u8>,
     pub rx: Option<u8>,
+
+    pub snaps: Vec<Snapshot>,
 }
 
 impl Default for Controller {
@@ -115,6 +127,8 @@ impl Default for Controller {
 
             tx: Default::default(),
             rx: Default::default(),
+
+            snaps: Vec::new(),
         }
     }
 }

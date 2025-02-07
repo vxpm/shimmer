@@ -1,6 +1,6 @@
-use tinylog::trace;
-
+use super::Snapshot;
 use crate::{PSX, cpu, scheduler};
+use tinylog::trace;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
@@ -31,9 +31,20 @@ pub struct Interpreter {
     state: State,
 }
 
-const DELAY: u64 = 100;
+const DELAY: u64 = 3 * cpu::CYCLES_1_US as u64;
 
 impl Interpreter {
+    fn snap(&mut self, psx: &mut PSX) {
+        psx.sio0.snaps.push(Snapshot {
+            cycle: psx.scheduler.elapsed(),
+            status: psx.sio0.status,
+            mode: psx.sio0.mode,
+            control: psx.sio0.control,
+            tx: psx.sio0.tx,
+            rx: psx.sio0.rx,
+        });
+    }
+
     fn update_status(&mut self, psx: &mut PSX) {
         psx.sio0.status.set_tx_ready(psx.sio0.tx.is_none());
         psx.sio0.status.set_rx_ready(psx.sio0.rx.is_some());
@@ -47,6 +58,7 @@ impl Interpreter {
     }
 
     pub fn update(&mut self, psx: &mut PSX, event: Event) {
+        self.snap(psx);
         self.update_status(psx);
 
         // do something
@@ -110,5 +122,6 @@ impl Interpreter {
         }
 
         self.update_status(psx);
+        self.snap(psx);
     }
 }

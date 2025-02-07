@@ -284,6 +284,14 @@ impl eframe::App for App {
                         ));
                         ui.close_menu();
                     }
+
+                    if ui.button("Serial").clicked() {
+                        self.windows.push(AppWindow::open(
+                            AppWindowKind::Serial,
+                            Id::new(random::<u64>()),
+                        ));
+                        ui.close_menu();
+                    }
                 });
             });
 
