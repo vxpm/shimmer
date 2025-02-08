@@ -4,118 +4,7 @@ use eframe::egui::{self, Color32, Id, RichText, Ui, Window};
 use egui_extras::{Column, TableBuilder, TableRow};
 use tinylog::{Level, logger::Context as LoggerContext};
 
-// fn header_cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::HeaderCellInfo) {
-//     let egui_table::HeaderCellInfo { col_range, .. } = cell;
-//
-//     egui::Frame::none()
-//         .inner_margin(egui::Margin::symmetric(4.0, 0.0))
-//         .show(ui, |ui| match col_range.start {
-//             0 => {
-//                 ui.label("TIME");
-//             }
-//             1 => {
-//                 ui.label("LEVEL");
-//             }
-//             2 => {
-//                 ui.label("CONTEXT");
-//             }
-//             3 => {
-//                 ui.label("MESSAGE");
-//             }
-//             _ => unreachable!(),
-//         });
-// }
-//
-// fn cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::CellInfo) {
-//     let egui_table::CellInfo { row_nr, col_nr, .. } = *cell;
-//
-//     if row_nr % 2 == 0 {
-//         ui.painter()
-//             .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
-//     }
-//
-//     let Some(record) = &self.prefetched.get(&row_nr) else {
-//         return;
-//     };
-//
-//     egui::Frame::none()
-//         .inner_margin(egui::Margin::symmetric(4.0, 4.0))
-//         .show(ui, |ui| match col_nr {
-//             0 => {
-//                 ui.vertical(|ui| {
-//                     ui.label(
-//                         RichText::new(
-//                             record.value.time().format("%F %H:%M:%S%.3f").to_string(),
-//                         )
-//                         .monospace()
-//                         .weak(),
-//                     );
-//                 });
-//             }
-//             1 => {
-//                 ui.vertical(|ui| {
-//                     let color = match record.value.static_data.level {
-//                         tinylog::Level::Trace => Color32::LIGHT_GRAY,
-//                         tinylog::Level::Debug => Color32::LIGHT_BLUE,
-//                         tinylog::Level::Info => Color32::LIGHT_GREEN,
-//                         tinylog::Level::Warn => Color32::LIGHT_YELLOW,
-//                         tinylog::Level::Error => Color32::LIGHT_RED,
-//                     };
-//
-//                     ui.label(
-//                         RichText::new(record.value.static_data.level.to_string())
-//                             .monospace()
-//                             .color(color)
-//                             .strong(),
-//                     );
-//                 });
-//             }
-//             2 => {
-//                 ui.vertical(|ui| {
-//                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-//                     ui.label(RichText::new(record.ctx.to_string()).monospace());
-//                 });
-//             }
-//             3 => {
-//                 ui.vertical(|ui| {
-//                     let (_, space) = ui.allocate_space(Vec2::new(self.message_width, ROW_SIZE));
-//                     let response = ui.scope_builder(UiBuilder::new().max_rect(space), |ui| {
-//                         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-//                         ui.label(record.value.message.to_string());
-//
-//                         if !record.value.attachments.is_empty() {
-//                             for attachment in &record.value.attachments {
-//                                 let key = &attachment.key;
-//                                 let value = if let Some(display) = attachment.value.as_display()
-//                                 {
-//                                     display.to_string()
-//                                 } else if let Some(debug) = attachment.value.as_debug() {
-//                                     format!("{debug:?}")
-//                                 } else {
-//                                     "(opaque)".to_string()
-//                                 };
-//
-//                                 ui.label(
-//                                     RichText::new(format!("{key:?}: {}", value)).small().weak(),
-//                                 );
-//                             }
-//                         }
-//                     });
-//
-//                     let size = 8.0 + response.response.rect.size().y;
-//                     let old = self.row_heights.insert(cell.row_nr, size);
-//
-//                     if old != Some(size) {
-//                         let mut row_top_offsets = self.row_top_offsets.borrow_mut();
-//                         row_top_offsets[cell.row_nr as usize..]
-//                             .iter_mut()
-//                             .for_each(|o| *o = None);
-//                     }
-//                 });
-//             }
-//             _ => unreachable!(),
-//         });
-// }
+const MAX_RECORDS_SHOWN: usize = 50_000;
 
 pub struct LogViewer {
     _id: Id,
@@ -128,6 +17,12 @@ pub struct LogViewer {
 impl LogViewer {
     fn draw_header(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
         ui.horizontal(|ui| {
+            ui.label(format!(
+                "Records: {} (max shown: {})",
+                state.log_records.len(self.logger_ctx.clone()),
+                MAX_RECORDS_SHOWN
+            ));
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let current_level = state.log_family.level_of(&self.logger_ctx).unwrap();
                 let mut current_level_index = current_level as usize;
@@ -179,7 +74,8 @@ impl LogViewer {
         self.row_heights
             .resize(state.log_records.len(self.logger_ctx.clone()), 10.0);
 
-        let heights = self.row_heights.clone();
+        let heights =
+            self.row_heights[self.row_heights.len().saturating_sub(MAX_RECORDS_SHOWN)..].to_owned();
         TableBuilder::new(ui)
             .auto_shrink([false; 2])
             .stick_to_bottom(true)
@@ -214,7 +110,12 @@ impl LogViewer {
 
     fn draw_row(&mut self, state: &mut ExclusiveState, row: &mut TableRow) {
         let index = row.index();
-        let log = state.log_records.get(&self.logger_ctx, index).unwrap();
+        let offset = self.row_heights.len().saturating_sub(MAX_RECORDS_SHOWN);
+
+        let log = state
+            .log_records
+            .get(&self.logger_ctx, offset + index)
+            .unwrap();
 
         row.col(|ui| {
             ui.label(
@@ -269,7 +170,7 @@ impl LogViewer {
                 .rect
                 .height();
 
-            self.row_heights[index] = height;
+            self.row_heights[offset + index] = height;
         });
     }
 }
