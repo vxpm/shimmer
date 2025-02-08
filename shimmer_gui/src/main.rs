@@ -10,7 +10,7 @@ use cli::Cli;
 use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, Frame, Id, Style, menu},
-    egui_wgpu::{RenderState, WgpuSetup},
+    egui_wgpu::{RenderState, WgpuSetup, WgpuSetupCreateNew},
     wgpu,
 };
 use egui_file_dialog::FileDialog;
@@ -40,6 +40,7 @@ struct Timing {
 /// Variables related to controlling the emulation or the GUI.
 struct Controls {
     running: bool,
+    #[expect(dead_code, reason = "temporary")]
     breakpoints: Vec<u32>,
     alternative_names: bool,
     gamepad_input: Gilrs,
@@ -73,8 +74,8 @@ impl ExclusiveState {
         let renderer_config = shimmer_wgpu::Config {
             display_tex_format: render_state.target_format,
         };
-        let device = Arc::clone(&render_state.device);
-        let queue = Arc::clone(&render_state.queue);
+        let device = render_state.device.clone();
+        let queue = render_state.queue.clone();
         let renderer = WgpuRenderer::new(
             device,
             queue,
@@ -146,7 +147,7 @@ struct Config {
 }
 
 struct App {
-    config: Config,
+    _config: Config,
     state: Arc<State>,
     unparker: Unparker,
 
@@ -194,7 +195,7 @@ impl App {
             .collect();
 
         Self {
-            config,
+            _config: config,
             state,
             unparker,
 
@@ -306,7 +307,7 @@ impl eframe::App for App {
         while let Some(event) = state.controls.gamepad_input.next_event() {
             let input = &mut state.emulator.psx_mut().sio0.input;
             match event.event {
-                gilrs::EventType::ButtonChanged(button, value, code) => {
+                gilrs::EventType::ButtonChanged(button, value, _) => {
                     let level = value > 0.0;
                     match button {
                         Button::South => {
@@ -388,19 +389,18 @@ fn main() {
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.maximized = Some(true);
-    native_options.wgpu_options.wgpu_setup = WgpuSetup::CreateNew {
-        supported_backends: wgpu::Backends::default(),
+    native_options.wgpu_options.wgpu_setup = WgpuSetup::CreateNew(WgpuSetupCreateNew {
+        instance_descriptor: wgpu::InstanceDescriptor::from_env_or_default(),
         power_preference: wgpu::PowerPreference::HighPerformance,
-        device_descriptor: Arc::new(|_| {
-            // for renderdoc
-            wgpu::DeviceDescriptor {
-                label: Some("device"),
-                required_features: wgpu::Features::default(),
-                required_limits: wgpu::Limits::default(),
-                memory_hints: wgpu::MemoryHints::default(),
-            }
+        native_adapter_selector: None,
+        device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor {
+            label: Some("device"),
+            required_features: wgpu::Features::default(),
+            required_limits: wgpu::Limits::default(),
+            memory_hints: wgpu::MemoryHints::default(),
         }),
-    };
+        trace_path: None,
+    });
 
     let result = eframe::run_native(
         "shimmer - psx",

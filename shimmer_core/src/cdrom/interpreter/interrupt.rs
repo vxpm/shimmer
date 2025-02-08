@@ -3,7 +3,7 @@ use crate::{
     cdrom::{Interpreter, InterruptMask, InterruptStatus},
 };
 use bitos::{bitos, integer::u3};
-use tinylog::{debug, info, trace};
+use tinylog::{debug, trace};
 
 #[bitos(8)]
 struct InterruptFlags {

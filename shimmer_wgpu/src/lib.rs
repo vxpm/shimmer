@@ -55,12 +55,7 @@ struct Inner {
 }
 
 impl Inner {
-    pub fn new(
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-        logger: Logger,
-        config: Config,
-    ) -> Self {
+    pub fn new(device: wgpu::Device, queue: wgpu::Queue, logger: Logger, config: Config) -> Self {
         let ctx = Arc::new(Context::new(device, queue, config, logger));
         let vram = Vram::new(ctx.clone());
         let rasterizer = Rasterizer::new(ctx.clone(), &vram);
@@ -119,12 +114,7 @@ pub struct WgpuRenderer {
 }
 
 impl WgpuRenderer {
-    pub fn new(
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-        logger: Logger,
-        config: Config,
-    ) -> Self {
+    pub fn new(device: wgpu::Device, queue: wgpu::Queue, logger: Logger, config: Config) -> Self {
         let inner = Arc::new(Mutex::new(Inner::new(device, queue, logger, config)));
         let (sender, receiver) = channel();
 

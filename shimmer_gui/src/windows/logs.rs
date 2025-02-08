@@ -1,11 +1,8 @@
 use super::WindowUi;
 use crate::ExclusiveState;
-use eframe::egui::{
-    self, Color32, Id, RichText, Ui, UiBuilder, Vec2, Window, style::ScrollAnimation,
-};
+use eframe::egui::{self, Color32, Id, RichText, Ui, Window};
 use egui_extras::{Column, TableBuilder, TableRow};
-use std::{cell::RefCell, collections::BTreeMap};
-use tinylog::{Level, logger::Context as LoggerContext, record::RecordWithCtx};
+use tinylog::{Level, logger::Context as LoggerContext};
 
 // fn header_cell_ui(&mut self, ui: &mut Ui, cell: &egui_table::HeaderCellInfo) {
 //     let egui_table::HeaderCellInfo { col_range, .. } = cell;
@@ -121,7 +118,7 @@ use tinylog::{Level, logger::Context as LoggerContext, record::RecordWithCtx};
 // }
 
 pub struct LogViewer {
-    id: Id,
+    _id: Id,
     row_heights: Vec<f32>,
 
     // user settings
@@ -283,7 +280,7 @@ impl LogViewer {
         Self: Sized,
     {
         Self {
-            id,
+            _id: id,
             row_heights: Vec::new(),
 
             logger_ctx: LoggerContext::new("psx"),

@@ -11,7 +11,7 @@ bytesize = "1.3"
 easyerr = "0.1"
 oneshot = "0.1"
 strum = { version = "0.26", features = ["derive"] }
-wgpu = "23.0"
+wgpu = "24.0"
 zerocopy = "0.8"
 
 [workspace.lints.rust]

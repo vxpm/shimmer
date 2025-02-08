@@ -12,18 +12,18 @@ tinylog.workspace = true
 
 clap = { version = "4.5", features = ["derive"] }
 crossbeam = "0.8"
-eframe = { version = "0.30", default-features = false, features = [
+eframe = { version = "0.31", default-features = false, features = [
     "wayland",
     "wgpu",
     "default_fonts",
     "persistence",
 ] }
-egui-file-dialog = "0.8"
+egui-file-dialog = "0.9"
 parking_lot = "0.12"
 serde = { version = "1.0" }
 ron = { version = "0.8" }
 si-scale = "0.2"
-egui_taffy = "0.6.0"
-egui_extras = "0.30.0"
-egui_plot = "0.30.0"
-gilrs = "0.11.0"
+egui_taffy = "0.7.0"
+egui_extras = "0.31.0"
+egui_plot = "0.31.0"
+gilrs = "0.11"

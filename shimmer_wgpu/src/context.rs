@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use tinylog::Logger;
 
 /// Configuration for the renderer.
@@ -9,19 +8,14 @@ pub struct Config {
 
 /// A context for the renderer.
 pub struct Context {
-    device: Arc<wgpu::Device>,
-    queue: Arc<wgpu::Queue>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
     config: Config,
     logger: Logger,
 }
 
 impl Context {
-    pub fn new(
-        device: Arc<wgpu::Device>,
-        queue: Arc<wgpu::Queue>,
-        config: Config,
-        logger: Logger,
-    ) -> Self {
+    pub fn new(device: wgpu::Device, queue: wgpu::Queue, config: Config, logger: Logger) -> Self {
         Self {
             device,
             queue,
