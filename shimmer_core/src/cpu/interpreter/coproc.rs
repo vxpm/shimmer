@@ -1,4 +1,4 @@
-use super::{DEFAULT_CYCLE_COUNT, Interpreter};
+use super::{DEFAULT_DELAY, Interpreter};
 use crate::cpu::{COP, RegLoad, instr::Instruction, interpreter::Exception};
 use tinylog::warn;
 
@@ -24,7 +24,7 @@ impl Interpreter<'_> {
             _ => self.trigger_exception(Exception::CopUnusable),
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = copn_rd`
@@ -32,16 +32,16 @@ impl Interpreter<'_> {
         let system_status = self.psx.cop0.regs.system_status();
         let rd = match instr.cop() {
             COP::COP0 => self.psx.cop0.regs.read(instr.rd()),
-            COP::COP1 if system_status.cop1_enabled() => return DEFAULT_CYCLE_COUNT,
+            COP::COP1 if system_status.cop1_enabled() => return DEFAULT_DELAY,
             // TODO: remove stub
             COP::COP2 if system_status.cop2_enabled() => {
                 warn!(self.psx.loggers.cpu, "mfc to cop2 stubbed");
                 0
             }
-            COP::COP3 if system_status.cop3_enabled() => return DEFAULT_CYCLE_COUNT,
+            COP::COP3 if system_status.cop3_enabled() => return DEFAULT_DELAY,
             _ => {
                 self.trigger_exception(Exception::CopUnusable);
-                return DEFAULT_CYCLE_COUNT;
+                return DEFAULT_DELAY;
             }
         };
 
@@ -51,7 +51,7 @@ impl Interpreter<'_> {
             value: rd,
         });
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// Prepares a return from an exception.
@@ -62,6 +62,6 @@ impl Interpreter<'_> {
             .system_status_mut()
             .restore_from_exception();
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 }

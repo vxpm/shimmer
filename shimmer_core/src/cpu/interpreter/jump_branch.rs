@@ -1,4 +1,4 @@
-use super::{DEFAULT_CYCLE_COUNT, Interpreter};
+use super::{DEFAULT_DELAY, Interpreter};
 use crate::cpu::{
     Reg,
     instr::{BZKind, Instruction},
@@ -11,7 +11,7 @@ impl Interpreter<'_> {
         let low = instr.imm26().value() << 2;
         self.psx.cpu.regs.pc = high | low;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     #[inline(always)]
@@ -36,7 +36,7 @@ impl Interpreter<'_> {
             self.branch(instr.signed_imm16());
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `r31 = delay_slot + 4; pc = (pc & (0b1111 << 28)) | (imm26 << 2)`
@@ -50,7 +50,7 @@ impl Interpreter<'_> {
 
         self.psx.cpu.regs.pc = addr;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `pc = rs`
@@ -58,7 +58,7 @@ impl Interpreter<'_> {
         let rs = self.psx.cpu.regs.read(instr.rs());
         self.psx.cpu.regs.pc = rs;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs == rt { branch(signed_imm16 << 2) }`
@@ -70,7 +70,7 @@ impl Interpreter<'_> {
             self.branch(instr.signed_imm16());
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = delay_slot + 4; pc = rs`
@@ -81,7 +81,7 @@ impl Interpreter<'_> {
 
         self.psx.cpu.regs.pc = rs;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs > 0 { branch(signed_imm16 << 2) }`
@@ -91,7 +91,7 @@ impl Interpreter<'_> {
             self.branch(instr.signed_imm16());
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs <= 0 { branch(signed_imm16 << 2) }`
@@ -101,7 +101,7 @@ impl Interpreter<'_> {
             self.branch(instr.signed_imm16());
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs ??? 0 { branch(signed_imm16 << 2) }`
@@ -132,6 +132,6 @@ impl Interpreter<'_> {
             }
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 }

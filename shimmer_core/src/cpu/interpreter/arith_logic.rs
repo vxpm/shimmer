@@ -1,4 +1,4 @@
-use super::{DEFAULT_CYCLE_COUNT, Interpreter};
+use super::{DEFAULT_DELAY, Interpreter};
 use crate::cpu::{cop0::Exception, instr::Instruction};
 
 impl Interpreter<'_> {
@@ -8,7 +8,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), result);
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = rs | imm16`
@@ -18,7 +18,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), result);
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt << imm5`
@@ -28,7 +28,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = rs + imm16`
@@ -38,7 +38,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), result);
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs | rt`
@@ -48,7 +48,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), rs | rt);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = rs + signed_imm16`
@@ -63,7 +63,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs < rt { rd = 1 } else { rd = 0 }`
@@ -73,7 +73,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), u32::from(rs < rt));
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs + rt`
@@ -83,7 +83,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), rs.wrapping_add(rt));
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = rs & imm16`
@@ -93,7 +93,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), result);
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt >> imm5`
@@ -103,7 +103,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs & rt`
@@ -113,7 +113,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), rs & rt);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs + rt`
@@ -129,7 +129,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs < signed_imm16 { rt = 1 } else { rt = 0 }`
@@ -139,7 +139,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), u32::from(result));
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs - rt`
@@ -149,7 +149,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), rs.wrapping_sub(rt));
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt (signed)>> imm5`
@@ -159,7 +159,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result as u32);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `LO = rs (signed)/ rt; HI = rs (signed)% rt`
@@ -179,7 +179,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.lo = div as u32;
         self.psx.cpu.regs.hi = rem as u32;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs < signed_imm16 { rt = 1 } else { rt = 0 }`
@@ -189,7 +189,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), u32::from(result));
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `if rs (signed)< rt { rd = 1 } else { rd = 0 }`
@@ -199,7 +199,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), u32::from(rs < rt));
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `LO = rs / rt; HI = rs % rt`
@@ -214,7 +214,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.lo = div;
         self.psx.cpu.regs.hi = rem;
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt << (rs & 0x1F)`
@@ -225,7 +225,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = !(rs | rt)`
@@ -235,7 +235,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), !(rs | rt));
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt (signed)>> (rs & 0x1F)`
@@ -246,7 +246,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result as u32);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rt >> (rs & 0x1F)`
@@ -257,7 +257,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), result);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     pub fn multu(&mut self, instr: Instruction) -> u64 {
@@ -270,7 +270,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.lo = low.get();
         self.psx.cpu.regs.hi = high.get();
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs ^ rt`
@@ -280,7 +280,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rd(), rs ^ rt);
         self.cancel_load(instr.rd());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rt = rs ^ imm16`
@@ -290,7 +290,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.write(instr.rt(), result);
         self.cancel_load(instr.rt());
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     pub fn mult(&mut self, instr: Instruction) -> u64 {
@@ -303,7 +303,7 @@ impl Interpreter<'_> {
         self.psx.cpu.regs.lo = low.get();
         self.psx.cpu.regs.hi = high.get();
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = rs - rt`
@@ -319,6 +319,6 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::ArithmeticOverflow);
         }
 
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 }

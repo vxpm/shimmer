@@ -35,7 +35,8 @@ pub struct Interpreter<'ctx> {
     pending_load: Option<RegLoad>,
 }
 
-const DEFAULT_CYCLE_COUNT: u64 = 2;
+const DEFAULT_DELAY: u64 = 2;
+const MEMORY_OP_DELAY: u64 = 7;
 
 impl<'ctx> Interpreter<'ctx> {
     #[inline(always)]
@@ -246,7 +247,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Opcode::XORI => self.xori(instr),
                 Opcode::COP2 => {
                     warn!(self.psx.loggers.cpu, "ignoring GTE instruction");
-                    DEFAULT_CYCLE_COUNT
+                    DEFAULT_DELAY
                 }
                 Opcode::COP0 | Opcode::COP1 | Opcode::COP3 => {
                     if let Some(op) = instr.cop_op() {
@@ -262,12 +263,12 @@ impl<'ctx> Interpreter<'ctx> {
                                         SpecialCoOpcode::RFE => self.rfe(instr),
                                     }
                                 } else {
-                                    DEFAULT_CYCLE_COUNT
+                                    DEFAULT_DELAY
                                 }
                             }
                         }
                     } else {
-                        DEFAULT_CYCLE_COUNT
+                        DEFAULT_DELAY
                     }
                 }
                 Opcode::SWC0 | Opcode::SWC1 | Opcode::SWC2 | Opcode::SWC3 => self.swc(instr),
@@ -305,17 +306,17 @@ impl<'ctx> Interpreter<'ctx> {
                         }
                     } else {
                         error!(self.psx.loggers.cpu, "illegal special op");
-                        DEFAULT_CYCLE_COUNT
+                        DEFAULT_DELAY
                     }
                 }
                 _ => {
                     error!(self.psx.loggers.cpu, "can't execute op {op:?}");
-                    DEFAULT_CYCLE_COUNT
+                    DEFAULT_DELAY
                 }
             }
         } else {
             error!(self.psx.loggers.cpu, "illegal op");
-            DEFAULT_CYCLE_COUNT
+            DEFAULT_DELAY
         }
     }
 
@@ -424,7 +425,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Address(self.psx.cpu.regs.pc),
                 Exception::AddressErrorLoad,
             );
-            return DEFAULT_CYCLE_COUNT;
+            return DEFAULT_DELAY;
         };
 
         let (current_instr, current_addr) = std::mem::replace(
@@ -443,7 +444,7 @@ impl<'ctx> Interpreter<'ctx> {
         let cycles = if !self.check_interrupts() {
             self.exec(current_instr)
         } else {
-            DEFAULT_CYCLE_COUNT
+            DEFAULT_DELAY
         };
 
         if let Some(load) = self.pending_load {
@@ -464,7 +465,7 @@ impl<'ctx> Interpreter<'ctx> {
                 Address(self.psx.cpu.regs.pc),
                 Exception::BusErrorInstruction,
             );
-            return DEFAULT_CYCLE_COUNT;
+            return DEFAULT_DELAY;
         }
 
         cycles

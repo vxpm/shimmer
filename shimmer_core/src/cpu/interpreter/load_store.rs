@@ -1,16 +1,14 @@
-use super::{DEFAULT_CYCLE_COUNT, Interpreter};
+use super::{DEFAULT_DELAY, Interpreter, MEMORY_OP_DELAY};
 use crate::{
     cpu::{COP, RegLoad, cop0::Exception, instr::Instruction},
     mem::Address,
 };
 
-const MEMORY_CYCLE_COUNT: u64 = 7;
-
 impl Interpreter<'_> {
     /// `[rs + signed_imm16] = rt`
     pub fn sw(&mut self, instr: Instruction) -> u64 {
         if self.psx.cop0.regs.system_status().isolate_cache() {
-            return DEFAULT_CYCLE_COUNT;
+            return DEFAULT_DELAY;
         }
 
         let rt = self.psx.cpu.regs.read(instr.rt());
@@ -21,7 +19,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorStore);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rt = [rs + signed_imm16] `. Delayed by one instruction.
@@ -39,13 +37,13 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `(half)[rs + signed_imm16] = rt`
     pub fn sh(&mut self, instr: Instruction) -> u64 {
         if self.psx.cop0.regs.system_status().isolate_cache() {
-            return DEFAULT_CYCLE_COUNT;
+            return DEFAULT_DELAY;
         }
 
         let rt = self.psx.cpu.regs.read(instr.rt());
@@ -56,13 +54,13 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorStore);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `(byte)[rs + signed_imm16] = rt`
     pub fn sb(&mut self, instr: Instruction) -> u64 {
         if self.psx.cop0.regs.system_status().isolate_cache() {
-            return DEFAULT_CYCLE_COUNT;
+            return DEFAULT_DELAY;
         }
 
         let rt = self.psx.cpu.regs.read(instr.rt());
@@ -73,7 +71,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorStore);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rt = (signext)(byte)[rs + signed_imm16] `. Delayed by one instruction.
@@ -91,7 +89,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rt = (zeroext)(byte)[rs + signed_imm16] `. Delayed by one instruction.
@@ -109,7 +107,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rt = (zeroext)(half)[rs + signed_imm16] `. Delayed by one instruction.
@@ -127,7 +125,7 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rt = (signext)(half)[rs + signed_imm16] `. Delayed by one instruction.
@@ -149,33 +147,33 @@ impl Interpreter<'_> {
             self.trigger_exception(Exception::AddressErrorLoad);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     /// `rd = LO`.
     pub fn mflo(&mut self, instr: Instruction) -> u64 {
         self.cancel_load(instr.rd());
         self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.lo);
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `rd = HI`.
     pub fn mfhi(&mut self, instr: Instruction) -> u64 {
         self.cancel_load(instr.rd());
         self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.hi);
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `HI = rs`.
     pub fn mthi(&mut self, instr: Instruction) -> u64 {
         self.psx.cpu.regs.hi = self.psx.cpu.regs.read(instr.rs());
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     /// `LO = rs`.
     pub fn mtlo(&mut self, instr: Instruction) -> u64 {
         self.psx.cpu.regs.lo = self.psx.cpu.regs.read(instr.rs());
-        DEFAULT_CYCLE_COUNT
+        DEFAULT_DELAY
     }
 
     pub fn lwl(&mut self, instr: Instruction) -> u64 {
@@ -203,7 +201,7 @@ impl Interpreter<'_> {
             value: u32::from_be_bytes(result),
         });
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     pub fn lwr(&mut self, instr: Instruction) -> u64 {
@@ -231,7 +229,7 @@ impl Interpreter<'_> {
             value: u32::from_le_bytes(result),
         });
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     pub fn swl(&mut self, instr: Instruction) -> u64 {
@@ -245,7 +243,7 @@ impl Interpreter<'_> {
             self.psx.write_unaligned::<u8, false>(addr, *byte);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     pub fn swr(&mut self, instr: Instruction) -> u64 {
@@ -259,7 +257,7 @@ impl Interpreter<'_> {
             self.psx.write_unaligned::<u8, false>(addr, *byte);
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 
     pub fn swc(&mut self, instr: Instruction) -> u64 {
@@ -280,6 +278,6 @@ impl Interpreter<'_> {
             _ => self.trigger_exception(Exception::CopUnusable),
         }
 
-        MEMORY_CYCLE_COUNT
+        MEMORY_OP_DELAY
     }
 }
