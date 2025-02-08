@@ -39,7 +39,7 @@ pub struct TexConfig {
 }
 
 impl TexConfig {
-    pub fn new(texconfig: &interface::TexConfig) -> Self {
+    pub fn new(texconfig: interface::TexConfig) -> Self {
         Self {
             mode: match texconfig.texpage.depth() {
                 TexDepth::Nibble => 1,
@@ -80,11 +80,7 @@ pub struct Triangle {
 
 impl Triangle {
     pub fn new(triangle: interface::primitive::Triangle) -> Self {
-        let texconfig = triangle
-            .texconfig
-            .as_ref()
-            .map(TexConfig::new)
-            .unwrap_or_default();
+        let texconfig = triangle.texconfig.map(TexConfig::new).unwrap_or_default();
 
         let mut result = Self {
             vertices: triangle.vertices.map(|v| Vertex {
@@ -139,11 +135,7 @@ pub struct Rectangle {
 
 impl Rectangle {
     pub fn new(rectangle: interface::primitive::Rectangle) -> Self {
-        let texconfig = rectangle
-            .texconfig
-            .as_ref()
-            .map(TexConfig::new)
-            .unwrap_or_default();
+        let texconfig = rectangle.texconfig.map(TexConfig::new).unwrap_or_default();
 
         Self {
             top_left: IVec2::new(
