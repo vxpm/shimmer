@@ -315,7 +315,7 @@ pub struct Controller {
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
     pub result_queue: VecDeque<u8>,
-    pub sector_queue: VecDeque<VecDeque<u8>>,
+    pub sector_data: VecDeque<u8>,
 
     pub rom: Option<File>,
     pub logger: Logger,
@@ -338,7 +338,7 @@ impl Controller {
             write_queue: Default::default(),
             parameter_queue: Default::default(),
             result_queue: Default::default(),
-            sector_queue: Default::default(),
+            sector_data: Default::default(),
 
             rom,
             logger,
@@ -356,7 +356,7 @@ impl Controller {
         self.command_status
             .set_result_fifo_not_empty(!self.result_queue.is_empty());
         self.command_status
-            .set_data_request(!self.sector_queue.is_empty());
+            .set_data_request(!self.sector_data.is_empty());
     }
 
     pub fn read(&mut self, reg: Reg) -> u8 {
@@ -398,13 +398,6 @@ impl Controller {
             return 0;
         }
 
-        let front = self.sector_queue.front_mut().unwrap();
-        let value = front.pop_front().unwrap();
-
-        if front.len() == 0 {
-            self.sector_queue.pop_front();
-        }
-
-        value
+        self.sector_data.pop_front().unwrap_or_default()
     }
 }
