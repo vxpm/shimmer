@@ -202,11 +202,7 @@ impl Interpreter {
                     .unwrap();
                 rom.read_exact(&mut buf).unwrap();
 
-                if psx.cdrom.sector_queue.len() == 1 {
-                    psx.cdrom.sector_queue.pop_back();
-                }
-                psx.cdrom.sector_queue.push_back(VecDeque::from(buf));
-
+                psx.cdrom.sector_data = VecDeque::from(buf);
                 psx.cdrom.location.0 += 1;
                 psx.scheduler.schedule(
                     scheduler::Event::Cdrom(Event::Read),

@@ -1,6 +1,6 @@
 use super::WindowUi;
 use crate::ExclusiveState;
-use eframe::egui::{self, Align, Color32, Id, RichText, Ui, Vec2, Window};
+use eframe::egui::{self, Color32, Id, RichText, Ui, Vec2, Window};
 use egui_taffy::{
     TuiBuilderLogic,
     taffy::{

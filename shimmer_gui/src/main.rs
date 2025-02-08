@@ -14,6 +14,7 @@ use eframe::{
     wgpu,
 };
 use egui_file_dialog::FileDialog;
+use gilrs::{Button, Gilrs};
 use parking_lot::Mutex;
 use shimmer_core::Emulator;
 use shimmer_wgpu::WgpuRenderer;
@@ -41,6 +42,7 @@ struct Controls {
     running: bool,
     breakpoints: Vec<u32>,
     alternative_names: bool,
+    gamepad_input: Gilrs,
 }
 
 /// State shared between the GUI and emulation threads that is locked behind a mutex.
@@ -106,6 +108,7 @@ impl ExclusiveState {
                 running: false,
                 breakpoints: Vec::new(),
                 alternative_names: true,
+                gamepad_input: Gilrs::new().unwrap(),
             },
 
             log_family,
@@ -223,14 +226,14 @@ impl eframe::App for App {
             .shared
             .should_advance
             .store(false, Ordering::Relaxed);
-        let mut exclusive = self.state.exclusive.lock();
+        let mut state = self.state.exclusive.lock();
 
         egui::CentralPanel::default()
             .frame(Frame::canvas(&Style::default()))
             .show(ctx, |ui| {
                 self.file_dialog.update(ctx);
                 self.windows.retain_mut(|window| {
-                    let response = window.show(&mut exclusive, ui);
+                    let response = window.show(&mut state, ui);
                     response.is_some()
                 });
             })
@@ -287,8 +290,8 @@ impl eframe::App for App {
                 });
             });
 
-        if exclusive.controls.running {
-            exclusive.timing.running_timer.resume();
+        if state.controls.running {
+            state.timing.running_timer.resume();
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
 
             self.state
@@ -297,7 +300,74 @@ impl eframe::App for App {
                 .store(true, Ordering::Relaxed);
             self.unparker.unpark();
         } else {
-            exclusive.timing.running_timer.pause();
+            state.timing.running_timer.pause();
+        }
+
+        while let Some(event) = state.controls.gamepad_input.next_event() {
+            let input = &mut state.emulator.psx_mut().sio0.input;
+            match event.event {
+                gilrs::EventType::ButtonChanged(button, value, code) => {
+                    let level = value > 0.0;
+                    match button {
+                        Button::South => {
+                            input.set_cross(level);
+                        }
+                        Button::East => {
+                            input.set_circle(level);
+                        }
+                        Button::North => {
+                            input.set_triangle(level);
+                        }
+                        Button::West => {
+                            input.set_square(level);
+                        }
+                        Button::LeftTrigger => {
+                            input.set_l1(level);
+                        }
+                        Button::LeftTrigger2 => {
+                            input.set_l2(level);
+                        }
+                        Button::RightTrigger => {
+                            input.set_r1(level);
+                        }
+                        Button::RightTrigger2 => {
+                            input.set_r2(level);
+                        }
+                        Button::Select => {
+                            input.set_select(level);
+                            input.set_start(!input.start());
+                        }
+                        Button::Start => {
+                            input.set_start(level);
+                        }
+                        Button::LeftThumb => {
+                            input.set_l3(level);
+                        }
+                        Button::RightThumb => {
+                            input.set_r3(level);
+                        }
+                        Button::DPadUp => {
+                            input.set_joy_up(level);
+                        }
+                        Button::DPadDown => {
+                            input.set_joy_down(level);
+                        }
+                        Button::DPadLeft => {
+                            input.set_joy_left(level);
+                        }
+                        Button::DPadRight => {
+                            input.set_joy_right(level);
+                        }
+                        _ => (),
+                    }
+                }
+                // gilrs::EventType::AxisChanged(axis, _, code) => todo!(),
+                // gilrs::EventType::Connected => todo!(),
+                // gilrs::EventType::Disconnected => todo!(),
+                // gilrs::EventType::Dropped => todo!(),
+                // gilrs::EventType::ForceFeedbackEffectCompleted => todo!(),
+                _ => (),
+            }
         }
     }
 
