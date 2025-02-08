@@ -467,42 +467,25 @@ impl PSX {
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyData => {
-                    let stat = self.sio0.status;
                     let data = [self.sio0.read_rx(), 0xFF, 0xFF, 0xFF];
-                    debug!(self.loggers.sio, "read from joydata 0x{:02X}", data[0]; value = data[0], stat = stat);
 
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&data[offset..])
                 }
                 io::Reg::JoyStat => {
                     let bytes = self.sio0.status.as_bytes();
-                    debug!(
-                        self.loggers.sio,
-                        "read from joystat";
-                        value = self.sio0.status
-                    );
 
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyMode => {
                     let bytes = self.sio0.mode.as_bytes();
-                    debug!(
-                        self.loggers.sio,
-                        "read from joymode";
-                        value = self.sio0.mode
-                    );
 
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])
                 }
                 io::Reg::JoyControl => {
                     let bytes = self.sio0.control.as_bytes();
-                    debug!(
-                        self.loggers.sio,
-                        "read from joyctrl";
-                        value = self.sio0.control
-                    );
 
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
                     P::read_from_buf(&bytes[offset..])

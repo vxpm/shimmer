@@ -3,7 +3,6 @@ mod display;
 mod instructions;
 mod logs;
 mod registers;
-mod serial;
 
 use crate::ExclusiveState;
 use eframe::egui::{Id, InnerResponse, Ui, Window};
@@ -22,7 +21,6 @@ pub enum AppWindowKind {
     Logs,
     Registers,
     Vram,
-    Serial,
 }
 
 pub struct AppWindow {
@@ -44,7 +42,6 @@ impl AppWindow {
                 AppWindowKind::Logs => Box::new(logs::LogViewer::new(id)),
                 AppWindowKind::Registers => Box::new(registers::Registers::new(id)),
                 AppWindowKind::Vram => Box::new(display::Display::new(id, true)),
-                AppWindowKind::Serial => Box::new(serial::Serial::new(id)),
             },
             open: true,
         }

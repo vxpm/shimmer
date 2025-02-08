@@ -24,7 +24,7 @@ pub fn run(state: Arc<State>, parker: Parker) {
         let cycles_to_run = FREQUENCY as f64 * time_behind.as_secs_f64();
         let full_cycles_to_run = cycles_to_run as u64;
 
-        const CYCLE_GROUP: u64 = 128 * 1024;
+        const CYCLE_GROUP: u64 = 4096;
         let mut cycles_left = full_cycles_to_run;
         while cycles_left > 0 {
             let taken = CYCLE_GROUP.min(cycles_left);

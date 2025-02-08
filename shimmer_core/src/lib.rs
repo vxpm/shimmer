@@ -209,10 +209,6 @@ impl Emulator {
                     }
                     Event::Sio(event) => {
                         self.sio0_interpreter.update(&mut self.psx, event);
-                        self.psx.scheduler.schedule(
-                            Event::Sio(sio0::Event::Update),
-                            cpu::CYCLES_1_MS as u64 / 100,
-                        );
                     }
                 }
             }

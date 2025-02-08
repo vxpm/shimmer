@@ -96,14 +96,50 @@ pub struct Control {
     pub port_select: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct Snapshot {
-    pub cycle: u64,
-    pub status: Status,
-    pub mode: Mode,
-    pub control: Control,
-    pub tx: Option<u8>,
-    pub rx: Option<u8>,
+#[bitos(16)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Input {
+    #[bits(0)]
+    pub select: bool,
+    #[bits(1)]
+    pub l3: bool,
+    #[bits(2)]
+    pub r3: bool,
+    #[bits(3)]
+    pub start: bool,
+    #[bits(4)]
+    pub joy_up: bool,
+    #[bits(5)]
+    pub joy_right: bool,
+    #[bits(6)]
+    pub joy_down: bool,
+    #[bits(7)]
+    pub joy_left: bool,
+    #[bits(8)]
+    pub l2: bool,
+    #[bits(9)]
+    pub r2: bool,
+    #[bits(10)]
+    pub l1: bool,
+    #[bits(11)]
+    pub r1: bool,
+    #[bits(12)]
+    pub triangle: bool,
+    #[bits(13)]
+    pub circle: bool,
+    #[bits(14)]
+    pub cross: bool,
+    #[bits(15)]
+    pub square: bool,
+}
+
+#[bitos(16)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct JoystickInput {
+    #[bits(0..8)]
+    pub joystick_x: u8,
+    #[bits(8..16)]
+    pub joystick_y: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -112,10 +148,12 @@ pub struct Controller {
     pub mode: Mode,
     pub control: Control,
 
-    pub tx: Option<u8>,
     pub rx: Option<u8>,
+    pub tx: Option<u8>,
 
-    pub snaps: Vec<Snapshot>,
+    pub input: Input,
+    pub left_joystick: JoystickInput,
+    pub right_joystick: JoystickInput,
 }
 
 impl Default for Controller {
@@ -125,10 +163,12 @@ impl Default for Controller {
             mode: Default::default(),
             control: Default::default(),
 
-            tx: Default::default(),
             rx: Default::default(),
+            tx: Default::default(),
 
-            snaps: Vec::new(),
+            input: Default::default(),
+            left_joystick: Default::default(),
+            right_joystick: Default::default(),
         }
     }
 }

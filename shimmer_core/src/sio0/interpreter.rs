@@ -1,6 +1,5 @@
-use super::Snapshot;
-use crate::{PSX, cpu, interrupts::Interrupt, scheduler};
-use tinylog::trace;
+use crate::{PSX, interrupts::Interrupt, scheduler};
+use tinylog::{debug, trace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
@@ -22,7 +21,6 @@ pub enum JoypadStage {
 enum State {
     #[default]
     Idle,
-    StartTransfer,
     JoypadTransfer(JoypadStage),
 }
 
@@ -37,17 +35,6 @@ const START_ACK_DELAY: u64 = 100;
 const END_ACK_DELAY: u64 = 50;
 
 impl Interpreter {
-    fn snap(&mut self, psx: &mut PSX) {
-        psx.sio0.snaps.push(Snapshot {
-            cycle: psx.scheduler.elapsed(),
-            status: psx.sio0.status,
-            mode: psx.sio0.mode,
-            control: psx.sio0.control,
-            tx: psx.sio0.tx,
-            rx: psx.sio0.rx,
-        });
-    }
-
     fn update_status(&mut self, psx: &mut PSX) {
         psx.sio0.status.set_tx_ready(psx.sio0.tx.is_none());
         psx.sio0.status.set_rx_ready(psx.sio0.rx.is_some());
@@ -64,7 +51,6 @@ impl Interpreter {
     }
 
     pub fn update(&mut self, psx: &mut PSX, event: Event) {
-        self.snap(psx);
         self.update_status(psx);
 
         if psx.sio0.control.acknowledge() {
@@ -100,24 +86,19 @@ impl Interpreter {
                 psx.sio0.status.set_device_ready_to_receive(false);
             }
             (State::Idle, Event::Transfer) => {
-                psx.sio0.rx = Some(0xFF);
                 self.in_progress = false;
+                psx.sio0.rx = Some(0xFF);
 
                 let address = psx.sio0.tx.take().unwrap();
                 match address {
-                    0x01 => {
+                    0x01 if !psx.sio0.control.port_select() => {
                         // joypad
+                        psx.scheduler
+                            .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
                         self.state = State::JoypadTransfer(JoypadStage::IdLow);
                     }
-                    0x81 => {
-                        // memcard
-                        todo!("memcard transfer")
-                    }
-                    _ => todo!("unknown device"),
+                    _ => {}
                 }
-
-                psx.scheduler
-                    .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
             }
             (State::JoypadTransfer(stage), Event::Transfer) => {
                 self.in_progress = false;
@@ -125,17 +106,37 @@ impl Interpreter {
                 let data = psx.sio0.tx.take().unwrap();
                 match stage {
                     JoypadStage::IdLow => {
-                        assert_eq!(data, 0x43);
+                        debug!(psx.loggers.sio, "sending ID low");
+                        assert!(matches!(data, b'B' | b'C'), "data is unexpected: {data}");
+                        psx.sio0.rx = Some(0x41);
+                        psx.scheduler
+                            .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
+                        self.state = State::JoypadTransfer(JoypadStage::IdHigh);
                     }
-                    JoypadStage::IdHigh => todo!(),
-                    JoypadStage::Rumble0 => todo!(),
-                    JoypadStage::Rumble1 => todo!(),
+                    JoypadStage::IdHigh => {
+                        debug!(psx.loggers.sio, "sending ID high");
+                        assert_eq!(data, 0x00); // TAP
+                        psx.sio0.rx = Some(0x5A);
+                        psx.scheduler
+                            .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
+                        self.state = State::JoypadTransfer(JoypadStage::Rumble0);
+                    }
+                    JoypadStage::Rumble0 => {
+                        debug!(psx.loggers.sio, "sending switches low");
+                        psx.sio0.rx = Some(!psx.sio0.input.to_bits().to_le_bytes()[0]);
+                        psx.scheduler
+                            .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
+                        self.state = State::JoypadTransfer(JoypadStage::Rumble1);
+                    }
+                    JoypadStage::Rumble1 => {
+                        debug!(psx.loggers.sio, "sending switches high");
+                        psx.sio0.rx = Some(!psx.sio0.input.to_bits().to_le_bytes()[1]);
+                        self.state = State::Idle;
+                    }
                 }
             }
-            _ => (),
         }
 
         self.update_status(psx);
-        self.snap(psx);
     }
 }
