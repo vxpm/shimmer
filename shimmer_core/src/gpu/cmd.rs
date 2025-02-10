@@ -85,7 +85,7 @@ pub struct DisplayCommand {
     #[bits(..)]
     pub horizontal_display_range_cmd: HorizontalDisplayRangeCmd,
     #[bits(..)]
-    pub vertical_dispaly_range_cmd: VerticalDisplayRangeCmd,
+    pub vertical_display_range_cmd: VerticalDisplayRangeCmd,
     #[bits(..)]
     pub display_mode_cmd: DisplayModeCmd,
     #[bits(..)]
@@ -103,7 +103,7 @@ impl std::fmt::Debug for DisplayCommand {
                 DisplayOpcode::DmaDirection => self.dma_direction_cmd().fmt(f),
                 DisplayOpcode::DisplayArea => self.display_area_cmd().fmt(f),
                 DisplayOpcode::HorizontalDisplayRange => self.horizontal_display_range_cmd().fmt(f),
-                DisplayOpcode::VerticalDisplayRange => self.vertical_dispaly_range_cmd().fmt(f),
+                DisplayOpcode::VerticalDisplayRange => self.vertical_display_range_cmd().fmt(f),
                 DisplayOpcode::DisplayMode => self.display_mode_cmd().fmt(f),
                 DisplayOpcode::VramSizeV2 => self.vram_size_cmd().fmt(f),
                 DisplayOpcode::ReadGpuRegister => write!(f, "ReadGpuRegister"),
