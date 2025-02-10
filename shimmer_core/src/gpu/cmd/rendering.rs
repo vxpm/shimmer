@@ -1,7 +1,10 @@
 //! Rendering commands.
 
 use crate::gpu::texture::{Clut, TexPage};
-use bitos::{bitos, integer::i11};
+use bitos::{
+    bitos,
+    integer::{i11, u11},
+};
 
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]
@@ -67,6 +70,13 @@ pub struct VertexPositionPacket {
     pub x: i11,
     #[bits(16..27)]
     pub y: i11,
+}
+
+impl VertexPositionPacket {
+    pub fn apply_offset(&mut self, x: i11, y: i11) {
+        self.set_x(i11::new(self.x().value() + x.value()));
+        self.set_y(i11::new(self.y().value() + y.value()));
+    }
 }
 
 /// A vertex UV packet.

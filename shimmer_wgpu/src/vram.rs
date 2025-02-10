@@ -12,8 +12,8 @@ pub struct Vram {
 
     bind_group_layout: wgpu::BindGroupLayout,
 
-    back_bind_group: Arc<wgpu::BindGroup>,
-    front_bind_group: Arc<wgpu::BindGroup>,
+    back_bind_group: wgpu::BindGroup,
+    front_bind_group: wgpu::BindGroup,
 }
 
 impl Vram {
@@ -83,8 +83,8 @@ impl Vram {
             front_buffer,
 
             bind_group_layout,
-            back_bind_group: Arc::new(back_bind_group),
-            front_bind_group: Arc::new(front_bind_group),
+            back_bind_group,
+            front_bind_group,
         }
     }
 
@@ -92,11 +92,11 @@ impl Vram {
         &self.bind_group_layout
     }
 
-    pub fn back_bind_group(&self) -> &Arc<wgpu::BindGroup> {
+    pub fn back_bind_group(&self) -> &wgpu::BindGroup {
         &self.back_bind_group
     }
 
-    pub fn front_bind_group(&self) -> &Arc<wgpu::BindGroup> {
+    pub fn front_bind_group(&self) -> &wgpu::BindGroup {
         &self.front_bind_group
     }
 

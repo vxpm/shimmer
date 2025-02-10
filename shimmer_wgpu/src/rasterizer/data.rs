@@ -2,9 +2,21 @@
 
 use super::dirty::Region;
 use crate::vram::{VRAM_HEIGHT, VRAM_WIDTH};
-use encase::ShaderType;
+use encase::{ShaderType, StorageBuffer, internal::WriteInto};
 use glam::{IVec2, UVec2, UVec4};
 use shimmer_core::gpu::{interface, texture::Depth as TexDepth};
+
+pub fn to_buffer<T: ShaderType + WriteInto>(value: &T) -> Vec<u8> {
+    let mut data = StorageBuffer::new(Vec::new());
+    data.write(value).unwrap();
+    data.into_inner()
+}
+
+#[derive(Debug, Clone, ShaderType)]
+pub struct Config {
+    pub drawing_area_coords: UVec2,
+    pub drawing_area_dimensions: UVec2,
+}
 
 #[derive(Debug, Clone, ShaderType)]
 pub struct Vertex {

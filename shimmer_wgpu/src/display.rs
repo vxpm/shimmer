@@ -11,7 +11,7 @@ pub struct DisplayRenderer {
 
     pipeline: wgpu::RenderPipeline,
 
-    vram_bind_group: Arc<wgpu::BindGroup>,
+    vram_bind_group: wgpu::BindGroup,
 
     top_left: [u16; 2],
     dimensions: [u16; 2],
@@ -171,14 +171,14 @@ impl DisplayRenderer {
 
     pub fn render(&self, pass: &mut wgpu::RenderPass) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
+        pass.set_bind_group(0, &self.vram_bind_group, &[]);
         pass.set_bind_group(1, &self.display_area_bg, &[]);
         pass.draw(0..4, 0..1);
     }
 
     pub fn render_all(&self, pass: &mut wgpu::RenderPass) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
+        pass.set_bind_group(0, &self.vram_bind_group, &[]);
         pass.set_bind_group(1, &self.all_of_vram_bg, &[]);
         pass.draw(0..4, 0..1);
     }

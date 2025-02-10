@@ -1,7 +1,7 @@
 mod display;
 mod rendering;
 
-use super::interface::Renderer;
+use super::interface::{Renderer, VramCoords, VramDimensions};
 use crate::{
     PSX,
     gpu::{
@@ -18,6 +18,7 @@ use crate::{
     interrupts::Interrupt,
     scheduler::Event,
 };
+use bitos::integer::{u9, u10, u11};
 use tinylog::debug;
 
 /// The state of the interpreter.
@@ -73,19 +74,20 @@ impl Interpreter {
                     self.exec_render(psx, cmd);
                 }
                 State::CpuToVramBlit { dest, size } => {
-                    let real_width = if size.width() == 0 {
+                    let effective_width = if size.width() == 0 {
                         0x400
                     } else {
                         ((size.width() - 1) & 0x3FF) + 1
                     };
 
-                    let real_height = if size.height() == 0 {
+                    let effective_height = if size.height() == 0 {
                         0x200
                     } else {
                         ((size.height() - 1) & 0x1FF) + 1
                     };
 
-                    let count = (u32::from(real_width) * u32::from(real_height)).div_ceil(2);
+                    let count =
+                        (u32::from(effective_width) * u32::from(effective_height)).div_ceil(2);
                     if psx.gpu.render_queue.len() < count as usize {
                         return;
                     }
@@ -103,10 +105,14 @@ impl Interpreter {
                     }
 
                     self.renderer.exec(Command::CopyToVram(CopyToVram {
-                        x: dest.x() & 0x3FF,
-                        y: dest.y() & 0x1FF,
-                        width: real_width,
-                        height: real_height,
+                        coords: VramCoords {
+                            x: u10::new(dest.x()),
+                            y: u9::new(dest.y()),
+                        },
+                        dimensions: VramDimensions {
+                            width: u11::new(effective_width),
+                            height: u10::new(effective_height),
+                        },
                         data,
                     }));
 

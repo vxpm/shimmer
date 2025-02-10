@@ -47,7 +47,7 @@ pub struct DrawingAreaCornerCmd {
 
 /// A drawing offset command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DrawingOffsetCmd {
     #[bits(0..11)]
     pub x: i11,
@@ -57,7 +57,7 @@ pub struct DrawingOffsetCmd {
 
 /// A drawing offset command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MaskSettingsCmd {
     // TODO: define this
 }

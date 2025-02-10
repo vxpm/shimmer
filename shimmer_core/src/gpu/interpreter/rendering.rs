@@ -9,14 +9,14 @@ use crate::{
             },
         },
         interface::{
-            Command, CopyFromVram, Rgba8, TexConfig,
+            Command, CopyFromVram, DrawingArea, Rgba8, TexConfig, VramCoords, VramDimensions,
             primitive::{Primitive, Rectangle, Triangle, Vertex},
         },
         interpreter::{Interpreter, State},
     },
     scheduler::Event,
 };
-use bitos::integer::i11;
+use bitos::integer::{i11, u9, u10, u11};
 use tinylog::{debug, error, info, trace, warn};
 
 #[derive(Default)]
@@ -88,8 +88,13 @@ impl Interpreter {
                 VertexColorPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
             };
 
-            let position =
+            let mut position =
                 VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+            position.apply_offset(
+                psx.gpu.environment.drawing_offset_x,
+                psx.gpu.environment.drawing_offset_y,
+            );
 
             let uv = if cmd.textured() {
                 VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap())
@@ -173,6 +178,59 @@ impl Interpreter {
         }
     }
 
+    fn renderer_exec_drawing_area(&mut self, psx: &mut PSX) {
+        self.renderer.exec(Command::SetDrawingArea(DrawingArea {
+            coords: VramCoords {
+                x: psx.gpu.environment.drawing_area_top_left_x,
+                y: psx.gpu.environment.drawing_area_top_left_y,
+            },
+            dimensions: VramDimensions {
+                width: u11::new(
+                    psx.gpu
+                        .environment
+                        .drawing_area_bottom_right_x
+                        .value()
+                        .saturating_sub(psx.gpu.environment.drawing_area_top_left_x.value()),
+                ),
+                height: u10::new(
+                    psx.gpu
+                        .environment
+                        .drawing_area_bottom_right_y
+                        .value()
+                        .saturating_sub(psx.gpu.environment.drawing_area_top_left_y.value()),
+                ),
+            },
+        }));
+    }
+
+    fn exec_drawing_area_top_left(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let cmd = cmd.drawing_area_corner_cmd();
+        info!(psx.loggers.gpu, "updating drawing area top left"; top_left = cmd.clone());
+
+        psx.gpu.environment.drawing_area_top_left_x = cmd.x();
+        psx.gpu.environment.drawing_area_top_left_y = cmd.y();
+
+        self.renderer_exec_drawing_area(psx);
+    }
+
+    fn exec_drawing_area_bottom_right(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let cmd = cmd.drawing_area_corner_cmd();
+        info!(psx.loggers.gpu, "updating drawing area bottom right"; bottom_right = cmd.clone());
+
+        psx.gpu.environment.drawing_area_bottom_right_x = cmd.x();
+        psx.gpu.environment.drawing_area_bottom_right_y = cmd.y();
+
+        self.renderer_exec_drawing_area(psx);
+    }
+
+    fn exec_drawing_offset(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let cmd = cmd.drawing_offset_cmd();
+        info!(psx.loggers.gpu, "updating drawing area offset"; offset = cmd.clone());
+
+        psx.gpu.environment.drawing_offset_x = cmd.x();
+        psx.gpu.environment.drawing_offset_y = cmd.y();
+    }
+
     #[expect(clippy::unused_self, reason = "consistency")]
     fn exec_drawing_settings(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let settings = cmd.drawing_settings_cmd();
@@ -221,13 +279,13 @@ impl Interpreter {
         let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
         info!(psx.loggers.gpu, "starting VRAM to CPU blit"; src = src.clone(), size = size.clone());
 
-        let real_width = if size.width() == 0 {
+        let effective_width = if size.width() == 0 {
             0x400
         } else {
             ((size.width() - 1) & 0x3FF) + 1
         };
 
-        let real_height = if size.height() == 0 {
+        let effective_height = if size.height() == 0 {
             0x200
         } else {
             ((size.height() - 1) & 0x1FF) + 1
@@ -235,10 +293,14 @@ impl Interpreter {
 
         let (sender, receiver) = oneshot::channel();
         let copy = CopyFromVram {
-            x: src.x() & 0x3FF,
-            y: src.y() & 0x1FF,
-            width: real_width,
-            height: real_height,
+            coords: VramCoords {
+                x: u10::new(src.x()),
+                y: u9::new(src.y()),
+            },
+            dimensions: VramDimensions {
+                width: u11::new(effective_width),
+                height: u10::new(effective_height),
+            },
             response: sender,
         };
         self.renderer.exec(Command::CopyFromVram(copy));
@@ -262,7 +324,14 @@ impl Interpreter {
     fn exec_rectangle(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.rectangle_cmd();
         let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
-        let position = VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+        let mut position =
+            VertexPositionPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+        position.apply_offset(
+            psx.gpu.environment.drawing_offset_x,
+            psx.gpu.environment.drawing_offset_y,
+        );
 
         let (uv, texconfig) = if cmd.textured() {
             let uv = VertexUVPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
@@ -351,6 +420,11 @@ impl Interpreter {
                 ),
             },
             RenderingOpcode::Environment => match cmd.environment_opcode().unwrap() {
+                EnvironmentOpcode::DrawingAreaTopLeft => self.exec_drawing_area_top_left(psx, cmd),
+                EnvironmentOpcode::DrawingAreaBottomRight => {
+                    self.exec_drawing_area_bottom_right(psx, cmd)
+                }
+                EnvironmentOpcode::DrawingOffset => self.exec_drawing_offset(psx, cmd),
                 EnvironmentOpcode::DrawingSettings => self.exec_drawing_settings(psx, cmd),
                 EnvironmentOpcode::TexWindowSettings => self.exec_texwindow_settings(psx, cmd),
                 _ => error!(

@@ -3,7 +3,7 @@ use crate::{
     gpu::{
         Interpreter, Status,
         cmd::{DisplayCommand, DisplayOpcode},
-        interface::{Command, DisplayResolution, DisplayTopLeft},
+        interface::{Command, DisplayResolution, VramCoords},
     },
     scheduler::Event,
 };
@@ -47,11 +47,10 @@ impl Interpreter {
                 psx.gpu.display.top_left_x = settings.x();
                 psx.gpu.display.top_left_y = settings.y();
 
-                self.renderer
-                    .exec(Command::SetDisplayTopLeft(DisplayTopLeft {
-                        x: settings.x(),
-                        y: settings.y(),
-                    }));
+                self.renderer.exec(Command::SetDisplayTopLeft(VramCoords {
+                    x: settings.x(),
+                    y: settings.y(),
+                }));
             }
             DisplayOpcode::HorizontalDisplayRange => {
                 let settings = cmd.horizontal_display_range_cmd();

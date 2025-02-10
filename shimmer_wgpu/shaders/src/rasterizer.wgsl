@@ -3,14 +3,30 @@
 //!include commands
 //!include color
 
+struct Config {
+    drawing_area_top_left: vec2u,
+    drawing_area_dimensions: vec2u,
+}
+
+fn drawing_area_contains(coords: vec2u) -> bool {
+    // let x = coords.x >= config.drawing_area_top_left.x && config.x < config.drawing_area_top_left.y + config.drawing_area_dimensions.y;
+    // let y = coords.y >= config.drawing_area_top_left.y && config.y < config.drawing_area_top_left.y + config.drawing_area_dimensions.y;
+    // x && y
+    let relative = coords - config.drawing_area_top_left;
+    return all((coords > vec2u(0)) && (coords < config.drawing_area_dimensions));
+} 
+
 @group(0) @binding(0)
 var<storage, read_write> vram: array<u32>;
 
 @group(1) @binding(0)
+var<storage, read> config: Config;
+
+@group(2) @binding(0)
 var<storage, read> commands: array<Command>;
-@group(1) @binding(1)
+@group(2) @binding(1)
 var<storage, read> triangles: array<Triangle>;
-@group(1) @binding(2)
+@group(2) @binding(2)
 var<storage, read> rectangles: array<Rectangle>;
 
 fn render_triangle(triangle: Triangle, vram_coords: vec2u) {
@@ -87,6 +103,9 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) {
 @compute @workgroup_size(8, 8, 1)
 fn render(@builtin(global_invocation_id) global_id: vec3u) {
     let vram_coords = vec2u(global_id.x, global_id.y);
+    if !drawing_area_contains(vram_coords) {
+        return;
+    }
 
     var triangle_index = 0u;
     var rectangle_index = 0u;

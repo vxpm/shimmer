@@ -6,8 +6,22 @@ use super::{
     HorizontalResolution, VerticalResolution,
     texture::{Clut, TexPage, TexWindow},
 };
-use bitos::integer::{u9, u10};
+use bitos::integer::{u9, u10, u11};
 use primitive::Primitive;
+
+/// VRAM coordinates.
+#[derive(Debug, Clone)]
+pub struct VramCoords {
+    pub x: u10,
+    pub y: u9,
+}
+
+/// VRAM dimensions.
+#[derive(Debug, Clone)]
+pub struct VramDimensions {
+    pub width: u11,
+    pub height: u10,
+}
 
 /// 32-bit RGBA color.
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,7 +39,7 @@ impl Rgba8 {
     }
 }
 
-/// Drawing configuration.
+/// Texture configuration.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TexConfig {
     pub clut: Clut,
@@ -36,28 +50,23 @@ pub struct TexConfig {
 /// A data copy to VRAM.
 #[derive(Debug, Clone)]
 pub struct CopyToVram {
-    pub x: u16,
-    pub y: u16,
-    pub width: u16,
-    pub height: u16,
+    pub coords: VramCoords,
+    pub dimensions: VramDimensions,
     pub data: Vec<u8>,
 }
 
 /// A data copy from VRAM.
 #[derive(Debug)]
 pub struct CopyFromVram {
-    pub x: u16,
-    pub y: u16,
-    pub width: u16,
-    pub height: u16,
+    pub coords: VramCoords,
+    pub dimensions: VramDimensions,
     pub response: oneshot::Sender<Vec<u8>>,
 }
 
-/// Top-Left position of the display.
 #[derive(Debug, Clone)]
-pub struct DisplayTopLeft {
-    pub x: u10,
-    pub y: u9,
+pub struct DrawingArea {
+    pub coords: VramCoords,
+    pub dimensions: VramDimensions,
 }
 
 /// Top-Left position of the display.
@@ -71,7 +80,8 @@ pub struct DisplayResolution {
 #[derive(Debug)]
 pub enum Command {
     // Configuration
-    SetDisplayTopLeft(DisplayTopLeft),
+    SetDrawingArea(DrawingArea),
+    SetDisplayTopLeft(VramCoords),
     SetDisplayResolution(DisplayResolution),
 
     // Control

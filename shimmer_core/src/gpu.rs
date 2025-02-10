@@ -9,7 +9,7 @@ mod interpreter;
 use crate::cpu;
 use bitos::{
     bitos,
-    integer::{u1, u4, u9, u10, u12},
+    integer::{i10, i11, u1, u4, u9, u10, u12},
 };
 use std::{collections::VecDeque, ops::Range};
 use texture::{TexPage, TexWindow, TransparencyMode};
@@ -184,6 +184,14 @@ pub struct EnvironmentState {
     pub textured_rect_flip_y: bool,
 
     pub texwindow: TexWindow,
+
+    pub drawing_area_top_left_x: u10,
+    pub drawing_area_top_left_y: u9,
+    pub drawing_area_bottom_right_x: u10,
+    pub drawing_area_bottom_right_y: u9,
+
+    pub drawing_offset_x: i11,
+    pub drawing_offset_y: i11,
 }
 
 /// Display configuration of the GPU.

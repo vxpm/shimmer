@@ -14,7 +14,7 @@ struct Config {
 pub struct Transfers {
     ctx: Arc<Context>,
 
-    vram_bind_group: Arc<wgpu::BindGroup>,
+    vram_bind_group: wgpu::BindGroup,
     bind_group_layout: wgpu::BindGroupLayout,
     vram_to_cpu_pipeline: wgpu::ComputePipeline,
     cpu_to_vram_pipeline: wgpu::ComputePipeline,
@@ -97,8 +97,14 @@ impl Transfers {
     pub fn copy_from_vram(&mut self, copy: CopyFromVram) {
         // create config
         let config = Config {
-            position: UVec2::new(u32::from(copy.x), u32::from(copy.y)),
-            dimensions: UVec2::new(u32::from(copy.width), u32::from(copy.height)),
+            position: UVec2::new(
+                u32::from(copy.coords.x.value()),
+                u32::from(copy.coords.y.value()),
+            ),
+            dimensions: UVec2::new(
+                u32::from(copy.dimensions.width.value()),
+                u32::from(copy.dimensions.height.value()),
+            ),
         };
 
         let mut data = StorageBuffer::new(Vec::new());
@@ -116,7 +122,9 @@ impl Transfers {
         // create buffer
         let buffer = self.ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("transfer"),
-            size: 8 * u64::from(copy.width) * u64::from(copy.height),
+            size: 8
+                * u64::from(copy.dimensions.width.value())
+                * u64::from(copy.dimensions.height.value()),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -160,7 +168,7 @@ impl Transfers {
         });
 
         pass.set_pipeline(&self.vram_to_cpu_pipeline);
-        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
+        pass.set_bind_group(0, &self.vram_bind_group, &[]);
         pass.set_bind_group(1, &transfer_bind_group, &[]);
         pass.dispatch_workgroups(1, 1, 1);
 
@@ -186,8 +194,14 @@ impl Transfers {
     pub fn copy_to_vram(&mut self, copy: &CopyToVram) {
         // create config
         let config = Config {
-            position: UVec2::new(u32::from(copy.x), u32::from(copy.y)),
-            dimensions: UVec2::new(u32::from(copy.width), u32::from(copy.height)),
+            position: UVec2::new(
+                u32::from(copy.coords.x.value()),
+                u32::from(copy.coords.y.value()),
+            ),
+            dimensions: UVec2::new(
+                u32::from(copy.dimensions.width.value()),
+                u32::from(copy.dimensions.height.value()),
+            ),
         };
 
         let mut data = StorageBuffer::new(Vec::new());
@@ -258,7 +272,7 @@ impl Transfers {
         });
 
         pass.set_pipeline(&self.cpu_to_vram_pipeline);
-        pass.set_bind_group(0, &*self.vram_bind_group, &[]);
+        pass.set_bind_group(0, &self.vram_bind_group, &[]);
         pass.set_bind_group(1, &transfer_bind_group, &[]);
         pass.dispatch_workgroups(1, 1, 1);
 
