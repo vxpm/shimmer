@@ -25,5 +25,4 @@ ron = { version = "0.8" }
 si-scale = "0.2"
 egui_taffy = "0.7.0"
 egui_extras = "0.31.0"
-egui_plot = "0.31.0"
 gilrs = "0.11"

@@ -14,6 +14,21 @@ strum = { version = "0.26", features = ["derive"] }
 wgpu = "24.0"
 zerocopy = "0.8"
 
+
+[profile.dev.package."tinylog"]
+opt-level = 2
+[profile.dev.package."wgpu"]
+opt-level = 2
+[profile.dev.package."egui"]
+opt-level = 2
+[profile.dev.package."eframe"]
+opt-level = 2
+[profile.dev.package."egui_extras"]
+opt-level = 2
+[profile.dev.package."shimmer_gui"]
+opt-level = 2
+
+
 [workspace.lints.rust]
 nonstandard_style = "warn"
 

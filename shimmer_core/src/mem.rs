@@ -564,7 +564,18 @@ impl PSX {
 
         if let Some((reg, offset)) = io::Reg::reg_and_offset(addr) {
             if !SILENT {
-                let ignore_list = [io::Reg::SramFifo, io::Reg::SpuControl, io::Reg::SpuStatus];
+                let ignore_list = [
+                    // spu
+                    io::Reg::SramFifo,
+                    io::Reg::SpuControl,
+                    io::Reg::SpuStatus,
+                    // joypad
+                    io::Reg::JoyData,
+                    io::Reg::JoyControl,
+                    io::Reg::JoyMode,
+                    io::Reg::JoyStat,
+                ];
+
                 if !ignore_list.contains(&reg) && !reg.is_spu_voice() {
                     debug!(
                         self.loggers.bus,
@@ -730,12 +741,6 @@ impl PSX {
 
                     self.sio0.tx = Some(bytes[0]);
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
-
-                    debug!(
-                        self.loggers.sio,
-                        "write to joydata 0x{:02X}", self.sio0.tx.unwrap();
-                        value = self.sio0.tx.unwrap()
-                    );
                 }
                 io::Reg::JoyStat => {
                     // read only
@@ -744,23 +749,11 @@ impl PSX {
                     let bytes = self.sio0.mode.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
-
-                    debug!(
-                        self.loggers.sio,
-                        "write to joymode 0x{:04X}", self.sio0.mode.to_bits();
-                        value = self.sio0.mode
-                    );
                 }
                 io::Reg::JoyControl => {
                     let bytes = self.sio0.control.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                     self.scheduler.schedule(Event::Sio(sio0::Event::Update), 0);
-
-                    debug!(
-                        self.loggers.sio,
-                        "write to joyctrl 0x{:04X}", self.sio0.control.to_bits();
-                        value = self.sio0.control
-                    );
                 }
                 _ => default(),
             };

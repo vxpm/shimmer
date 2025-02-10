@@ -4,6 +4,9 @@ use eframe::egui::{self, Color32, Id, RichText, Ui, Window};
 use egui_extras::{Column, TableBuilder, TableRow};
 use tinylog::{Level, logger::Context as LoggerContext};
 
+#[cfg(debug_assertions)]
+const MAX_RECORDS_SHOWN: usize = 25_000;
+#[cfg(not(debug_assertions))]
 const MAX_RECORDS_SHOWN: usize = 50_000;
 
 pub struct LogViewer {

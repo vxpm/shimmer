@@ -87,6 +87,10 @@ pub enum Reg {
     Gp0,
     Gp1,
 
+    // MDEC
+    MdecCommand,
+    MdecStatus,
+
     // SPU Voice {{{
     Voice0Volume,
     Voice0SampleRate,
@@ -364,6 +368,10 @@ impl Reg {
             // GPU
             Reg::Gp0 => (0x1F80_1810, 4),
             Reg::Gp1 => (0x1F80_1814, 4),
+
+            // MDEC
+            Reg::MdecCommand => (0x1F80_1820, 4),
+            Reg::MdecStatus => (0x1F80_1824, 4),
 
             // SPU Voice {{{
             Reg::Voice0Volume => (0x1F80_1C00, 4),

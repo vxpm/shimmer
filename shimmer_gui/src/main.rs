@@ -206,7 +206,7 @@ impl App {
 }
 
 impl eframe::App for App {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -220,6 +220,13 @@ impl eframe::App for App {
                 if ui.button("Organize").clicked() {
                     ui.ctx().memory_mut(|mem| mem.reset_areas());
                 }
+
+                ui.separator();
+
+                ui.label(format!(
+                    "Rendering time: {:?}",
+                    Duration::from_secs_f32(frame.info().cpu_usage.unwrap_or_default())
+                ));
             });
         });
 
