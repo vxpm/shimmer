@@ -3,6 +3,7 @@
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
 
+pub mod cdrom;
 pub mod cpu;
 pub mod dma;
 pub mod scheduler;

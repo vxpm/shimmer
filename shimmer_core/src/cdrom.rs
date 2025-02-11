@@ -1,11 +1,7 @@
-mod interpreter;
-
 use bitos::{bitos, integer::u3};
 use std::{collections::VecDeque, fs::File};
 use strum::FromRepr;
 use tinylog::{Logger, trace};
-
-pub use interpreter::Interpreter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
