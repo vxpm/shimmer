@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{Context, vram::Vram};
 use bitos::integer::{u9, u10};
-use shimmer_core::gpu::{HorizontalResolution, VerticalResolution};
+use shimmer::core::gpu::{HorizontalResolution, VerticalResolution};
 use wgpu::util::DeviceExt;
 use zerocopy::IntoBytes;
 

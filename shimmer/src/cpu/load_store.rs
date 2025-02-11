@@ -1,5 +1,5 @@
 use super::{DEFAULT_DELAY, Interpreter, MEMORY_OP_DELAY};
-use crate::{
+use shimmer_core::{
     cpu::{COP, RegLoad, cop0::Exception, instr::Instruction},
     mem::Address,
 };
@@ -153,26 +153,38 @@ impl Interpreter<'_> {
     /// `rd = LO`.
     pub fn mflo(&mut self, instr: Instruction) -> u64 {
         self.cancel_load(instr.rd());
-        self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.lo);
+        self.psx
+            .cpu
+            .regs
+            .write(instr.rd(), self.psx.cpu.regs.read_lo());
         DEFAULT_DELAY
     }
 
     /// `rd = HI`.
     pub fn mfhi(&mut self, instr: Instruction) -> u64 {
         self.cancel_load(instr.rd());
-        self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.hi);
+        self.psx
+            .cpu
+            .regs
+            .write(instr.rd(), self.psx.cpu.regs.read_hi());
         DEFAULT_DELAY
     }
 
     /// `HI = rs`.
     pub fn mthi(&mut self, instr: Instruction) -> u64 {
-        self.psx.cpu.regs.hi = self.psx.cpu.regs.read(instr.rs());
+        self.psx
+            .cpu
+            .regs
+            .write_hi(self.psx.cpu.regs.read(instr.rs()));
         DEFAULT_DELAY
     }
 
     /// `LO = rs`.
     pub fn mtlo(&mut self, instr: Instruction) -> u64 {
-        self.psx.cpu.regs.lo = self.psx.cpu.regs.read(instr.rs());
+        self.psx
+            .cpu
+            .regs
+            .write_lo(self.psx.cpu.regs.read(instr.rs()));
         DEFAULT_DELAY
     }
 

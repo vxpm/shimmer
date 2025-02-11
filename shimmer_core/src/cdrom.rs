@@ -4,14 +4,6 @@ use strum::FromRepr;
 use tinylog::{Logger, trace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Event {
-    Update,
-    Acknowledge(Command),
-    Complete(Command),
-    Read,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reg {
     Reg0,
     Reg1,
@@ -187,11 +179,11 @@ pub enum InterruptKind {
 #[derive(Debug, Clone, Copy)]
 pub struct InterruptStatus {
     #[bits(0..3)]
-    kind: InterruptKind,
+    pub kind: InterruptKind,
     #[bits(3)]
-    sound_buffer_empty: bool,
+    pub sound_buffer_empty: bool,
     #[bits(4)]
-    sound_buffer_write_ready: bool,
+    pub sound_buffer_write_ready: bool,
 }
 
 impl Default for InterruptStatus {
@@ -206,11 +198,11 @@ impl Default for InterruptStatus {
 #[derive(Debug, Clone, Copy)]
 pub struct InterruptMask {
     #[bits(0..3)]
-    mask: u3,
+    pub mask: u3,
     #[bits(3)]
-    enable_sound_buffer_empty: bool,
+    pub enable_sound_buffer_empty: bool,
     #[bits(4)]
-    enable_sound_buffer_write_ready: bool,
+    pub enable_sound_buffer_write_ready: bool,
 }
 
 impl Default for InterruptMask {
@@ -298,7 +290,7 @@ pub struct RegWrite {
 
 /// The state of the CDROM controller.
 #[derive(Debug)]
-pub struct Controller {
+pub struct Cdrom {
     pub status: Status,
     pub command_status: CommandStatus,
     pub interrupt_status: InterruptStatus,
@@ -317,7 +309,7 @@ pub struct Controller {
     pub logger: Logger,
 }
 
-impl Controller {
+impl Cdrom {
     pub fn new(rom: Option<File>, logger: Logger) -> Self {
         Self {
             status: Status::default()

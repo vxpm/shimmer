@@ -1,7 +1,7 @@
 use crate::{context::Context, vram::Vram};
 use encase::{ShaderType, StorageBuffer};
 use glam::UVec2;
-use shimmer_core::gpu::interface::{CopyFromVram, CopyToVram};
+use shimmer::gpu::interface::{CopyFromVram, CopyToVram};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 

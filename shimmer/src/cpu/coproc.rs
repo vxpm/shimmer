@@ -1,5 +1,5 @@
 use super::{DEFAULT_DELAY, Interpreter};
-use crate::cpu::{COP, RegLoad, instr::Instruction, interpreter::Exception};
+use shimmer_core::cpu::{COP, RegLoad, cop0::Exception, instr::Instruction};
 use tinylog::warn;
 
 impl Interpreter<'_> {

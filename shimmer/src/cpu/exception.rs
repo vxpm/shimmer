@@ -1,5 +1,5 @@
 use super::{DEFAULT_DELAY, Interpreter};
-use crate::cpu::{cop0::Exception, instr::Instruction};
+use shimmer_core::cpu::{cop0::Exception, instr::Instruction};
 
 impl Interpreter<'_> {
     pub fn syscall(&mut self, _instr: Instruction) -> u64 {

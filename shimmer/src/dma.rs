@@ -1,13 +1,12 @@
 //! An implementation of the DMA controller.
 
-use crate::{
-    PSX, cdrom,
-    dma::{Channel, DataDirection, TransferDirection, TransferMode},
+use crate::{PSX, cdrom, scheduler::Event};
+use bitos::{BitUtils, integer::u24};
+use shimmer_core::{
+    dma::{Channel, ChannelInterruptMode, DataDirection, TransferDirection, TransferMode},
     interrupts::Interrupt,
     mem::Address,
-    scheduler::Event,
 };
-use bitos::{BitUtils, integer::u24};
 use tinylog::{error, info, trace, warn};
 
 /// The progress made by a transfer.
@@ -254,7 +253,7 @@ impl Executor {
                     .interrupt_control
                     .channel_interrupt_mode_at(channel as usize)
                     .unwrap()
-                    == crate::dma::ChannelInterruptMode::OnBlock
+                    == ChannelInterruptMode::OnBlock
                 {
                     // set interrupt flag if enabled
                     let interrupt_control = &mut psx.dma.interrupt_control;

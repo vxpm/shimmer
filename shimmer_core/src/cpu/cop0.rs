@@ -206,6 +206,7 @@ impl Registers {
 /// The state of COP0.
 #[derive(Debug, Clone, Default)]
 pub struct Cop0 {
-    pub(super) regs: Registers,
-    pub(super) load_delay_slot: Option<RegLoad>,
+    pub regs: Registers,
+    // TODO: move this to interpreter
+    pub load_delay_slot: Option<RegLoad>,
 }

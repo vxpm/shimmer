@@ -1,6 +1,7 @@
+use super::Event;
 use crate::{
     PSX,
-    cdrom::{Command, Interpreter, interpreter::Event},
+    cdrom::{Command, Interpreter},
     scheduler,
 };
 use tinylog::trace;

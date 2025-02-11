@@ -1,14 +1,17 @@
 use crate::{
     PSX,
     gpu::{
-        Interpreter, Status,
-        cmd::{
-            DisplayCommand, DisplayOpcode,
-            environment::{DrawingAreaCornerCmd, DrawingOffsetCmd},
-        },
+        Interpreter,
         interface::{Command, DisplayResolution, VramCoords},
     },
     scheduler::Event,
+};
+use shimmer_core::gpu::{
+    Status,
+    cmd::{
+        DisplayCommand, DisplayOpcode,
+        environment::{DrawingAreaCornerCmd, DrawingOffsetCmd},
+    },
 };
 use tinylog::{error, trace, warn};
 

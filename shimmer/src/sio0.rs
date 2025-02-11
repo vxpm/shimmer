@@ -1,4 +1,5 @@
-use crate::{PSX, interrupts::Interrupt, scheduler};
+use crate::{PSX, scheduler};
+use shimmer_core::interrupts::Interrupt;
 use tinylog::{debug, trace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

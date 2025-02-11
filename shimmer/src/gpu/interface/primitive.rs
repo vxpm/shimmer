@@ -1,6 +1,6 @@
 use super::{Rgba8, TexConfig};
-use crate::gpu::cmd::rendering::ShadingMode;
 use bitos::integer::i11;
+use shimmer_core::gpu::cmd::rendering::ShadingMode;
 
 /// A single triangle vertex.
 #[derive(Debug, Clone, Copy)]

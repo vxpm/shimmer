@@ -10,9 +10,10 @@ mod vram;
 use context::Context;
 use display::DisplayRenderer;
 use rasterizer::Rasterizer;
-use shimmer_core::gpu::interface::primitive::Primitive;
-use shimmer_core::gpu::interface::{Command, Renderer};
-use shimmer_core::gpu::texture::Depth as TexDepth;
+use shimmer::{
+    core::gpu::texture::Depth as TexDepth,
+    gpu::interface::{Command, Primitive, Renderer},
+};
 use std::sync::{
     Arc, Mutex,
     mpsc::{Sender, channel},

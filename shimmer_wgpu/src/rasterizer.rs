@@ -5,9 +5,8 @@ use crate::{context::Context, util::ShaderSlice, vram::Vram};
 use data::{Config, to_buffer};
 use dirty::DirtyRegions;
 use glam::UVec2;
-use shimmer_core::gpu::interface::{
-    DrawingArea,
-    primitive::{Rectangle as RendererRectangle, Triangle as InterfaceTriangle},
+use shimmer::gpu::interface::{
+    DrawingArea, Rectangle as InterfaceRectangle, Triangle as InterfaceTriangle,
 };
 use std::sync::Arc;
 use tinylog::{info, warn};
@@ -202,7 +201,7 @@ impl Rasterizer {
         self.triangles.push(triangle);
     }
 
-    pub fn enqueue_rectangle(&mut self, rectangle: RendererRectangle) {
+    pub fn enqueue_rectangle(&mut self, rectangle: InterfaceRectangle) {
         let rectangle = data::Rectangle::new(rectangle);
         if let Some(sampling_region) = rectangle.texconfig().sampling_region()
             && self.dirty.is_dirty(sampling_region)

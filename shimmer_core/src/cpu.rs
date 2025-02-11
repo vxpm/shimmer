@@ -13,10 +13,6 @@ pub const FREQUENCY: u32 = 33_870_000;
 pub const CYCLES_1_MS: u32 = FREQUENCY / 1000;
 pub const CYCLES_1_US: u32 = CYCLES_1_MS / 1000;
 
-// these are only the general exception vectors...
-const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
-const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
-
 /// A CPU coprocessor kind.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
@@ -288,6 +284,36 @@ impl Registers {
             self.gp[reg as usize] = value;
         }
     }
+
+    #[inline(always)]
+    pub fn read_pc(&self) -> u32 {
+        self.pc
+    }
+
+    #[inline(always)]
+    pub fn write_pc(&mut self, value: u32) {
+        self.pc = value;
+    }
+
+    #[inline(always)]
+    pub fn read_lo(&self) -> u32 {
+        self.lo
+    }
+
+    #[inline(always)]
+    pub fn write_lo(&mut self, value: u32) {
+        self.lo = value;
+    }
+
+    #[inline(always)]
+    pub fn read_hi(&self) -> u32 {
+        self.hi
+    }
+
+    #[inline(always)]
+    pub fn write_hi(&mut self, value: u32) {
+        self.hi = value;
+    }
 }
 
 /// A pending load operation, usually in the delay slot.
@@ -300,26 +326,9 @@ pub struct RegLoad {
 /// The state of the CPU.
 #[derive(Debug, Clone, Default)]
 pub struct Cpu {
-    regs: Registers,
-    cache_control: u32,
-    load_delay_slot: Option<RegLoad>,
-    instr_delay_slot: (Instruction, Address),
-}
-
-impl Cpu {
-    pub fn instr_delay_slot(&self) -> (Instruction, Address) {
-        self.instr_delay_slot
-    }
-
-    pub fn regs(&self) -> &Registers {
-        &self.regs
-    }
-
-    pub fn cache_control(&self) -> u32 {
-        self.cache_control
-    }
-
-    pub fn cache_control_mut(&mut self) -> &mut u32 {
-        &mut self.cache_control
-    }
+    pub regs: Registers,
+    pub cache_control: u32,
+    // TODO: move these to the interpreter
+    pub load_delay_slot: Option<RegLoad>,
+    pub instr_delay_slot: (Instruction, Address),
 }

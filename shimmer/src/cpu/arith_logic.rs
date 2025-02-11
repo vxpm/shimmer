@@ -1,5 +1,5 @@
 use super::{DEFAULT_DELAY, Interpreter};
-use crate::cpu::{cop0::Exception, instr::Instruction};
+use shimmer_core::cpu::{cop0::Exception, instr::Instruction};
 
 impl Interpreter<'_> {
     /// `rt = (imm16 << 16)`
@@ -176,8 +176,8 @@ impl Interpreter<'_> {
             ),
         };
 
-        self.psx.cpu.regs.lo = div as u32;
-        self.psx.cpu.regs.hi = rem as u32;
+        self.psx.cpu.regs.write_lo(div as u32);
+        self.psx.cpu.regs.write_hi(rem as u32);
 
         DEFAULT_DELAY
     }
@@ -211,8 +211,8 @@ impl Interpreter<'_> {
             rs.checked_rem(rt).unwrap_or(rs),
         );
 
-        self.psx.cpu.regs.lo = div;
-        self.psx.cpu.regs.hi = rem;
+        self.psx.cpu.regs.write_lo(div);
+        self.psx.cpu.regs.write_hi(rem);
 
         DEFAULT_DELAY
     }
@@ -267,8 +267,8 @@ impl Interpreter<'_> {
         let [low, high]: [zerocopy::byteorder::little_endian::U32; 2] =
             zerocopy::transmute!(result);
 
-        self.psx.cpu.regs.lo = low.get();
-        self.psx.cpu.regs.hi = high.get();
+        self.psx.cpu.regs.write_lo(low.get());
+        self.psx.cpu.regs.write_hi(high.get());
 
         DEFAULT_DELAY
     }
@@ -300,8 +300,8 @@ impl Interpreter<'_> {
         let [low, high]: [zerocopy::byteorder::little_endian::U32; 2] =
             zerocopy::transmute!(result);
 
-        self.psx.cpu.regs.lo = low.get();
-        self.psx.cpu.regs.hi = high.get();
+        self.psx.cpu.regs.write_lo(low.get());
+        self.psx.cpu.regs.write_hi(high.get());
 
         DEFAULT_DELAY
     }

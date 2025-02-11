@@ -1,10 +1,7 @@
 //! Rendering commands.
 
 use crate::gpu::texture::{Clut, TexPage};
-use bitos::{
-    bitos,
-    integer::{i11, u11},
-};
+use bitos::{bitos, integer::i11};
 
 /// A framebuffer transfer coordinate packet.
 #[bitos(32)]

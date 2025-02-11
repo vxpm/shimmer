@@ -11,7 +11,7 @@ workspace = true
 wgsl_composer = { path = "../../wgsl_composer" }
 
 [dependencies]
-shimmer_core = { path = "../shimmer_core" }
+shimmer = { path = "../shimmer" }
 bitos.workspace = true
 bytesize.workspace = true
 easyerr.workspace = true

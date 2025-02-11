@@ -9,7 +9,7 @@ use egui_taffy::{
     },
     tui,
 };
-use shimmer_core::cpu::Reg;
+use shimmer::core::cpu::Reg;
 use strum::VariantArray;
 
 pub struct Registers {
@@ -64,7 +64,7 @@ impl WindowUi for Registers {
                 .add(|tui| {
                     for reg in Reg::VARIANTS {
                         tui.style(default_style()).add_with_border(|tui| {
-                            let value = state.emulator.psx().cpu.regs().read(*reg);
+                            let value = state.emulator.psx().cpu.regs.read(*reg);
                             let name = if state.controls.alternative_names {
                                 RichText::new(reg.alt_name())
                             } else {

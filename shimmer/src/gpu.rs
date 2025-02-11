@@ -1,9 +1,12 @@
+pub mod interface;
+
 mod display;
 mod rendering;
 
-use super::interface::{Renderer, VramCoords, VramDimensions};
-use crate::{
-    PSX,
+use crate::{PSX, scheduler::Event};
+use bitos::integer::{u9, u10, u11};
+use interface::{Command, CopyToVram, Renderer, VramCoords, VramDimensions};
+use shimmer_core::{
     gpu::{
         VerticalResolution,
         cmd::{
@@ -13,12 +16,9 @@ use crate::{
                 VertexPositionPacket,
             },
         },
-        interface::{Command, CopyToVram},
     },
     interrupts::Interrupt,
-    scheduler::Event,
 };
-use bitos::integer::{u9, u10, u11};
 use tinylog::debug;
 
 /// The state of the interpreter.

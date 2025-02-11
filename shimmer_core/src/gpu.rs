@@ -1,7 +1,6 @@
 //! Items related to the GPU of the PSX.
 
 pub mod cmd;
-pub mod interface;
 pub mod texture;
 
 use crate::cpu;

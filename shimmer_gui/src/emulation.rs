@@ -1,6 +1,6 @@
 use crate::State;
 use crossbeam::sync::Parker;
-use shimmer_core::cpu::FREQUENCY;
+use shimmer::core::cpu::FREQUENCY;
 use std::{
     sync::{Arc, atomic::Ordering},
     time::Duration,

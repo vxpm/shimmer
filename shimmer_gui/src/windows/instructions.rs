@@ -5,7 +5,7 @@ use eframe::{
     epaint::Color32,
 };
 use egui_extras::{Column, TableBuilder, TableRow};
-use shimmer_core::{
+use shimmer::core::{
     cpu::instr::{Args, ImmKind, Instruction, RegSource},
     mem::Address,
 };
@@ -310,7 +310,7 @@ impl WindowUi for InstructionViewer {
     }
 
     fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
-        let next = state.emulator.psx().cpu.instr_delay_slot().1;
+        let next = state.emulator.psx().cpu.instr_delay_slot.1;
         if self.follow_next {
             self.target = next.value();
         }

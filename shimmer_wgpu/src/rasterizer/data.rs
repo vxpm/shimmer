@@ -4,7 +4,7 @@ use super::dirty::Region;
 use crate::vram::{VRAM_HEIGHT, VRAM_WIDTH};
 use encase::{ShaderType, StorageBuffer, internal::WriteInto};
 use glam::{IVec2, UVec2, UVec4};
-use shimmer_core::gpu::{interface, texture::Depth as TexDepth};
+use shimmer::{core::gpu::texture::Depth as TexDepth, gpu::interface};
 
 pub fn to_buffer<T: ShaderType + WriteInto>(value: &T) -> Vec<u8> {
     let mut data = StorageBuffer::new(Vec::new());

@@ -140,7 +140,7 @@ pub struct JoystickInput {
 }
 
 #[derive(Debug, Clone)]
-pub struct Controller {
+pub struct Sio0 {
     pub status: Status,
     pub mode: Mode,
     pub control: Control,
@@ -153,7 +153,7 @@ pub struct Controller {
     pub right_joystick: JoystickInput,
 }
 
-impl Default for Controller {
+impl Default for Sio0 {
     fn default() -> Self {
         Self {
             status: Status::default().with_tx_ready(true).with_tx_ready(true),
@@ -170,8 +170,7 @@ impl Default for Controller {
     }
 }
 
-/// The state of the SIO0 controller.
-impl Controller {
+impl Sio0 {
     pub fn read_rx(&mut self) -> u8 {
         self.rx.take().unwrap_or(0xFF)
     }

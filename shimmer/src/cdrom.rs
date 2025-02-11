@@ -2,12 +2,10 @@ mod command;
 mod control;
 mod interrupt;
 
-use super::{Bank, Event, InterruptKind, Mode, Reg, RegWrite};
-use crate::{
-    PSX,
-    cdrom::{Command, Sector},
+use crate::{PSX, scheduler};
+use shimmer_core::{
+    cdrom::{Bank, Command, InterruptKind, Mode, Reg, RegWrite, Sector},
     interrupts::Interrupt,
-    scheduler,
 };
 use std::{
     collections::VecDeque,
@@ -22,6 +20,14 @@ pub const COMPLETE_PAUSE_DELAY: u64 = 2_168_860;
 pub const COMPLETE_PAUSE_NOP_DELAY: u64 = 7_666;
 pub const READ_DELAY: u64 = 451_021;
 pub const SEEK_DELAY: u64 = 33_869;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    Update,
+    Acknowledge(Command),
+    Complete(Command),
+    Read,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Interpreter {
@@ -224,6 +230,7 @@ impl Interpreter {
 
         let masked =
             psx.cdrom.interrupt_status.kind() as u8 & psx.cdrom.interrupt_mask.mask().value();
+
         if masked != 0 {
             psx.interrupts.status.request(Interrupt::CDROM);
         }

@@ -1,15 +1,13 @@
 use super::{DEFAULT_DELAY, Interpreter};
-use crate::cpu::{
-    Reg,
-    instr::{BZKind, Instruction},
-};
+use crate::cpu::Reg;
+use shimmer_core::cpu::instr::{BZKind, Instruction};
 
 impl Interpreter<'_> {
     /// `pc = (pc & (0b1111 << 28)) | (imm26 << 2)`
     pub fn jmp(&mut self, instr: Instruction) -> u64 {
         let high = self.psx.cpu.instr_delay_slot.1.value() & (0b1111 << 28);
         let low = instr.imm26().value() << 2;
-        self.psx.cpu.regs.pc = high | low;
+        self.psx.cpu.regs.write_pc(high | low);
 
         DEFAULT_DELAY
     }
@@ -24,7 +22,7 @@ impl Interpreter<'_> {
             .value()
             .wrapping_add_signed(i32::from(offset << 2));
 
-        self.psx.cpu.regs.pc = addr;
+        self.psx.cpu.regs.write_pc(addr);
     }
 
     /// `if rs != rt { branch(signed_imm16 << 2) }`
@@ -45,10 +43,13 @@ impl Interpreter<'_> {
         let low = instr.imm26().value() << 2;
         let addr = high | low;
 
-        self.psx.cpu.regs.write(Reg::RA, self.psx.cpu.regs.pc);
+        self.psx
+            .cpu
+            .regs
+            .write(Reg::RA, self.psx.cpu.regs.read_pc());
         self.cancel_load(Reg::RA);
 
-        self.psx.cpu.regs.pc = addr;
+        self.psx.cpu.regs.write_pc(addr);
 
         DEFAULT_DELAY
     }
@@ -56,7 +57,7 @@ impl Interpreter<'_> {
     /// `pc = rs`
     pub fn jr(&mut self, instr: Instruction) -> u64 {
         let rs = self.psx.cpu.regs.read(instr.rs());
-        self.psx.cpu.regs.pc = rs;
+        self.psx.cpu.regs.write_pc(rs);
 
         DEFAULT_DELAY
     }
@@ -76,10 +77,13 @@ impl Interpreter<'_> {
     /// `rd = delay_slot + 4; pc = rs`
     pub fn jalr(&mut self, instr: Instruction) -> u64 {
         let rs = self.psx.cpu.regs.read(instr.rs());
-        self.psx.cpu.regs.write(instr.rd(), self.psx.cpu.regs.pc);
+        self.psx
+            .cpu
+            .regs
+            .write(instr.rd(), self.psx.cpu.regs.read_pc());
         self.cancel_load(instr.rd());
 
-        self.psx.cpu.regs.pc = rs;
+        self.psx.cpu.regs.write_pc(rs);
 
         DEFAULT_DELAY
     }
@@ -119,13 +123,19 @@ impl Interpreter<'_> {
                 }
             }
             BZKind::BLTZAL => {
-                self.psx.cpu.regs.write(Reg::RA, self.psx.cpu.regs.pc);
+                self.psx
+                    .cpu
+                    .regs
+                    .write(Reg::RA, self.psx.cpu.regs.read_pc());
                 if rs < 0 {
                     self.branch(instr.signed_imm16());
                 }
             }
             BZKind::BGEZAL => {
-                self.psx.cpu.regs.write(Reg::RA, self.psx.cpu.regs.pc);
+                self.psx
+                    .cpu
+                    .regs
+                    .write(Reg::RA, self.psx.cpu.regs.read_pc());
                 if rs >= 0 {
                     self.branch(instr.signed_imm16());
                 }

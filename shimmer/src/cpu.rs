@@ -6,7 +6,7 @@ mod exception;
 mod jump_branch;
 mod load_store;
 
-use crate::{PSX, util::cold_path};
+use crate::PSX;
 use shimmer_core::cpu::{
     Reg, RegLoad,
     cop0::Exception,
@@ -18,7 +18,12 @@ use shimmer_core::{
     kernel,
     mem::{Address, Region, io},
 };
+use std::hint::cold_path;
 use tinylog::{debug, error, info, trace, warn};
+
+// these are only the general exception vectors...
+const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
+const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
 /// An interpreter of the R3000 CPU. This struct does not have any persistent state and is mostly
 /// just convenience for the implementation. It is intended to be created whenever you want to
@@ -49,7 +54,7 @@ impl<'ctx> Interpreter<'ctx> {
     fn sideload(&mut self) {
         if let Some(exe) = &self.psx.memory.sideload {
             self.psx.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
-            self.psx.cpu.regs.pc = exe.header.initial_pc.value();
+            self.psx.cpu.regs.write_pc(exe.header.initial_pc.value());
             self.psx.cpu.regs.write(Reg::GP, exe.header.initial_gp);
 
             let destination_ram =
@@ -158,7 +163,7 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        self.psx.cpu.regs.pc = exception_handler.value();
+        self.psx.cpu.regs.write_pc(exception_handler.value());
     }
 
     /// Trigger an exception. This method should only be used inside instruction methods - if
@@ -199,7 +204,7 @@ impl<'ctx> Interpreter<'ctx> {
                 info!(
                     self.psx.loggers.cpu,
                     "triggered interrupt {:?} at {}",
-                    requested_interrupt, self.psx.cpu.instr_delay_slot().1;
+                    requested_interrupt, self.psx.cpu.instr_delay_slot.1;
                 );
             }
 
@@ -338,7 +343,7 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some(func) = func {
             if func == kernel::Function::PutChar {
-                let char = self.psx.cpu.regs().read(Reg::A0);
+                let char = self.psx.cpu.regs.read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
                     print!("{char}");
                     if char == '\r' {
@@ -407,7 +412,7 @@ impl<'ctx> Interpreter<'ctx> {
             self.sideload();
         }
 
-        let pc = Address(self.psx.cpu.regs.pc);
+        let pc = Address(self.psx.cpu.regs.read_pc());
         let Ok(fetched) = self.psx.read::<_, true>(pc) else {
             if let Some(load) = self.psx.cpu.load_delay_slot.take() {
                 self.psx.cpu.regs.write(load.reg, load.value);
@@ -418,7 +423,7 @@ impl<'ctx> Interpreter<'ctx> {
 
             self.trigger_exception_at(
                 self.psx.cpu.instr_delay_slot.1,
-                Address(self.psx.cpu.regs.pc),
+                self.psx.cpu.regs.read_pc().into(),
                 Exception::AddressErrorLoad,
             );
             return DEFAULT_DELAY;
@@ -430,7 +435,10 @@ impl<'ctx> Interpreter<'ctx> {
         );
 
         self.current_addr = current_addr;
-        self.psx.cpu.regs.pc = self.psx.cpu.regs.pc.wrapping_add(4);
+        self.psx
+            .cpu
+            .regs
+            .write_pc(self.psx.cpu.regs.read_pc().wrapping_add(4));
 
         self.log_kernel_calls();
 
@@ -458,7 +466,7 @@ impl<'ctx> Interpreter<'ctx> {
         {
             self.trigger_exception_at(
                 self.psx.cpu.instr_delay_slot.1,
-                Address(self.psx.cpu.regs.pc),
+                self.psx.cpu.regs.read_pc().into(),
                 Exception::BusErrorInstruction,
             );
             return DEFAULT_DELAY;

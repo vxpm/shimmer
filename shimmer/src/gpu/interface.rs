@@ -2,12 +2,13 @@
 
 pub mod primitive;
 
-use super::{
+use bitos::integer::{u9, u10, u11};
+use shimmer_core::gpu::{
     HorizontalResolution, VerticalResolution,
     texture::{Clut, TexPage, TexWindow},
 };
-use bitos::integer::{u9, u10, u11};
-use primitive::Primitive;
+
+pub use primitive::*;
 
 /// VRAM coordinates.
 #[derive(Debug, Clone)]

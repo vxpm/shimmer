@@ -16,7 +16,7 @@ use eframe::{
 use egui_file_dialog::FileDialog;
 use gilrs::{Button, Gilrs};
 use parking_lot::Mutex;
-use shimmer_core::Emulator;
+use shimmer::Emulator;
 use shimmer_wgpu::WgpuRenderer;
 use std::{
     path::PathBuf,
@@ -84,7 +84,7 @@ impl ExclusiveState {
         );
 
         let bios = std::fs::read(config.bios_path).expect("should be a valid bios path");
-        let emulator_config = shimmer_core::Config {
+        let emulator_config = shimmer::Config {
             bios,
             rom_path: config.rom_path,
             logger: root_logger,
@@ -92,9 +92,9 @@ impl ExclusiveState {
 
         let mut emulator = Emulator::new(emulator_config, renderer.clone()).unwrap();
         if let Some(path) = config.sideload_exe_path {
-            use shimmer_core::binrw::BinReaderExt;
+            use shimmer::core::binrw::BinReaderExt;
             let exe = std::fs::read(path).expect("should be a valid sideload exe path");
-            let exe: shimmer_core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
+            let exe: shimmer::core::exe::Executable = std::io::Cursor::new(exe).read_le().unwrap();
             emulator.psx_mut().memory.sideload = Some(exe);
         }
 

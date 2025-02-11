@@ -1,23 +1,25 @@
 use crate::{
     PSX,
     gpu::{
-        cmd::{
-            EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
-            rendering::{
-                CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
-                VertexColorPacket, VertexPositionPacket, VertexUVPacket,
-            },
-        },
+        State,
         interface::{
             Command, CopyFromVram, DrawingArea, Rgba8, TexConfig, VramCoords, VramDimensions,
             primitive::{Primitive, Rectangle, Triangle, Vertex},
         },
-        interpreter::{Interpreter, State},
     },
     scheduler::Event,
 };
 use bitos::integer::{i11, u9, u10, u11};
+use shimmer_core::gpu::cmd::{
+    EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
+    rendering::{
+        CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
+        VertexColorPacket, VertexPositionPacket, VertexUVPacket,
+    },
+};
 use tinylog::{debug, error, info, trace, warn};
+
+use super::Interpreter;
 
 #[derive(Default)]
 struct VertexPackets {

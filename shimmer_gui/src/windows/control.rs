@@ -1,7 +1,7 @@
 use super::WindowUi;
 use crate::ExclusiveState;
 use eframe::egui::{self, Align, Id, RichText, Ui, Vec2, Window};
-use shimmer_core::cpu::FREQUENCY;
+use shimmer::core::cpu::FREQUENCY;
 
 pub struct Control {
     _id: Id,

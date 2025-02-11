@@ -1,8 +1,6 @@
-use crate::{
-    PSX,
-    cdrom::{Interpreter, InterruptMask, InterruptStatus},
-};
+use crate::{PSX, cdrom::Interpreter};
 use bitos::{bitos, integer::u3};
+use shimmer_core::cdrom::{InterruptMask, InterruptStatus};
 use tinylog::{debug, trace};
 
 #[bitos(8)]

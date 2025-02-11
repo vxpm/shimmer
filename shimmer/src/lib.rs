@@ -2,20 +2,32 @@
 #![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
+#![feature(cold_path)]
 
+mod bus;
 pub mod cdrom;
 pub mod cpu;
 pub mod dma;
 pub mod gpu;
 pub mod scheduler;
 pub mod sio0;
-mod util;
 
 use easyerr::{Error, ResultExt};
 use scheduler::{Event, Scheduler};
-use shimmer_core::cpu::cop0;
-use std::path::PathBuf;
+use shimmer_core::{
+    cdrom::Cdrom,
+    cpu::{Cpu, cop0::Cop0},
+    dma::Controller as DmaController,
+    gpu::Gpu,
+    interrupts::Controller as InterruptController,
+    mem::Memory,
+    sio0::Sio0,
+    timers::Timers,
+};
+use std::{hint::cold_path, path::PathBuf};
 use tinylog::Logger;
+
+pub use shimmer_core as core;
 
 /// All the loggers of the [`PSX`].
 pub struct Loggers {
@@ -51,15 +63,15 @@ pub struct PSX {
     /// The loggers of this [`PSX`].
     pub loggers: Loggers,
 
-    pub memory: mem::Memory,
-    pub timers: timers::Timers,
-    pub dma: dma::Controller,
-    pub cpu: cpu::Cpu,
-    pub cop0: cop0::Cop0,
-    pub interrupts: interrupts::Controller,
-    pub gpu: gpu::Gpu,
-    pub cdrom: cdrom::Controller,
-    pub sio0: sio0::Controller,
+    pub memory: Memory,
+    pub timers: Timers,
+    pub dma: DmaController,
+    pub cpu: Cpu,
+    pub cop0: Cop0,
+    pub interrupts: InterruptController,
+    pub gpu: Gpu,
+    pub cdrom: Cdrom,
+    pub sio0: Sio0,
 }
 
 /// Emulator configuration.
@@ -111,15 +123,15 @@ impl Emulator {
             psx: PSX {
                 scheduler: Scheduler::new(),
 
-                memory: mem::Memory::with_bios(config.bios).expect("BIOS should fit"),
-                timers: timers::Timers::default(),
-                dma: dma::Controller::default(),
-                cpu: cpu::Cpu::default(),
-                cop0: cop0::Cop0::default(),
-                interrupts: interrupts::Controller::default(),
-                gpu: gpu::Gpu::default(),
-                cdrom: cdrom::Controller::new(rom, loggers.cdrom.clone()),
-                sio0: sio0::Controller::default(),
+                memory: Memory::with_bios(config.bios).expect("BIOS should fit"),
+                timers: Timers::default(),
+                dma: DmaController::default(),
+                cpu: Cpu::default(),
+                cop0: Cop0::default(),
+                interrupts: InterruptController::default(),
+                gpu: Gpu::default(),
+                cdrom: Cdrom::new(rom, loggers.cdrom.clone()),
+                sio0: Sio0::default(),
 
                 loggers,
             },
