@@ -4,17 +4,13 @@ pub mod cmd;
 pub mod interface;
 pub mod texture;
 
-mod interpreter;
-
 use crate::cpu;
 use bitos::{
     bitos,
-    integer::{i10, i11, u1, u4, u9, u10, u12},
+    integer::{i11, u1, u4, u9, u10, u12},
 };
 use std::{collections::VecDeque, ops::Range};
 use texture::{TexPage, TexWindow, TransparencyMode};
-
-pub use interpreter::Interpreter;
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
