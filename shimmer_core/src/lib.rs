@@ -18,13 +18,6 @@ pub mod mem;
 pub mod sio0;
 pub mod timers;
 
-mod scheduler;
 mod util;
-
-use cpu::cop0;
-use easyerr::{Error, ResultExt};
-use scheduler::{Event, Scheduler};
-use std::path::PathBuf;
-use tinylog::Logger;
 
 pub use binrw;

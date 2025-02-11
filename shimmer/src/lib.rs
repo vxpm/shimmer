@@ -5,7 +5,14 @@
 
 pub mod cpu;
 pub mod dma;
+pub mod scheduler;
 mod util;
+
+use easyerr::{Error, ResultExt};
+use scheduler::{Event, Scheduler};
+use shimmer_core::cpu::cop0;
+use std::path::PathBuf;
+use tinylog::Logger;
 
 /// All the loggers of the [`PSX`].
 pub struct Loggers {
