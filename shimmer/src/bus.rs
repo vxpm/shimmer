@@ -375,13 +375,13 @@ impl PSX {
                     self.scheduler.schedule(Event::DmaUpdate, 0);
                 }
                 io::Reg::Cdrom0 | io::Reg::Cdrom1 | io::Reg::Cdrom2 | io::Reg::Cdrom3 => {
-                    let mut value = 0u8;
-                    value.write_to(value.as_mut_bytes());
+                    let mut data = 0u8;
+                    value.write_to(data.as_mut_bytes());
 
                     let reg = reg.cdrom_reg().unwrap();
                     self.cdrom
                         .write_queue
-                        .push_back(CdromRegWrite { reg, value });
+                        .push_back(CdromRegWrite { reg, value: data });
 
                     self.scheduler
                         .schedule(Event::Cdrom(cdrom::Event::Update), 0);
