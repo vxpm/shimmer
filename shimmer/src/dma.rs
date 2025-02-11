@@ -1,4 +1,4 @@
-//! An executor for DMA transfers.
+//! An implementation of the DMA controller.
 
 use crate::{
     PSX, cdrom,

@@ -1,12 +1,8 @@
 //! Items related to the DMA (Direct Memory Access) controller of the PSX.
 
-mod executor;
-
 use arrayvec::ArrayVec;
 use bitos::prelude::*;
 use integer::{u3, u7, u24};
-
-pub use executor::Executor;
 
 /// A DMA channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

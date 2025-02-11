@@ -4,6 +4,7 @@
 #![feature(let_chains)]
 
 pub mod cpu;
+pub mod dma;
 mod util;
 
 /// All the loggers of the [`PSX`].
