@@ -1,0 +1,23 @@
+[package]
+name = "shimmer"
+version = "0.1.0"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+bitos = { workspace = true }
+
+[dependencies]
+shimmer_core = { path = "../shimmer_core" }
+bitos.workspace = true
+bytesize.workspace = true
+easyerr.workspace = true
+oneshot.workspace = true
+strum.workspace = true
+tinylog.workspace = true
+zerocopy.workspace = true
+
+arrayvec = "0.7"
+binrw = "0.14"

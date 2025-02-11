@@ -2,14 +2,11 @@
 
 pub mod cop0;
 pub mod instr;
-mod interpreter;
 
 use crate::mem::{self, Address};
 use bitos::bitos;
 use instr::Instruction;
 use strum::{EnumMessage, IntoStaticStr, VariantArray};
-
-pub use interpreter::Interpreter;
 
 /// The frequency of the CPU, in Hz.
 pub const FREQUENCY: u32 = 33_870_000;

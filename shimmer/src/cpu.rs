@@ -1,4 +1,4 @@
-//! An interpreter for the R3000 CPU.
+//! Implementation of the R3000 CPU.
 
 mod arith_logic;
 mod coproc;
@@ -6,21 +6,17 @@ mod exception;
 mod jump_branch;
 mod load_store;
 
-use super::{
+use crate::{PSX, util::cold_path};
+use shimmer_core::cpu::{
     Reg, RegLoad,
     cop0::Exception,
     instr::{Instruction, SpecialCoOpcode},
 };
-use crate::{
-    PSX,
-    cpu::{
-        EXCEPTION_VECTOR_KSEG0, EXCEPTION_VECTOR_KSEG1,
-        instr::{CoOpcode, Opcode, SpecialOpcode},
-    },
+use shimmer_core::{
+    cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
     interrupts::Interrupt,
     kernel,
     mem::{Address, Region, io},
-    util::cold_path,
 };
 use tinylog::{debug, error, info, trace, warn};
 

@@ -2453,6 +2453,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "shimmer"
+version = "0.1.0"
+dependencies = [
+ "arrayvec",
+ "binrw",
+ "bitos",
+ "bytesize",
+ "easyerr",
+ "oneshot",
+ "shimmer_core",
+ "strum 0.27.0",
+ "tinylog",
+ "zerocopy 0.8.17",
+]
+
+[[package]]
 name = "shimmer_core"
 version = "0.1.0"
 dependencies = [
