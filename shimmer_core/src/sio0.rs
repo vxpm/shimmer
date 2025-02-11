@@ -1,7 +1,4 @@
-mod interpreter;
-
 use bitos::bitos;
-pub use interpreter::{Event, Interpreter};
 
 #[bitos(32)]
 #[derive(Debug, Clone, Copy, Default)]

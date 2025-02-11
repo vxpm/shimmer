@@ -8,6 +8,7 @@ pub mod cpu;
 pub mod dma;
 pub mod gpu;
 pub mod scheduler;
+pub mod sio0;
 mod util;
 
 use easyerr::{Error, ResultExt};
