@@ -35,7 +35,9 @@ pub struct Rasterizer {
     commands: Vec<Command>,
     triangles: Vec<data::Triangle>,
     rectangles: Vec<data::Rectangle>,
-    dirty: DirtyRegions,
+
+    drawn_regions: DirtyRegions,
+    sampled_regions: DirtyRegions,
 }
 
 impl Rasterizer {
@@ -162,41 +164,45 @@ impl Rasterizer {
             commands: Vec::with_capacity(64),
             triangles: Vec::with_capacity(64),
             rectangles: Vec::with_capacity(64),
-            dirty: DirtyRegions::default(),
-        }
-    }
 
-    fn update_config(&mut self) {
-        self.ctx
-            .queue()
-            .write_buffer(&self.config_buffer, 0, &to_buffer(&self.config));
+            drawn_regions: DirtyRegions::default(),
+            sampled_regions: DirtyRegions::default(),
+        }
     }
 
     pub fn set_drawing_area(&mut self, area: DrawingArea) {
         self.config.drawing_area_coords =
             UVec2::new(area.coords.x.value() as u32, area.coords.y.value() as u32);
-
         self.config.drawing_area_dimensions = UVec2::new(
             area.dimensions.width.value() as u32,
             area.dimensions.height.value() as u32,
         );
-
-        self.update_config();
     }
 
     pub fn enqueue_triangle(&mut self, triangle: InterfaceTriangle) {
         let triangle = data::Triangle::new(triangle);
         if let Some(sampling_region) = triangle.texconfig().sampling_region()
-            && self.dirty.is_dirty(sampling_region)
+            && self.drawn_regions.is_dirty(sampling_region)
         {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty - flushing", sampling_region
+                "{:?} is dirty (sampling) - flushing", sampling_region
+            );
+            self.flush();
+
+            self.sampled_regions.mark(sampling_region);
+        }
+
+        let drawing_region = triangle.bounding_region();
+        if self.sampled_regions.is_dirty(drawing_region) {
+            warn!(
+                self.ctx.logger(),
+                "{:?} is dirty (drawing) - flushing", drawing_region
             );
             self.flush();
         }
 
-        self.dirty.mark(triangle.bounding_region());
+        self.drawn_regions.mark(drawing_region);
         self.commands.push(Command::Triangle);
         self.triangles.push(triangle);
     }
@@ -204,16 +210,27 @@ impl Rasterizer {
     pub fn enqueue_rectangle(&mut self, rectangle: InterfaceRectangle) {
         let rectangle = data::Rectangle::new(rectangle);
         if let Some(sampling_region) = rectangle.texconfig().sampling_region()
-            && self.dirty.is_dirty(sampling_region)
+            && self.drawn_regions.is_dirty(sampling_region)
         {
             warn!(
                 self.ctx.logger(),
                 "{:?} is dirty - flushing", sampling_region
             );
             self.flush();
+
+            self.sampled_regions.mark(sampling_region);
         }
 
-        self.dirty.mark(rectangle.bounding_region());
+        let drawing_region = rectangle.bounding_region();
+        if self.sampled_regions.is_dirty(drawing_region) {
+            warn!(
+                self.ctx.logger(),
+                "{:?} is dirty (drawing) - flushing", drawing_region
+            );
+            self.flush();
+        }
+
+        self.drawn_regions.mark(drawing_region);
         self.commands.push(Command::Rectangle);
         self.rectangles.push(rectangle);
     }
@@ -228,6 +245,10 @@ impl Rasterizer {
             self.rectangles.len() + self.triangles.len(),
             self.commands.len()
         );
+
+        self.ctx
+            .queue()
+            .write_buffer(&self.config_buffer, 0, &to_buffer(&self.config));
 
         // commands buffer
         let commands_buffer =
@@ -318,6 +339,8 @@ impl Rasterizer {
         self.commands.clear();
         self.triangles.clear();
         self.rectangles.clear();
-        self.dirty.clear();
+
+        self.drawn_regions.clear();
+        self.sampled_regions.clear();
     }
 }

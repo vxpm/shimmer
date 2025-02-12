@@ -79,7 +79,7 @@ impl ExclusiveState {
         let renderer = WgpuRenderer::new(
             device,
             queue,
-            log_family.logger("wgpu-renderer", tinylog::Level::Trace),
+            log_family.logger("renderer", tinylog::Level::Trace),
             renderer_config,
         );
 

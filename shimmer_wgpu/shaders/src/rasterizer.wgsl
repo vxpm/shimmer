@@ -9,9 +9,6 @@ struct Config {
 }
 
 fn drawing_area_contains(coords: vec2u) -> bool {
-    // let x = coords.x >= config.drawing_area_top_left.x && config.x < config.drawing_area_top_left.y + config.drawing_area_dimensions.y;
-    // let y = coords.y >= config.drawing_area_top_left.y && config.y < config.drawing_area_top_left.y + config.drawing_area_dimensions.y;
-    // x && y
     let relative = coords - config.drawing_area_top_left;
     return all((coords > vec2u(0)) && (coords < config.drawing_area_dimensions));
 } 
@@ -106,6 +103,11 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
     if !drawing_area_contains(vram_coords) {
         return;
     }
+
+    // if vram_coords.x % 64 == 0 || vram_coords.y % 256 == 0 {
+    //     vram_set_color_rgb5m(vram_coords, RGB5M_PLACEHOLDER);
+    //     return;
+    // }
 
     var triangle_index = 0u;
     var rectangle_index = 0u;
