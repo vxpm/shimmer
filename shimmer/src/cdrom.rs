@@ -124,23 +124,15 @@ impl Interpreter {
                         sched_complete(psx, SEEK_DELAY);
                     }
                     Command::SetLocation => {
-                        let minutes = psx.cdrom.parameter_queue.pop_front().unwrap();
-                        let seconds = psx.cdrom.parameter_queue.pop_front().unwrap();
-                        let frames = psx.cdrom.parameter_queue.pop_front().unwrap();
                         let decode_bcd = |value| (value & 0x0F) + 10u8 * ((value & 0xF0) >> 4);
-                        psx.cdrom.location = Sector::new(
-                            decode_bcd(minutes),
-                            decode_bcd(seconds) - 2,
-                            decode_bcd(frames),
-                        );
 
-                        info!(
-                            psx.loggers.cdrom,
-                            "set location {}:{}:{}",
-                            decode_bcd(minutes),
-                            decode_bcd(seconds) - 2,
-                            decode_bcd(frames); sector = psx.cdrom.location.0
-                        );
+                        let minutes = decode_bcd(psx.cdrom.parameter_queue.pop_front().unwrap());
+                        let seconds = decode_bcd(psx.cdrom.parameter_queue.pop_front().unwrap());
+                        let frames = decode_bcd(psx.cdrom.parameter_queue.pop_front().unwrap());
+
+                        psx.cdrom.location = Sector::new(minutes, seconds, frames);
+
+                        info!(psx.loggers.cdrom, "set location {}", psx.cdrom.location);
                     }
                     Command::SetMode => {
                         psx.cdrom.mode =
@@ -197,19 +189,21 @@ impl Interpreter {
                 let size = psx.cdrom.mode.sector_size().value();
                 let offset = psx.cdrom.mode.sector_size().offset();
 
-                info!(
-                    psx.loggers.cdrom,
-                    "read from sector {}", psx.cdrom.location.0
-                );
+                info!(psx.loggers.cdrom, "read from secotr {}", psx.cdrom.location);
 
-                let mut buf = vec![0; size];
-                let start_byte = psx.cdrom.location.0 * 0x930;
-                rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
-                    .unwrap();
-                rom.read_exact(&mut buf).unwrap();
+                if let Some(index) = psx.cdrom.location.index() {
+                    let mut buf = vec![0; size];
+                    let start_byte = index * 0x930;
+                    rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
+                        .unwrap();
+                    rom.read_exact(&mut buf).unwrap();
 
-                psx.cdrom.sector_data = VecDeque::from(buf);
-                psx.cdrom.location.0 += 1;
+                    psx.cdrom.sector_data = VecDeque::from(buf);
+                } else {
+                    psx.cdrom.sector_data = VecDeque::from(vec![0; size]);
+                }
+
+                psx.cdrom.location.advance();
                 psx.scheduler.schedule(
                     scheduler::Event::Cdrom(Event::Read),
                     READ_DELAY / psx.cdrom.mode.speed().factor(),

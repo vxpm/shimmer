@@ -1,5 +1,5 @@
 use bitos::{bitos, integer::u3};
-use std::{collections::VecDeque, fs::File};
+use std::{collections::VecDeque, fmt::Display, fs::File};
 use strum::FromRepr;
 use tinylog::{Logger, trace};
 
@@ -274,11 +274,48 @@ pub struct Mode {
 }
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Sector(pub u64);
+pub struct Sector {
+    minutes: u8,
+    seconds: u8,
+    frames: u8,
+}
 
 impl Sector {
     pub fn new(minutes: u8, seconds: u8, frames: u8) -> Self {
-        Self(u64::from(minutes) * 60 * 75 + u64::from(seconds) * 75 + u64::from(frames))
+        assert!(seconds < 60);
+        assert!(frames < 75);
+        Self {
+            minutes,
+            seconds,
+            frames,
+        }
+    }
+
+    pub fn index(&self) -> Option<u64> {
+        let seconds = self.seconds.checked_sub(2);
+        seconds.map(|seconds| {
+            u64::from(self.minutes) * 60 * 75 + u64::from(seconds) * 75 + u64::from(self.frames)
+        })
+    }
+
+    pub fn advance(&mut self) {
+        self.frames += 1;
+
+        if self.frames == 75 {
+            self.frames = 0;
+            self.seconds += 1;
+        }
+
+        if self.seconds == 60 {
+            self.seconds = 0;
+            self.minutes += 1;
+        }
+    }
+}
+
+impl Display for Sector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.minutes, self.seconds, self.frames)
     }
 }
 
