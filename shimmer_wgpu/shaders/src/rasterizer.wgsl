@@ -10,7 +10,7 @@ struct Config {
 
 fn drawing_area_contains(coords: vec2u) -> bool {
     let relative = coords - config.drawing_area_top_left;
-    return all((coords > vec2u(0)) && (coords < config.drawing_area_dimensions));
+    return all((relative > vec2u(0)) && (relative < config.drawing_area_dimensions));
 } 
 
 @group(0) @binding(0)
@@ -26,12 +26,12 @@ var<storage, read> triangles: array<Triangle>;
 @group(2) @binding(2)
 var<storage, read> rectangles: array<Rectangle>;
 
-fn render_triangle(triangle: Triangle, vram_coords: vec2u) {
+fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
     var bary_coords = triangle_barycentric_coords_of(triangle, vec2i(vram_coords));
     var is_inside = (bary_coords.x >= 0.0) && (bary_coords.y >= 0.0) && (bary_coords.z >= 0.0);
 
     if !is_inside {
-        return;
+        return false;
     }
 
     var color: Rgb5m;
@@ -62,11 +62,12 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) {
     }
 
     vram_set_color_rgb5m(vram_coords, color);
+    return true;
 }
 
-fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) {
+fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     if !rectangle_contains(rectangle, vram_coords) {
-        return;
+        return false;
     }
 
     var color: Rgb5m;
@@ -95,6 +96,7 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) {
     }
 
     vram_set_color_rgb5m(vram_coords, color);
+    return true;
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -103,11 +105,6 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
     if !drawing_area_contains(vram_coords) {
         return;
     }
-
-    // if vram_coords.x % 64 == 0 || vram_coords.y % 256 == 0 {
-    //     vram_set_color_rgb5m(vram_coords, RGB5M_PLACEHOLDER);
-    //     return;
-    // }
 
     var triangle_index = 0u;
     var rectangle_index = 0u;

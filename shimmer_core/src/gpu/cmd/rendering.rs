@@ -142,7 +142,7 @@ pub enum LineMode {
 
 /// A line rendering command.
 #[bitos(32)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LineCmd {
     #[bits(0..8)]
     pub color_r: u8,

@@ -60,17 +60,6 @@ impl Interpreter {
             texconfig: None,
         };
 
-        warn!(
-            psx.loggers.gpu,
-            "quick rectangle fill at {}x{} with dimensions {}x{} and color {:?}",
-            position.x() & 0x3F0,
-            position.y() & 0x1FF,
-            ((width & 0x3FF) + 0xF) & !0xF,
-            height & 0x1FF,
-            color;
-            rectangle = rectangle
-        );
-
         self.renderer.exec(Command::Draw {
             primitive: Primitive::Rectangle(rectangle),
         });

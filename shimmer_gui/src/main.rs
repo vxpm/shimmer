@@ -1,4 +1,5 @@
 #![feature(random)]
+#![feature(let_chains)]
 
 mod cli;
 mod emulation;
@@ -11,7 +12,7 @@ use crossbeam::sync::{Parker, Unparker};
 use eframe::{
     egui::{self, Frame, Id, Style, menu},
     egui_wgpu::{RenderState, WgpuSetup, WgpuSetupCreateNew},
-    wgpu,
+    wgpu::{self, InstanceFlags},
 };
 use egui_file_dialog::FileDialog;
 use gilrs::{Button, Gilrs};
@@ -393,11 +394,14 @@ impl eframe::App for App {
 fn main() {
     let cli = Cli::parse();
 
+    let mut instance = wgpu::InstanceDescriptor::from_env_or_default();
+    instance.flags.insert(InstanceFlags::DEBUG);
+
     let mut native_options = eframe::NativeOptions::default();
     native_options.viewport.min_inner_size = Some(egui::Vec2::new(500.0, 500.0));
     native_options.viewport.maximized = Some(true);
     native_options.wgpu_options.wgpu_setup = WgpuSetup::CreateNew(WgpuSetupCreateNew {
-        instance_descriptor: wgpu::InstanceDescriptor::from_env_or_default(),
+        instance_descriptor: instance,
         power_preference: wgpu::PowerPreference::HighPerformance,
         native_adapter_selector: None,
         device_descriptor: Arc::new(|_| wgpu::DeviceDescriptor {

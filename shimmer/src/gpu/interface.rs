@@ -11,14 +11,14 @@ use shimmer_core::gpu::{
 pub use primitive::*;
 
 /// VRAM coordinates.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct VramCoords {
     pub x: u10,
     pub y: u9,
 }
 
 /// VRAM dimensions.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct VramDimensions {
     pub width: u11,
     pub height: u10,
@@ -64,7 +64,7 @@ pub struct CopyFromVram {
     pub response: oneshot::Sender<Vec<u8>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct DrawingArea {
     pub coords: VramCoords,
     pub dimensions: VramDimensions,

@@ -2,6 +2,7 @@ mod control;
 mod display;
 mod instructions;
 mod logs;
+mod mmio;
 mod registers;
 
 use crate::ExclusiveState;

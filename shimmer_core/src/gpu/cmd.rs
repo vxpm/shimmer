@@ -217,7 +217,7 @@ impl RenderingCommand {
                     _ => 0,
                 };
 
-                2 + uv + dimensions
+                1 + uv + dimensions
             }
             RenderingOpcode::VramToVramBlit => 3,
             RenderingOpcode::CpuToVramBlit => 2,

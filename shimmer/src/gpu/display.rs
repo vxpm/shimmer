@@ -24,6 +24,7 @@ impl Interpreter {
             DisplayOpcode::ResetGpu => {
                 // TODO: reset internal registers
                 psx.gpu.status = Status::default();
+                psx.gpu.render_queue.clear();
             }
             DisplayOpcode::DisplayMode => {
                 let cmd = cmd.display_mode_cmd();
@@ -78,7 +79,8 @@ impl Interpreter {
                 psx.gpu.status.set_interrupt_request(false);
             }
             DisplayOpcode::ResetCommandBuffer => {
-                warn!(psx.loggers.gpu, "reset command buffer stub");
+                warn!(psx.loggers.gpu, "reset command buffer");
+                psx.gpu.render_queue.clear();
             }
             DisplayOpcode::ReadGpuRegister => {
                 let index = cmd.to_bits() & 0b111;

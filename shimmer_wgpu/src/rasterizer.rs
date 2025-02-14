@@ -25,13 +25,11 @@ pub struct Rasterizer {
 
     vram_bind_group: wgpu::BindGroup,
 
-    config: Config,
-    config_buffer: wgpu::Buffer,
-    config_bind_group: wgpu::BindGroup,
-
+    config_bind_group_layout: wgpu::BindGroupLayout,
     data_bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
 
+    config: Config,
     commands: Vec<Command>,
     triangles: Vec<data::Triangle>,
     rectangles: Vec<data::Rectangle>,
@@ -66,27 +64,6 @@ impl Rasterizer {
             drawing_area_coords: UVec2::new(0, 0),
             drawing_area_dimensions: UVec2::new(1024, 512),
         };
-
-        let config_buffer = ctx
-            .device()
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("rasterizer config"),
-                contents: &to_buffer(&config),
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            });
-
-        let config_bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("rasterizer config"),
-            layout: &config_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &config_buffer,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        });
 
         let data_bind_group_layout =
             ctx.device()
@@ -152,12 +129,10 @@ impl Rasterizer {
         Self {
             ctx,
 
-            vram_bind_group: vram.back_bind_group().clone(),
+            vram_bind_group: vram.bind_group().clone(),
 
             config,
-            config_buffer,
-            config_bind_group,
-
+            config_bind_group_layout,
             data_bind_group_layout,
             pipeline,
 
@@ -171,6 +146,11 @@ impl Rasterizer {
     }
 
     pub fn set_drawing_area(&mut self, area: DrawingArea) {
+        warn!(
+            self.ctx.logger(),
+            "changed drawing area"; area = area
+        );
+
         self.config.drawing_area_coords =
             UVec2::new(area.coords.x.value() as u32, area.coords.y.value() as u32);
         self.config.drawing_area_dimensions = UVec2::new(
@@ -246,9 +226,31 @@ impl Rasterizer {
             self.commands.len()
         );
 
-        self.ctx
-            .queue()
-            .write_buffer(&self.config_buffer, 0, &to_buffer(&self.config));
+        // config buffer
+        let config_buffer =
+            self.ctx
+                .device()
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("rasterizer config"),
+                    contents: &to_buffer(&self.config),
+                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                });
+
+        let config_bind_group = self
+            .ctx
+            .device()
+            .create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("rasterizer config"),
+                layout: &self.config_bind_group_layout,
+                entries: &[wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                        buffer: &config_buffer,
+                        offset: 0,
+                        size: None,
+                    }),
+                }],
+            });
 
         // commands buffer
         let commands_buffer =
@@ -329,7 +331,7 @@ impl Rasterizer {
 
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.vram_bind_group, &[]);
-        pass.set_bind_group(1, &self.config_bind_group, &[]);
+        pass.set_bind_group(1, &config_bind_group, &[]);
         pass.set_bind_group(2, &rasterizer_bind_group, &[]);
         pass.dispatch_workgroups(1024 / 8, 512 / 8, 1);
 

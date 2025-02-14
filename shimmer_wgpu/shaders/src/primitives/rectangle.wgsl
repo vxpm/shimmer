@@ -10,13 +10,13 @@ struct Rectangle {
     texture: TextureConfig,
 }
 
-fn rectangle_contains(rectangle: Rectangle, point: vec2u) -> bool {
-    let coords = vec2i(point) - rectangle.top_left;
-    if coords.x < 0 || coords.y < 0 || coords.x >= i32(rectangle.dimensions.x) || coords.y >= i32(rectangle.dimensions.y) {
-        return false;
-    }
+fn rectangle_contains(rect: Rectangle, point: vec2u) -> bool {
+    let spoint = vec2i(point);
+    let sdimensions = vec2i(rect.dimensions);
+    let horizontal = (rect.top_left.x <= spoint.x) && (spoint.x < rect.top_left.x + sdimensions.x);
+    let vertical = (rect.top_left.y <= spoint.y) && (spoint.y < rect.top_left.y + sdimensions.y);
 
-    return true;
+    return horizontal && vertical;
 }
 
 fn rectangle_uv(rectangle: Rectangle, point: vec2u) -> vec2u {

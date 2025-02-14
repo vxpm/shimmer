@@ -19,10 +19,10 @@ use shimmer_core::{
     },
     interrupts::Interrupt,
 };
-use tinylog::debug;
+use tinylog::{debug, info, trace};
 
 /// The state of the interpreter.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 enum State {
     #[default]
     Idle,
@@ -187,6 +187,7 @@ impl Interpreter {
 
     /// Performs a VBlank.
     pub fn vblank(&mut self, psx: &mut PSX) {
+        trace!(psx.loggers.gpu, "== VBLANK =="; state = self.inner.clone());
         if psx.gpu.status.vertical_resolution() == VerticalResolution::R480 {
             psx.gpu
                 .status

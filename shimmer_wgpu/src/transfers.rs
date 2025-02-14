@@ -87,7 +87,7 @@ impl Transfers {
         Self {
             ctx,
 
-            vram_bind_group: vram.back_bind_group().clone(),
+            vram_bind_group: vram.bind_group().clone(),
             bind_group_layout: transfers_bind_group_layout,
             vram_to_cpu_pipeline,
             cpu_to_vram_pipeline,

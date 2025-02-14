@@ -10,7 +10,6 @@ pub struct DisplayRenderer {
     ctx: Arc<Context>,
 
     pipeline: wgpu::RenderPipeline,
-
     vram_bind_group: wgpu::BindGroup,
 
     top_left: [u16; 2],
@@ -137,8 +136,7 @@ impl DisplayRenderer {
             ctx,
 
             pipeline,
-
-            vram_bind_group: vram.front_bind_group().clone(),
+            vram_bind_group: vram.bind_group().clone(),
 
             top_left: [0; 2],
             dimensions: [0; 2],
