@@ -1,5 +1,5 @@
 use super::WindowUi;
-use crate::ExclusiveState;
+use crate::State;
 use eframe::{
     egui::{self, Id, Ui, Vec2, Window},
     egui_wgpu::{self, CallbackTrait},
@@ -56,7 +56,7 @@ impl WindowUi for Display {
             .min_size(min_size)
     }
 
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn show(&mut self, state: &mut State, ui: &mut Ui) {
         let frame_response = egui::Frame::canvas(ui.style()).show(ui, |ui| {
             let aspect_ratio = if self.vram { 2.0 } else { 4.0 / 3.0 };
             let available_height = ui.available_height() - 20.0;
@@ -90,8 +90,14 @@ impl WindowUi for Display {
             position
         });
 
+        state.input.update(state.emulator.joypad_mut());
+
         if self.vram
-            && frame_response.response.hovered() && let Some(pos) = frame_response.inner && pos.x > 0.0 && pos.y > 0.0 {
+            && frame_response.response.hovered()
+            && let Some(pos) = frame_response.inner
+            && pos.x > 0.0
+            && pos.y > 0.0
+        {
             let vram_pos = (pos * Vec2::new(1024.0, 512.0)).round();
             ui.label(format!("mouse at: {:?}", vram_pos));
         }

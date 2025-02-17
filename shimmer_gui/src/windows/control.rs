@@ -1,5 +1,5 @@
 use super::WindowUi;
-use crate::ExclusiveState;
+use crate::State;
 use eframe::egui::{self, Align, Id, RichText, Ui, Vec2, Window};
 use shimmer::core::cpu::FREQUENCY;
 
@@ -24,7 +24,7 @@ impl WindowUi for Control {
             .default_size(Vec2::new(0.0, 0.0))
     }
 
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn show(&mut self, state: &mut State, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.checkbox(&mut state.controls.running, "Run");
             if ui

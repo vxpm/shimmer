@@ -1,5 +1,8 @@
 use crate::{PSX, scheduler};
-use shimmer_core::interrupts::Interrupt;
+use shimmer_core::{
+    interrupts::Interrupt,
+    sio0::{AnalogInput, DigitalInput},
+};
 use tinylog::{debug, trace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,9 +29,17 @@ enum State {
 }
 
 #[derive(Debug, Clone, Default)]
+pub struct Joypad {
+    pub digital_input: DigitalInput,
+    pub analog_left: AnalogInput,
+    pub analog_right: AnalogInput,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct Sio0 {
     state: State,
     in_progress: bool,
+    joypad: Joypad,
 }
 
 const TRANSFER_DELAY: u64 = 1500;
@@ -124,14 +135,14 @@ impl Sio0 {
                     }
                     JoypadStage::Rumble0 => {
                         debug!(psx.loggers.sio, "sending switches low");
-                        psx.sio0.rx = Some(!psx.sio0.input.to_bits().to_le_bytes()[0]);
+                        psx.sio0.rx = Some(!self.joypad.digital_input.to_bits().to_le_bytes()[0]);
                         psx.scheduler
                             .schedule(scheduler::Event::Sio(Event::StartAck), START_ACK_DELAY);
                         self.state = State::JoypadTransfer(JoypadStage::Rumble1);
                     }
                     JoypadStage::Rumble1 => {
                         debug!(psx.loggers.sio, "sending switches high");
-                        psx.sio0.rx = Some(!psx.sio0.input.to_bits().to_le_bytes()[1]);
+                        psx.sio0.rx = Some(!self.joypad.digital_input.to_bits().to_le_bytes()[1]);
                         self.state = State::Idle;
                     }
                 }
@@ -139,5 +150,9 @@ impl Sio0 {
         }
 
         self.update_status(psx);
+    }
+
+    pub fn joypad_mut(&mut self) -> &mut Joypad {
+        &mut self.joypad
     }
 }

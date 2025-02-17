@@ -1,5 +1,5 @@
 use super::WindowUi;
-use crate::ExclusiveState;
+use crate::State;
 use eframe::{
     egui::{self, Id, RichText, Ui, Window},
     epaint::Color32,
@@ -34,7 +34,7 @@ fn ascii_score(bytes: impl Iterator<Item = u8>) -> u16 {
     score + consecutive.saturating_sub(1)
 }
 
-fn fetch_instr(state: &mut ExclusiveState, addr: Address) -> (Instruction, bool) {
+fn fetch_instr(state: &mut State, addr: Address) -> (Instruction, bool) {
     let prev_instr = state
         .emulator
         .psx_mut()
@@ -174,7 +174,7 @@ impl InstructionViewer {
         }
     }
 
-    fn draw_row(&mut self, state: &mut ExclusiveState, row: &mut TableRow, begin_addr: u32) {
+    fn draw_row(&mut self, state: &mut State, row: &mut TableRow, begin_addr: u32) {
         const MNEMONIC_COLOR: Color32 = Color32::LIGHT_YELLOW;
 
         let address = Address(begin_addr + row.index() as u32 * 4);
@@ -214,7 +214,7 @@ impl InstructionViewer {
         });
     }
 
-    fn draw_body(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn draw_body(&mut self, state: &mut State, ui: &mut Ui) {
         let count = 1024;
         let begin_addr = self.target.saturating_sub((4 * (count & !1) / 2) as u32);
 
@@ -309,7 +309,7 @@ impl WindowUi for InstructionViewer {
         Window::new("Instructions").open(open)
     }
 
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn show(&mut self, state: &mut State, ui: &mut Ui) {
         let next = state.emulator.psx().cpu.instr_delay_slot.1;
         if self.follow_next {
             self.target = next.value();

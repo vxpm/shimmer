@@ -1,5 +1,5 @@
 use super::WindowUi;
-use crate::ExclusiveState;
+use crate::State;
 use eframe::egui::{self, Color32, Id, RichText, Ui, Window};
 use egui_extras::{Column, TableBuilder, TableRow};
 use tinylog::{Level, logger::Context as LoggerContext};
@@ -18,7 +18,7 @@ pub struct LogViewer {
 }
 
 impl LogViewer {
-    fn draw_header(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn draw_header(&mut self, state: &mut State, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.label(format!(
                 "Records: {} (max shown: {})",
@@ -71,7 +71,7 @@ impl LogViewer {
         });
     }
 
-    fn draw_logs(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn draw_logs(&mut self, state: &mut State, ui: &mut Ui) {
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle::solid();
 
         self.row_heights
@@ -111,7 +111,7 @@ impl LogViewer {
             });
     }
 
-    fn draw_row(&mut self, state: &mut ExclusiveState, row: &mut TableRow) {
+    fn draw_row(&mut self, state: &mut State, row: &mut TableRow) {
         let index = row.index();
         let offset = self.row_heights.len().saturating_sub(MAX_RECORDS_SHOWN);
 
@@ -197,7 +197,7 @@ impl WindowUi for LogViewer {
         Window::new("Logs").open(open)
     }
 
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn show(&mut self, state: &mut State, ui: &mut Ui) {
         ui.vertical(|ui| {
             self.draw_header(state, ui);
             ui.separator();

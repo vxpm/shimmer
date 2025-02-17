@@ -1,5 +1,5 @@
 use super::WindowUi;
-use crate::ExclusiveState;
+use crate::State;
 use eframe::egui::{self, Color32, Id, RichText, Ui, Vec2, Window};
 use egui_taffy::{
     TuiBuilderLogic,
@@ -34,7 +34,7 @@ impl WindowUi for Registers {
             .default_size(Vec2::new(0.0, 0.0))
     }
 
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui) {
+    fn show(&mut self, state: &mut State, ui: &mut Ui) {
         ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
         let default_style = || taffy::Style {
             padding: length(4.),

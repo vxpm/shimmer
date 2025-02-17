@@ -1,20 +1,24 @@
 use crate::State;
 use crossbeam::sync::Parker;
+use parking_lot::Mutex;
 use shimmer::core::cpu::FREQUENCY;
 use std::{
-    sync::{Arc, atomic::Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
-pub fn run(state: Arc<State>, parker: Parker) {
+pub fn run(should_advance: Arc<AtomicBool>, state: Arc<Mutex<State>>, parker: Parker) {
     loop {
-        let should_advance = state.shared.should_advance.load(Ordering::Relaxed);
-        if !should_advance {
+        let stop = !should_advance.load(Ordering::Relaxed);
+        if stop {
             parker.park();
             continue;
         }
 
-        let mut exclusive = state.exclusive.lock();
+        let mut exclusive = state.lock();
         let time_behind = exclusive
             .timing
             .running_timer
@@ -32,8 +36,8 @@ pub fn run(state: Arc<State>, parker: Parker) {
 
             exclusive.emulator.cycle_for(taken);
 
-            let should_advance = state.shared.should_advance.load(Ordering::Relaxed);
-            if !should_advance {
+            let stop = !should_advance.load(Ordering::Relaxed);
+            if stop {
                 break;
             }
         }

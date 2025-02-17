@@ -3,6 +3,7 @@
 
 mod cli;
 mod emulation;
+mod input;
 mod util;
 mod windows;
 
@@ -10,12 +11,12 @@ use clap::Parser;
 use cli::Cli;
 use crossbeam::sync::{Parker, Unparker};
 use eframe::{
-    egui::{self, Frame, Id, Style, menu},
+    egui::{self, Id, menu},
     egui_wgpu::{RenderState, WgpuSetup, WgpuSetupCreateNew},
     wgpu::{self, InstanceFlags},
 };
 use egui_file_dialog::FileDialog;
-use gilrs::{Button, Gilrs};
+use input::Input;
 use parking_lot::Mutex;
 use shimmer::Emulator;
 use shimmer_wgpu::WgpuRenderer;
@@ -44,21 +45,21 @@ struct Controls {
     #[expect(dead_code, reason = "temporary")]
     breakpoints: Vec<u32>,
     alternative_names: bool,
-    gamepad_input: Gilrs,
 }
 
-/// State shared between the GUI and emulation threads that is locked behind a mutex.
-struct ExclusiveState {
+/// State of the application.
+struct State {
     emulator: Emulator,
     renderer: WgpuRenderer,
     timing: Timing,
     controls: Controls,
+    input: Input,
 
     log_family: LoggerFamily,
     log_records: RecordBuf,
 }
 
-impl ExclusiveState {
+impl State {
     fn new(render_state: &RenderState, config: Config) -> Self {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
@@ -110,32 +111,11 @@ impl ExclusiveState {
                 running: false,
                 breakpoints: Vec::new(),
                 alternative_names: true,
-                gamepad_input: Gilrs::new().unwrap(),
             },
+            input: Input::new(),
 
             log_family,
             log_records,
-        }
-    }
-}
-
-/// State shared between the GUI and emulation threads that is not locked behind a mutex.
-#[derive(Default)]
-struct SharedState {
-    should_advance: AtomicBool,
-}
-
-/// State shared between the GUI and emulation threads.
-struct State {
-    exclusive: Mutex<ExclusiveState>,
-    shared: SharedState,
-}
-
-impl State {
-    fn new(render_state: &RenderState, config: Config) -> Self {
-        Self {
-            exclusive: Mutex::new(ExclusiveState::new(render_state, config)),
-            shared: Default::default(),
         }
     }
 }
@@ -148,8 +128,9 @@ struct Config {
 }
 
 struct App {
-    _config: Config,
-    state: Arc<State>,
+    state: Arc<Mutex<State>>,
+
+    should_advance: Arc<AtomicBool>,
     unparker: Unparker,
 
     windows: Vec<AppWindow>,
@@ -167,11 +148,12 @@ impl App {
             sideload_exe_path,
         };
 
-        let state = Arc::new(State::new(
+        let state = Arc::new(Mutex::new(State::new(
             cc.wgpu_render_state.as_ref().unwrap(),
             config.clone(),
-        ));
+        )));
 
+        let should_advance = Arc::new(AtomicBool::new(false));
         let parker = Parker::new();
         let unparker = parker.unparker().clone();
 
@@ -179,7 +161,10 @@ impl App {
             .name("emulator thread".to_owned())
             .spawn({
                 let state = state.clone();
-                || emulation::run(state, parker)
+                {
+                    let should_advance = should_advance.clone();
+                    || emulation::run(should_advance, state, parker)
+                }
             })
             .unwrap();
 
@@ -196,8 +181,9 @@ impl App {
             .collect();
 
         Self {
-            _config: config,
             state,
+
+            should_advance,
             unparker,
 
             windows,
@@ -231,18 +217,16 @@ impl eframe::App for App {
             });
         });
 
-        self.state
-            .shared
-            .should_advance
-            .store(false, Ordering::Relaxed);
-        let mut state = self.state.exclusive.lock();
+        self.should_advance.store(false, Ordering::Relaxed);
+        let mut state = self.state.lock();
+        let state = &mut *state;
 
         egui::CentralPanel::default()
-            .frame(Frame::canvas(&Style::default()))
+            // .frame(Frame::canvas(&Style::default()))
             .show(ctx, |ui| {
                 self.file_dialog.update(ctx);
                 self.windows.retain_mut(|window| {
-                    let response = window.show(&mut state, ui);
+                    let response = window.show(state, ui);
                     response.is_some()
                 });
             })
@@ -303,80 +287,10 @@ impl eframe::App for App {
             state.timing.running_timer.resume();
             ctx.request_repaint_after(Duration::from_secs_f64(1.0 / 60.0));
 
-            self.state
-                .shared
-                .should_advance
-                .store(true, Ordering::Relaxed);
+            self.should_advance.store(true, Ordering::Relaxed);
             self.unparker.unpark();
         } else {
             state.timing.running_timer.pause();
-        }
-
-        while let Some(event) = state.controls.gamepad_input.next_event() {
-            let input = &mut state.emulator.psx_mut().sio0.input;
-            match event.event {
-                gilrs::EventType::ButtonChanged(button, value, _) => {
-                    let level = value > 0.0;
-                    match button {
-                        Button::South => {
-                            input.set_cross(level);
-                        }
-                        Button::East => {
-                            input.set_circle(level);
-                        }
-                        Button::North => {
-                            input.set_triangle(level);
-                        }
-                        Button::West => {
-                            input.set_square(level);
-                        }
-                        Button::LeftTrigger => {
-                            input.set_l1(level);
-                        }
-                        Button::LeftTrigger2 => {
-                            input.set_l2(level);
-                        }
-                        Button::RightTrigger => {
-                            input.set_r1(level);
-                        }
-                        Button::RightTrigger2 => {
-                            input.set_r2(level);
-                        }
-                        Button::Select => {
-                            input.set_select(level);
-                            input.set_start(!input.start());
-                        }
-                        Button::Start => {
-                            input.set_start(level);
-                        }
-                        Button::LeftThumb => {
-                            input.set_l3(level);
-                        }
-                        Button::RightThumb => {
-                            input.set_r3(level);
-                        }
-                        Button::DPadUp => {
-                            input.set_joy_up(level);
-                        }
-                        Button::DPadDown => {
-                            input.set_joy_down(level);
-                        }
-                        Button::DPadLeft => {
-                            input.set_joy_left(level);
-                        }
-                        Button::DPadRight => {
-                            input.set_joy_right(level);
-                        }
-                        _ => (),
-                    }
-                }
-                // gilrs::EventType::AxisChanged(axis, _, code) => todo!(),
-                // gilrs::EventType::Connected => todo!(),
-                // gilrs::EventType::Disconnected => todo!(),
-                // gilrs::EventType::Dropped => todo!(),
-                // gilrs::EventType::ForceFeedbackEffectCompleted => todo!(),
-                _ => (),
-            }
         }
     }
 

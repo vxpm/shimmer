@@ -30,6 +30,7 @@ use shimmer_core::{
     sio0::Sio0,
     timers::Timers,
 };
+use sio0::Joypad;
 use std::{hint::cold_path, path::PathBuf};
 use tinylog::Logger;
 
@@ -103,9 +104,9 @@ pub struct Emulator {
 
     cpu: cpu::Interpreter,
     gpu: gpu::Gpu,
-    dma_executor: dma::Dma,
-    cdrom_interpreter: cdrom::Cdrom,
-    sio0_interpreter: sio0::Sio0,
+    dma: dma::Dma,
+    cdrom: cdrom::Cdrom,
+    sio0: sio0::Sio0,
 }
 
 impl Emulator {
@@ -140,10 +141,10 @@ impl Emulator {
             },
 
             cpu: cpu::Interpreter::default(),
-            dma_executor: dma::Dma::default(),
+            dma: dma::Dma::default(),
             gpu,
-            cdrom_interpreter: cdrom::Cdrom::default(),
-            sio0_interpreter: sio0::Sio0::default(),
+            cdrom: cdrom::Cdrom::default(),
+            sio0: sio0::Sio0::default(),
         })
     }
 
@@ -157,6 +158,10 @@ impl Emulator {
     #[inline(always)]
     pub fn psx_mut(&mut self) -> &mut PSX {
         &mut self.psx
+    }
+
+    pub fn joypad_mut(&mut self) -> &mut Joypad {
+        self.sio0.joypad_mut()
     }
 
     pub fn cycle_for(&mut self, cycles: u64) {
@@ -175,7 +180,7 @@ impl Emulator {
                 match e {
                     Event::Cpu => {
                         // stall cpu while DMA is ongoing
-                        if self.dma_executor.ongoing() {
+                        if self.dma.ongoing() {
                             cold_path();
                             self.psx.scheduler.schedule(Event::Cpu, 16);
                             continue;
@@ -199,16 +204,16 @@ impl Emulator {
                         self.gpu.exec_queued(&mut self.psx);
                     }
                     Event::DmaUpdate => {
-                        self.dma_executor.update(&mut self.psx);
+                        self.dma.update(&mut self.psx);
                     }
                     Event::DmaAdvance => {
-                        self.dma_executor.advance(&mut self.psx);
+                        self.dma.advance(&mut self.psx);
                     }
                     Event::Cdrom(event) => {
-                        self.cdrom_interpreter.update(&mut self.psx, event);
+                        self.cdrom.update(&mut self.psx, event);
                     }
                     Event::Sio(event) => {
-                        self.sio0_interpreter.update(&mut self.psx, event);
+                        self.sio0.update(&mut self.psx, event);
                     }
                 }
             }

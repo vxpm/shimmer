@@ -97,7 +97,7 @@ pub struct Control {
 
 #[bitos(16)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Input {
+pub struct DigitalInput {
     #[bits(0)]
     pub select: bool,
     #[bits(1)]
@@ -134,11 +134,11 @@ pub struct Input {
 
 #[bitos(16)]
 #[derive(Debug, Clone, Copy, Default)]
-pub struct JoystickInput {
+pub struct AnalogInput {
     #[bits(0..8)]
-    pub joystick_x: u8,
+    pub analog_x: u8,
     #[bits(8..16)]
-    pub joystick_y: u8,
+    pub analog_y: u8,
 }
 
 #[derive(Debug, Clone)]
@@ -149,10 +149,6 @@ pub struct Sio0 {
 
     pub rx: Option<u8>,
     pub tx: Option<u8>,
-
-    pub input: Input,
-    pub left_joystick: JoystickInput,
-    pub right_joystick: JoystickInput,
 }
 
 impl Default for Sio0 {
@@ -164,10 +160,6 @@ impl Default for Sio0 {
 
             rx: Default::default(),
             tx: Default::default(),
-
-            input: Default::default(),
-            left_joystick: Default::default(),
-            right_joystick: Default::default(),
         }
     }
 }

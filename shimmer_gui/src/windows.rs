@@ -5,13 +5,13 @@ mod logs;
 mod mmio;
 mod registers;
 
-use crate::ExclusiveState;
+use crate::State;
 use eframe::egui::{Id, InnerResponse, Ui, Window};
 use serde::{Deserialize, Serialize};
 
 trait WindowUi {
     fn build<'open>(&mut self, open: &'open mut bool) -> Window<'open>;
-    fn show(&mut self, state: &mut ExclusiveState, ui: &mut Ui);
+    fn show(&mut self, state: &mut State, ui: &mut Ui);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -48,11 +48,7 @@ impl AppWindow {
         }
     }
 
-    pub fn show(
-        &mut self,
-        state: &mut ExclusiveState,
-        ui: &mut Ui,
-    ) -> Option<InnerResponse<Option<()>>> {
+    pub fn show(&mut self, state: &mut State, ui: &mut Ui) -> Option<InnerResponse<Option<()>>> {
         let container = self
             .window
             .build(&mut self.open)
