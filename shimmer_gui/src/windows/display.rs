@@ -91,13 +91,9 @@ impl WindowUi for Display {
         });
 
         if self.vram
-            && frame_response.response.hovered()
-            && let Some(pos) = frame_response.inner
-        {
-            if pos.x > 0.0 && pos.y > 0.0 {
-                let vram_pos = (pos * Vec2::new(1024.0, 512.0)).round();
-                ui.label(format!("mouse at: {:?}", vram_pos));
-            }
+            && frame_response.response.hovered() && let Some(pos) = frame_response.inner && pos.x > 0.0 && pos.y > 0.0 {
+            let vram_pos = (pos * Vec2::new(1024.0, 512.0)).round();
+            ui.label(format!("mouse at: {:?}", vram_pos));
         }
     }
 }

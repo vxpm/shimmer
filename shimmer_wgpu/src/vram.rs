@@ -5,9 +5,9 @@ pub const VRAM_WIDTH: u16 = 1024;
 pub const VRAM_HEIGHT: u16 = 512;
 
 pub struct Vram {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
 
-    back_buffer: wgpu::Buffer,
+    _buffer: wgpu::Buffer,
 
     bind_group_layout: wgpu::BindGroupLayout,
     bind_group: wgpu::BindGroup,
@@ -15,7 +15,7 @@ pub struct Vram {
 
 impl Vram {
     pub fn new(ctx: Arc<Context>) -> Self {
-        let back_buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
+        let buffer = ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some("vram"),
             size: 1024 * 512 * 8,
             usage: wgpu::BufferUsages::STORAGE
@@ -46,7 +46,7 @@ impl Vram {
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &back_buffer,
+                    buffer: &buffer,
                     offset: 0,
                     size: None,
                 }),
@@ -54,9 +54,9 @@ impl Vram {
         });
 
         Self {
-            ctx,
+            _ctx: ctx,
 
-            back_buffer,
+            _buffer: buffer,
 
             bind_group_layout,
             bind_group,

@@ -213,6 +213,7 @@ impl Gpu {
         self.renderer_exec_drawing_area(psx);
     }
 
+    #[expect(clippy::unused_self, reason = "consistency")]
     fn exec_drawing_offset(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.drawing_offset_cmd();
         info!(psx.loggers.gpu, "updating drawing area offset"; offset = cmd.clone());

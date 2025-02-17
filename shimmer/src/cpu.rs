@@ -25,9 +25,7 @@ use tinylog::{debug, error, info, trace, warn};
 const EXCEPTION_VECTOR_KSEG0: Address = Address(0x8000_0080);
 const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 
-/// An interpreter of the R3000 CPU. This struct does not have any persistent state and is mostly
-/// just convenience for the implementation. It is intended to be created whenever you want to
-/// execute an instruction.
+/// An interpreter of the R3000 CPU.
 #[derive(Default)]
 pub struct Interpreter {
     /// Address of the currently executing instruction.
@@ -63,26 +61,6 @@ impl Interpreter {
             }
 
             info!(psx.loggers.cpu, "sideloaded!");
-        }
-
-        // write args
-        let args = [c"auto", c"console", c"release"];
-        psx.write::<_, true>(Address(0x1F80_0000), args.len() as u32)
-            .unwrap();
-
-        let mut offset = 0;
-        for (index, arg) in args.iter().enumerate() {
-            psx.write::<_, true>(
-                Address(0x1F80_0004 + index as u32 * 4),
-                0x1F80_0044 + offset,
-            )
-            .unwrap();
-
-            for &byte in arg.to_bytes_with_nul() {
-                psx.write::<_, true>(Address(0x1F80_0044 + offset), byte)
-                    .unwrap();
-                offset += 1;
-            }
         }
     }
 
@@ -181,7 +159,6 @@ impl Interpreter {
             .set_system_interrupt_pending(requested_interrupt.is_some());
 
         if let Some(requested_interrupt) = requested_interrupt {
-            // must have SR.BIT10 == 1
             let system_status = psx.cop0.regs.system_status();
             if !system_status.system_interrupts_enabled() {
                 return false;

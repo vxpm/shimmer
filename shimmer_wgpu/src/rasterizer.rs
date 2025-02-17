@@ -152,10 +152,10 @@ impl Rasterizer {
         );
 
         self.config.drawing_area_coords =
-            UVec2::new(area.coords.x.value() as u32, area.coords.y.value() as u32);
+            UVec2::new(u32::from(area.coords.x.value()), u32::from(area.coords.y.value()));
         self.config.drawing_area_dimensions = UVec2::new(
-            area.dimensions.width.value() as u32,
-            area.dimensions.height.value() as u32,
+            u32::from(area.dimensions.width.value()),
+            u32::from(area.dimensions.height.value()),
         );
     }
 

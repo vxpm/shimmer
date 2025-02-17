@@ -49,7 +49,7 @@ impl From<TexDepth> for TextureKind {
 struct Inner {
     _ctx: Arc<Context>,
 
-    vram: Vram,
+    _vram: Vram,
     rasterizer: Rasterizer,
     display_renderer: DisplayRenderer,
     transfers: Transfers,
@@ -66,7 +66,7 @@ impl Inner {
         Self {
             _ctx: ctx,
 
-            vram,
+            _vram: vram,
             rasterizer,
             display_renderer,
             transfers,
