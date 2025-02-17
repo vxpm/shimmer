@@ -1,3 +1,5 @@
+//! Items related to the serial interface 0.
+
 use bitos::bitos;
 
 #[bitos(32)]

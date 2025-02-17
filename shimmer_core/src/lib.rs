@@ -1,6 +1,5 @@
-//! Core crate of the shimmer PSX emulator. This crate is intended to contain the actual emulator
-//! functionality, but no "frontend" code such as a GUI or a CLI. It also does not perform any sort
-//! of rendering: it only _provides_ the information necessary for a renderer to do it's job.
+//! Core crate of the shimmer PSX emulator. This crate defines core PSX structures in an
+//! implementation independent way. The emulator implementation itself lives in the `shimmer` crate.
 
 #![feature(inline_const_pat)]
 #![feature(unbounded_shifts)]

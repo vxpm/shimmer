@@ -1,3 +1,9 @@
+//! Main crate of the shimmer PSX emulator. This crate is reponsible for implementing the emulation
+//! of the PSX, providing all of the functionality but no "frontend" code such as a GUI or a CLI.
+//!
+//! Consequently, it does not perform any sort of rendering: the GPU exposes a rendering interface
+//! for renderer implementations.
+
 #![feature(inline_const_pat)]
 #![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
