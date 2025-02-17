@@ -26,7 +26,7 @@ enum State {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Interpreter {
+pub struct Sio0 {
     state: State,
     in_progress: bool,
 }
@@ -35,7 +35,7 @@ const TRANSFER_DELAY: u64 = 1500;
 const START_ACK_DELAY: u64 = 100;
 const END_ACK_DELAY: u64 = 50;
 
-impl Interpreter {
+impl Sio0 {
     fn update_status(&mut self, psx: &mut PSX) {
         psx.sio0.status.set_tx_ready(psx.sio0.tx.is_none());
         psx.sio0.status.set_rx_ready(psx.sio0.rx.is_some());

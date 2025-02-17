@@ -1,7 +1,7 @@
 use super::Event;
 use crate::{
     PSX,
-    cdrom::{Command, Interpreter},
+    cdrom::{Cdrom, Command},
     scheduler,
 };
 use tinylog::trace;
@@ -9,7 +9,7 @@ use tinylog::trace;
 pub const ACK_DEFAULT_DELAY: u64 = 50401;
 pub const ACK_INIT_DELAY: u64 = 81102;
 
-impl Interpreter {
+impl Cdrom {
     pub fn push_parameter(&mut self, psx: &mut PSX, value: u8) {
         trace!(psx.loggers.cdrom, "received parameter {value:#02X}");
         psx.cdrom.parameter_queue.push_back(value);

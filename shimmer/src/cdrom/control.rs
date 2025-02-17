@@ -1,4 +1,4 @@
-use crate::{PSX, cdrom::Interpreter};
+use crate::{PSX, cdrom::Cdrom};
 use bitos::bitos;
 use tinylog::trace;
 
@@ -13,7 +13,7 @@ struct ControlRequest {
     request_sector_buffer_read: bool,
 }
 
-impl Interpreter {
+impl Cdrom {
     pub fn control_request(&mut self, psx: &mut PSX, value: u8) {
         let cmd = ControlRequest::from_bits(value);
         trace!(psx.loggers.cdrom, "control request"; request = cmd);

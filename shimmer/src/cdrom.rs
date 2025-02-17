@@ -30,12 +30,12 @@ pub enum Event {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Interpreter {
+pub struct Cdrom {
     command_queue: VecDeque<u8>,
     interrupt_queue: VecDeque<InterruptKind>,
 }
 
-impl Interpreter {
+impl Cdrom {
     fn next_interrupt(&mut self, psx: &mut PSX) {
         if psx.cdrom.interrupt_status.kind() == InterruptKind::None
             && let Some(kind) = self.interrupt_queue.pop_front()

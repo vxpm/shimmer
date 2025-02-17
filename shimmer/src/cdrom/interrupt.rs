@@ -1,4 +1,4 @@
-use crate::{PSX, cdrom::Interpreter};
+use crate::{PSX, cdrom::Cdrom};
 use bitos::{bitos, integer::u3};
 use shimmer_core::cdrom::{InterruptMask, InterruptStatus};
 use tinylog::{debug, trace};
@@ -19,7 +19,7 @@ struct InterruptFlags {
     reset_decoder: bool,
 }
 
-impl Interpreter {
+impl Cdrom {
     pub fn set_interrupt_mask(&mut self, psx: &mut PSX, value: u8) {
         let mask = InterruptMask::from_bits(value);
         trace!(psx.loggers.cdrom, "setting interrupts mask to {value:?}");

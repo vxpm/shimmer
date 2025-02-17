@@ -1,7 +1,7 @@
 use crate::{
     PSX,
     gpu::{
-        Interpreter,
+        Gpu,
         interface::{Command, DisplayResolution, VramCoords},
     },
     scheduler::Event,
@@ -15,7 +15,7 @@ use shimmer_core::gpu::{
 };
 use tinylog::{error, trace, warn};
 
-impl Interpreter {
+impl Gpu {
     /// Executes the given display command.
     pub fn exec_display(&mut self, psx: &mut PSX, cmd: DisplayCommand) {
         trace!(psx.loggers.gpu, "received display cmd: {cmd:?}");

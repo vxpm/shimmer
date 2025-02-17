@@ -1,3 +1,4 @@
+use super::Gpu;
 use crate::{
     PSX,
     gpu::{
@@ -17,9 +18,7 @@ use shimmer_core::gpu::cmd::{
         VertexColorPacket, VertexPositionPacket, VertexUVPacket,
     },
 };
-use tinylog::{debug, error, info, trace, warn};
-
-use super::Interpreter;
+use tinylog::{debug, error, info, trace};
 
 #[derive(Default)]
 struct VertexPackets {
@@ -40,7 +39,7 @@ impl VertexPackets {
     }
 }
 
-impl Interpreter {
+impl Gpu {
     fn exec_quick_rect_fill(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.rectangle_cmd();
         let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());

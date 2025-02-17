@@ -202,9 +202,9 @@ fn update_master_interrupt(psx: &mut PSX) {
 
 /// A DMA transfer executor.
 #[derive(Default)]
-pub struct Executor(State);
+pub struct Dma(State);
 
-impl Executor {
+impl Dma {
     #[inline(always)]
     pub fn ongoing(&self) -> bool {
         !matches!(self.0, State::Idle)

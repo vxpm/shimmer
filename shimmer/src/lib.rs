@@ -95,14 +95,10 @@ pub struct Emulator {
     /// The state of the system.
     psx: PSX,
 
-    /// The GPU command interpreter.
-    gpu_interpreter: gpu::Interpreter,
-    /// The DMA executor.
-    dma_executor: dma::Executor,
-    /// The CDROM command interpreter.
-    cdrom_interpreter: cdrom::Interpreter,
-    /// The SIO0 interpreter.
-    sio0_interpreter: sio0::Interpreter,
+    gpu: gpu::Gpu,
+    dma_executor: dma::Dma,
+    cdrom_interpreter: cdrom::Cdrom,
+    sio0_interpreter: sio0::Sio0,
 }
 
 impl Emulator {
@@ -111,7 +107,7 @@ impl Emulator {
         config: Config,
         renderer: impl gpu::interface::Renderer + 'static,
     ) -> Result<Self, EmulatorError> {
-        let gpu_interpreter = gpu::Interpreter::new(renderer);
+        let gpu_interpreter = gpu::Gpu::new(renderer);
         let loggers = Loggers::new(config.logger);
 
         let rom = config
@@ -135,10 +131,10 @@ impl Emulator {
 
                 loggers,
             },
-            dma_executor: dma::Executor::default(),
-            gpu_interpreter,
-            cdrom_interpreter: cdrom::Interpreter::default(),
-            sio0_interpreter: sio0::Interpreter::default(),
+            dma_executor: dma::Dma::default(),
+            gpu: gpu_interpreter,
+            cdrom_interpreter: cdrom::Cdrom::default(),
+            sio0_interpreter: sio0::Sio0::default(),
         })
     }
 
@@ -184,7 +180,7 @@ impl Emulator {
                         self.psx.scheduler.schedule(Event::Cpu, cycles);
                     }
                     Event::VBlank => {
-                        self.gpu_interpreter.vblank(&mut self.psx);
+                        self.gpu.vblank(&mut self.psx);
                     }
                     Event::Timer1 => {
                         let cycles = self.psx.timers.timer1.tick();
@@ -195,7 +191,7 @@ impl Emulator {
                         self.psx.scheduler.schedule(Event::Timer2, cycles);
                     }
                     Event::Gpu => {
-                        self.gpu_interpreter.exec_queued(&mut self.psx);
+                        self.gpu.exec_queued(&mut self.psx);
                     }
                     Event::DmaUpdate => {
                         self.dma_executor.update(&mut self.psx);

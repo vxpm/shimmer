@@ -19,7 +19,7 @@ use shimmer_core::{
     },
     interrupts::Interrupt,
 };
-use tinylog::{debug, info, trace};
+use tinylog::{debug, trace};
 
 /// The state of the interpreter.
 #[derive(Debug, Clone, Default)]
@@ -38,12 +38,12 @@ enum State {
 }
 
 /// A GPU packet interpreter.
-pub struct Interpreter {
+pub struct Gpu {
     inner: State,
     renderer: Box<dyn Renderer>,
 }
 
-impl Interpreter {
+impl Gpu {
     pub fn new(renderer: impl Renderer + 'static) -> Self {
         Self {
             inner: State::default(),
