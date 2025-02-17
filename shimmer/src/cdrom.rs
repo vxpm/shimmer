@@ -4,6 +4,7 @@ mod interrupt;
 
 use crate::{PSX, scheduler};
 use shimmer_core::{
+    CYCLES_MICROS, CYCLES_MILLIS, Cycles,
     cdrom::{Bank, Command, InterruptKind, Mode, Reg, RegWrite, Sector},
     interrupts::Interrupt,
 };
@@ -15,11 +16,11 @@ use tinylog::{debug, info, trace, warn};
 
 pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
 
-pub const COMPLETE_GETID_DELAY: u64 = 18_944;
-pub const COMPLETE_PAUSE_DELAY: u64 = 2_168_860;
-pub const COMPLETE_PAUSE_NOP_DELAY: u64 = 7_666;
-pub const READ_DELAY: u64 = 451_021;
-pub const SEEK_DELAY: u64 = 33_869;
+pub const COMPLETE_GETID_DELAY: Cycles = 559 * CYCLES_MICROS;
+pub const COMPLETE_PAUSE_DELAY: Cycles = 64 * CYCLES_MILLIS + 34 * CYCLES_MICROS;
+pub const COMPLETE_PAUSE_NOP_DELAY: Cycles = 232 * CYCLES_MICROS;
+pub const READ_DELAY: Cycles = 13 * CYCLES_MILLIS + 316 * CYCLES_MICROS;
+pub const SEEK_DELAY: Cycles = 1 * CYCLES_MILLIS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {

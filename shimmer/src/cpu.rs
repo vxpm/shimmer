@@ -7,10 +7,13 @@ mod jump_branch;
 mod load_store;
 
 use crate::PSX;
-use shimmer_core::cpu::{
-    Reg, RegLoad,
-    cop0::Exception,
-    instr::{Instruction, SpecialCoOpcode},
+use shimmer_core::{
+    Cycles,
+    cpu::{
+        Reg, RegLoad,
+        cop0::Exception,
+        instr::{Instruction, SpecialCoOpcode},
+    },
 };
 use shimmer_core::{
     cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
@@ -34,8 +37,8 @@ pub struct Interpreter {
     pending_load: Option<RegLoad>,
 }
 
-const DEFAULT_DELAY: u64 = 2;
-const MEMORY_OP_DELAY: u64 = 7;
+const DEFAULT_DELAY: Cycles = 2;
+const MEMORY_OP_DELAY: Cycles = 7;
 
 impl Interpreter {
     #[cold]

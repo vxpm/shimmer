@@ -1,5 +1,6 @@
 use crate::{PSX, scheduler};
 use shimmer_core::{
+    CYCLES_MICROS, Cycles,
     interrupts::Interrupt,
     sio0::{AnalogInput, DigitalInput},
 };
@@ -42,9 +43,9 @@ pub struct Sio0 {
     joypad: Joypad,
 }
 
-const TRANSFER_DELAY: u64 = 1500;
-const START_ACK_DELAY: u64 = 100;
-const END_ACK_DELAY: u64 = 50;
+const TRANSFER_DELAY: Cycles = 46 * CYCLES_MICROS;
+const START_ACK_DELAY: Cycles = 3 * CYCLES_MICROS;
+const END_ACK_DELAY: Cycles = 2 * CYCLES_MICROS;
 
 impl Sio0 {
     fn update_status(&mut self, psx: &mut PSX) {

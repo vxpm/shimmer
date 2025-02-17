@@ -19,4 +19,9 @@ pub mod timers;
 
 mod util;
 
+pub type Cycles = u64;
+pub const CYCLES_SECOND: Cycles = cpu::FREQUENCY as u64;
+pub const CYCLES_MILLIS: Cycles = CYCLES_SECOND / 1000;
+pub const CYCLES_MICROS: Cycles = CYCLES_MILLIS / 1000;
+
 pub use binrw;

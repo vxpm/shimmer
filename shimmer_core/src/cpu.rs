@@ -10,8 +10,6 @@ use strum::{EnumMessage, IntoStaticStr, VariantArray};
 
 /// The frequency of the CPU, in Hz.
 pub const FREQUENCY: u32 = 33_870_000;
-pub const CYCLES_1_MS: u32 = FREQUENCY / 1000;
-pub const CYCLES_1_US: u32 = CYCLES_1_MS / 1000;
 
 /// A CPU coprocessor kind.
 #[bitos(2)]
