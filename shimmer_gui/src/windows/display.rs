@@ -1,7 +1,7 @@
 use super::WindowUi;
 use crate::ExclusiveState;
 use eframe::{
-    egui::{self, Id, Pos2, Ui, Vec2, Widget, Window},
+    egui::{self, Id, Ui, Vec2, Window},
     egui_wgpu::{self, CallbackTrait},
 };
 use shimmer_wgpu::WgpuRenderer;

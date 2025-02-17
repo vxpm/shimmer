@@ -95,6 +95,7 @@ pub struct Emulator {
     /// The state of the system.
     psx: PSX,
 
+    cpu: cpu::Interpreter,
     gpu: gpu::Gpu,
     dma_executor: dma::Dma,
     cdrom_interpreter: cdrom::Cdrom,
@@ -107,7 +108,7 @@ impl Emulator {
         config: Config,
         renderer: impl gpu::interface::Renderer + 'static,
     ) -> Result<Self, EmulatorError> {
-        let gpu_interpreter = gpu::Gpu::new(renderer);
+        let gpu = gpu::Gpu::new(renderer);
         let loggers = Loggers::new(config.logger);
 
         let rom = config
@@ -131,8 +132,10 @@ impl Emulator {
 
                 loggers,
             },
+
+            cpu: cpu::Interpreter::default(),
             dma_executor: dma::Dma::default(),
-            gpu: gpu_interpreter,
+            gpu,
             cdrom_interpreter: cdrom::Cdrom::default(),
             sio0_interpreter: sio0::Sio0::default(),
         })
@@ -165,8 +168,6 @@ impl Emulator {
             while let Some(e) = self.psx.scheduler.pop() {
                 match e {
                     Event::Cpu => {
-                        // TODO: make CPU like gpu interpreter, dma executor, etc
-
                         // stall cpu while DMA is ongoing
                         if self.dma_executor.ongoing() {
                             cold_path();
@@ -174,9 +175,7 @@ impl Emulator {
                             continue;
                         }
 
-                        let mut interpreter = cpu::Interpreter::new(&mut self.psx);
-                        let cycles = interpreter.exec_next();
-
+                        let cycles = self.cpu.exec_next(&mut self.psx);
                         self.psx.scheduler.schedule(Event::Cpu, cycles);
                     }
                     Event::VBlank => {

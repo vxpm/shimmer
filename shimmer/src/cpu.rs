@@ -28,8 +28,8 @@ const EXCEPTION_VECTOR_KSEG1: Address = Address(0xBFC0_0180);
 /// An interpreter of the R3000 CPU. This struct does not have any persistent state and is mostly
 /// just convenience for the implementation. It is intended to be created whenever you want to
 /// execute an instruction.
-pub struct Interpreter<'ctx> {
-    psx: &'ctx mut PSX,
+#[derive(Default)]
+pub struct Interpreter {
     /// Address of the currently executing instruction.
     current_addr: Address,
     /// Value going to be loaded into a register after execution.
@@ -39,28 +39,19 @@ pub struct Interpreter<'ctx> {
 const DEFAULT_DELAY: u64 = 2;
 const MEMORY_OP_DELAY: u64 = 7;
 
-impl<'ctx> Interpreter<'ctx> {
-    #[inline(always)]
-    pub fn new(psx: &'ctx mut PSX) -> Self {
-        Self {
-            psx,
-            current_addr: Default::default(),
-            pending_load: None,
-        }
-    }
-
+impl Interpreter {
     #[cold]
     #[inline(never)]
-    fn sideload(&mut self) {
-        if let Some(exe) = &self.psx.memory.sideload {
-            self.psx.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
-            self.psx.cpu.regs.write_pc(exe.header.initial_pc.value());
-            self.psx.cpu.regs.write(Reg::GP, exe.header.initial_gp);
+    fn sideload(&mut self, psx: &mut PSX) {
+        if let Some(exe) = &psx.memory.sideload {
+            psx.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
+            psx.cpu.regs.write_pc(exe.header.initial_pc.value());
+            psx.cpu.regs.write(Reg::GP, exe.header.initial_gp);
 
             let destination_ram =
                 exe.header.destination.physical().unwrap().value() - Region::Ram.start().value();
 
-            self.psx.memory.ram[destination_ram as usize..][..exe.header.length as usize]
+            psx.memory.ram[destination_ram as usize..][..exe.header.length as usize]
                 .copy_from_slice(&exe.program);
 
             if exe.header.initial_sp_base != 0 {
@@ -68,30 +59,27 @@ impl<'ctx> Interpreter<'ctx> {
                     .header
                     .initial_sp_base
                     .wrapping_add(exe.header.initial_sp_offset);
-                self.psx.cpu.regs.write(Reg::SP, initial_sp);
+                psx.cpu.regs.write(Reg::SP, initial_sp);
             }
 
-            info!(self.psx.loggers.cpu, "sideloaded!");
+            info!(psx.loggers.cpu, "sideloaded!");
         }
 
         // write args
         let args = [c"auto", c"console", c"release"];
-        self.psx
-            .write::<_, true>(Address(0x1F80_0000), args.len() as u32)
+        psx.write::<_, true>(Address(0x1F80_0000), args.len() as u32)
             .unwrap();
 
         let mut offset = 0;
         for (index, arg) in args.iter().enumerate() {
-            self.psx
-                .write::<_, true>(
-                    Address(0x1F80_0004 + index as u32 * 4),
-                    0x1F80_0044 + offset,
-                )
-                .unwrap();
+            psx.write::<_, true>(
+                Address(0x1F80_0004 + index as u32 * 4),
+                0x1F80_0044 + offset,
+            )
+            .unwrap();
 
             for &byte in arg.to_bytes_with_nul() {
-                self.psx
-                    .write::<_, true>(Address(0x1F80_0044 + offset), byte)
+                psx.write::<_, true>(Address(0x1F80_0044 + offset), byte)
                     .unwrap();
                 offset += 1;
             }
@@ -100,12 +88,13 @@ impl<'ctx> Interpreter<'ctx> {
 
     fn trigger_exception_at(
         &mut self,
+        psx: &mut PSX,
         address: Address,
         delay_slot: Address,
         exception: Exception,
     ) {
         let in_branch_delay = address.value().wrapping_add(4) != delay_slot.value();
-        self.psx.cop0.regs.write(
+        psx.cop0.regs.write(
             Reg::COP0_EPC,
             if in_branch_delay {
                 address.value().wrapping_sub(4)
@@ -116,7 +105,7 @@ impl<'ctx> Interpreter<'ctx> {
 
         if exception != Exception::Interrupt {
             info!(
-                self.psx.loggers.cpu,
+                psx.loggers.cpu,
                 "triggered exception {:?} at {} (next would be: {})",
                 exception,
                 address,
@@ -125,7 +114,7 @@ impl<'ctx> Interpreter<'ctx> {
             );
         } else {
             trace!(
-                self.psx.loggers.cpu,
+                psx.loggers.cpu,
                 "triggered exception {:?} at {} (next would be: {})",
                 exception,
                 address,
@@ -135,14 +124,13 @@ impl<'ctx> Interpreter<'ctx> {
         }
 
         // flush pipeline
-        self.psx.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
+        psx.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
 
         // update sr
-        self.psx.cop0.regs.system_status_mut().start_exception();
+        psx.cop0.regs.system_status_mut().start_exception();
 
         // describe exception in cause
-        self.psx
-            .cop0
+        psx.cop0
             .regs
             .cause_mut()
             .set_exception(exception)
@@ -151,8 +139,7 @@ impl<'ctx> Interpreter<'ctx> {
         // jump to exception handler indicated by BEV in system status
         // NOTE: this always jumps to the general exception handler... although others are very
         // unlikely to be used
-        let exception_handler = if self
-            .psx
+        let exception_handler = if psx
             .cop0
             .regs
             .system_status()
@@ -163,15 +150,16 @@ impl<'ctx> Interpreter<'ctx> {
             EXCEPTION_VECTOR_KSEG0
         };
 
-        self.psx.cpu.regs.write_pc(exception_handler.value());
+        psx.cpu.regs.write_pc(exception_handler.value());
     }
 
     /// Trigger an exception. This method should only be used inside instruction methods - if
     /// triggering an exception somewhere else, use [`trigger_exception_at`].
-    fn trigger_exception(&mut self, exception: Exception) {
+    fn trigger_exception(&mut self, psx: &mut PSX, exception: Exception) {
         self.trigger_exception_at(
+            psx,
             self.current_addr,
-            self.psx.cpu.instr_delay_slot.1,
+            psx.cpu.instr_delay_slot.1,
             exception,
         );
     }
@@ -183,32 +171,31 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    fn check_interrupts(&mut self) -> bool {
-        let masked_interrupt_status = self.psx.interrupts.status.mask(&self.psx.interrupts.mask);
+    fn check_interrupts(&mut self, psx: &mut PSX) -> bool {
+        let masked_interrupt_status = psx.interrupts.status.mask(&psx.interrupts.mask);
         let requested_interrupt = masked_interrupt_status.requested();
 
-        self.psx
-            .cop0
+        psx.cop0
             .regs
             .cause_mut()
             .set_system_interrupt_pending(requested_interrupt.is_some());
 
         if let Some(requested_interrupt) = requested_interrupt {
             // must have SR.BIT10 == 1
-            let system_status = self.psx.cop0.regs.system_status();
+            let system_status = psx.cop0.regs.system_status();
             if !system_status.system_interrupts_enabled() {
                 return false;
             }
 
             if requested_interrupt != Interrupt::VBlank {
                 info!(
-                    self.psx.loggers.cpu,
+                    psx.loggers.cpu,
                     "triggered interrupt {:?} at {}",
-                    requested_interrupt, self.psx.cpu.instr_delay_slot.1;
+                    requested_interrupt, psx.cpu.instr_delay_slot.1;
                 );
             }
 
-            self.trigger_exception(Exception::Interrupt);
+            self.trigger_exception(psx, Exception::Interrupt);
 
             true
         } else {
@@ -216,52 +203,52 @@ impl<'ctx> Interpreter<'ctx> {
         }
     }
 
-    fn exec(&mut self, instr: Instruction) -> u64 {
+    fn exec(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
         if let Some(op) = instr.op() {
             match op {
-                Opcode::LUI => self.lui(instr),
-                Opcode::ORI => self.ori(instr),
-                Opcode::SW => self.sw(instr),
-                Opcode::ADDIU => self.addiu(instr),
-                Opcode::JMP => self.jmp(instr),
-                Opcode::BNE => self.bne(instr),
-                Opcode::ADDI => self.addi(instr),
-                Opcode::LW => self.lw(instr),
-                Opcode::SH => self.sh(instr),
-                Opcode::JAL => self.jal(instr),
-                Opcode::ANDI => self.andi(instr),
-                Opcode::SB => self.sb(instr),
-                Opcode::LB => self.lb(instr),
-                Opcode::BEQ => self.beq(instr),
-                Opcode::BGTZ => self.bgtz(instr),
-                Opcode::BLEZ => self.blez(instr),
-                Opcode::LBU => self.lbu(instr),
-                Opcode::BZ => self.bz(instr),
-                Opcode::SLTI => self.slti(instr),
-                Opcode::SLTIU => self.sltiu(instr),
-                Opcode::LHU => self.lhu(instr),
-                Opcode::LH => self.lh(instr),
-                Opcode::LWL => self.lwl(instr),
-                Opcode::LWR => self.lwr(instr),
-                Opcode::SWL => self.swl(instr),
-                Opcode::SWR => self.swr(instr),
-                Opcode::XORI => self.xori(instr),
+                Opcode::LUI => self.lui(psx, instr),
+                Opcode::ORI => self.ori(psx, instr),
+                Opcode::SW => self.sw(psx, instr),
+                Opcode::ADDIU => self.addiu(psx, instr),
+                Opcode::JMP => self.jmp(psx, instr),
+                Opcode::BNE => self.bne(psx, instr),
+                Opcode::ADDI => self.addi(psx, instr),
+                Opcode::LW => self.lw(psx, instr),
+                Opcode::SH => self.sh(psx, instr),
+                Opcode::JAL => self.jal(psx, instr),
+                Opcode::ANDI => self.andi(psx, instr),
+                Opcode::SB => self.sb(psx, instr),
+                Opcode::LB => self.lb(psx, instr),
+                Opcode::BEQ => self.beq(psx, instr),
+                Opcode::BGTZ => self.bgtz(psx, instr),
+                Opcode::BLEZ => self.blez(psx, instr),
+                Opcode::LBU => self.lbu(psx, instr),
+                Opcode::BZ => self.bz(psx, instr),
+                Opcode::SLTI => self.slti(psx, instr),
+                Opcode::SLTIU => self.sltiu(psx, instr),
+                Opcode::LHU => self.lhu(psx, instr),
+                Opcode::LH => self.lh(psx, instr),
+                Opcode::LWL => self.lwl(psx, instr),
+                Opcode::LWR => self.lwr(psx, instr),
+                Opcode::SWL => self.swl(psx, instr),
+                Opcode::SWR => self.swr(psx, instr),
+                Opcode::XORI => self.xori(psx, instr),
                 Opcode::COP2 => {
-                    warn!(self.psx.loggers.cpu, "ignoring GTE instruction");
+                    warn!(psx.loggers.cpu, "ignoring GTE instruction");
                     DEFAULT_DELAY
                 }
                 Opcode::COP0 | Opcode::COP1 | Opcode::COP3 => {
                     if let Some(op) = instr.cop_op() {
                         match op {
-                            CoOpcode::MFC => self.mfc(instr),
+                            CoOpcode::MFC => self.mfc(psx, instr),
                             CoOpcode::CFC => todo!(),
-                            CoOpcode::MTC => self.mtc(instr),
+                            CoOpcode::MTC => self.mtc(psx, instr),
                             CoOpcode::CTC => todo!("{:?}", instr.cop()),
                             CoOpcode::BRANCH => todo!(),
                             CoOpcode::SPECIAL => {
                                 if let Some(op) = instr.cop_special_op() {
                                     match op {
-                                        SpecialCoOpcode::RFE => self.rfe(instr),
+                                        SpecialCoOpcode::RFE => self.rfe(psx, instr),
                                     }
                                 } else {
                                     DEFAULT_DELAY
@@ -272,70 +259,70 @@ impl<'ctx> Interpreter<'ctx> {
                         DEFAULT_DELAY
                     }
                 }
-                Opcode::SWC0 | Opcode::SWC1 | Opcode::SWC2 | Opcode::SWC3 => self.swc(instr),
+                Opcode::SWC0 | Opcode::SWC1 | Opcode::SWC2 | Opcode::SWC3 => self.swc(psx, instr),
                 Opcode::SPECIAL => {
                     if let Some(op) = instr.special_op() {
                         match op {
-                            SpecialOpcode::SLL => self.sll(instr),
-                            SpecialOpcode::OR => self.or(instr),
-                            SpecialOpcode::SLTU => self.sltu(instr),
-                            SpecialOpcode::ADDU => self.addu(instr),
-                            SpecialOpcode::JR => self.jr(instr),
-                            SpecialOpcode::JALR => self.jalr(instr),
-                            SpecialOpcode::SRL => self.srl(instr),
-                            SpecialOpcode::AND => self.and(instr),
-                            SpecialOpcode::ADD => self.add(instr),
-                            SpecialOpcode::SUBU => self.subu(instr),
-                            SpecialOpcode::SRA => self.sra(instr),
-                            SpecialOpcode::DIV => self.div(instr),
-                            SpecialOpcode::MFLO => self.mflo(instr),
-                            SpecialOpcode::SYSCALL => self.syscall(instr),
-                            SpecialOpcode::MFHI => self.mfhi(instr),
-                            SpecialOpcode::MTLO => self.mtlo(instr),
-                            SpecialOpcode::MTHI => self.mthi(instr),
-                            SpecialOpcode::SLT => self.slt(instr),
-                            SpecialOpcode::DIVU => self.divu(instr),
-                            SpecialOpcode::SLLV => self.sllv(instr),
-                            SpecialOpcode::NOR => self.nor(instr),
-                            SpecialOpcode::SRAV => self.srav(instr),
-                            SpecialOpcode::SRLV => self.srlv(instr),
-                            SpecialOpcode::MULTU => self.multu(instr),
-                            SpecialOpcode::XOR => self.xor(instr),
-                            SpecialOpcode::MULT => self.mult(instr),
-                            SpecialOpcode::SUB => self.sub(instr),
-                            SpecialOpcode::BREAK => self.breakpoint(instr),
+                            SpecialOpcode::SLL => self.sll(psx, instr),
+                            SpecialOpcode::OR => self.or(psx, instr),
+                            SpecialOpcode::SLTU => self.sltu(psx, instr),
+                            SpecialOpcode::ADDU => self.addu(psx, instr),
+                            SpecialOpcode::JR => self.jr(psx, instr),
+                            SpecialOpcode::JALR => self.jalr(psx, instr),
+                            SpecialOpcode::SRL => self.srl(psx, instr),
+                            SpecialOpcode::AND => self.and(psx, instr),
+                            SpecialOpcode::ADD => self.add(psx, instr),
+                            SpecialOpcode::SUBU => self.subu(psx, instr),
+                            SpecialOpcode::SRA => self.sra(psx, instr),
+                            SpecialOpcode::DIV => self.div(psx, instr),
+                            SpecialOpcode::MFLO => self.mflo(psx, instr),
+                            SpecialOpcode::SYSCALL => self.syscall(psx, instr),
+                            SpecialOpcode::MFHI => self.mfhi(psx, instr),
+                            SpecialOpcode::MTLO => self.mtlo(psx, instr),
+                            SpecialOpcode::MTHI => self.mthi(psx, instr),
+                            SpecialOpcode::SLT => self.slt(psx, instr),
+                            SpecialOpcode::DIVU => self.divu(psx, instr),
+                            SpecialOpcode::SLLV => self.sllv(psx, instr),
+                            SpecialOpcode::NOR => self.nor(psx, instr),
+                            SpecialOpcode::SRAV => self.srav(psx, instr),
+                            SpecialOpcode::SRLV => self.srlv(psx, instr),
+                            SpecialOpcode::MULTU => self.multu(psx, instr),
+                            SpecialOpcode::XOR => self.xor(psx, instr),
+                            SpecialOpcode::MULT => self.mult(psx, instr),
+                            SpecialOpcode::SUB => self.sub(psx, instr),
+                            SpecialOpcode::BREAK => self.breakpoint(psx, instr),
                         }
                     } else {
-                        error!(self.psx.loggers.cpu, "illegal special op");
+                        error!(psx.loggers.cpu, "illegal special op");
                         DEFAULT_DELAY
                     }
                 }
                 _ => {
-                    error!(self.psx.loggers.cpu, "can't execute op {op:?}");
+                    error!(psx.loggers.cpu, "can't execute op {op:?}");
                     DEFAULT_DELAY
                 }
             }
         } else {
-            error!(self.psx.loggers.cpu, "illegal op");
+            error!(psx.loggers.cpu, "illegal op");
             DEFAULT_DELAY
         }
     }
 
-    fn log_kernel_calls(&mut self) {
+    fn log_kernel_calls(&mut self, psx: &mut PSX) {
         let func = match self.current_addr.value() {
             0xA0 => {
                 cold_path();
-                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
+                let code = psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::a0(code)
             }
             0xB0 => {
                 cold_path();
-                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
+                let code = psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::b0(code)
             }
             0xC0 => {
                 cold_path();
-                let code = self.psx.cpu.regs.read(Reg::R9) as u8;
+                let code = psx.cpu.regs.read(Reg::R9) as u8;
                 kernel::Function::c0(code)
             }
             _ => return,
@@ -343,13 +330,13 @@ impl<'ctx> Interpreter<'ctx> {
 
         if let Some(func) = func {
             if func == kernel::Function::PutChar {
-                let char = self.psx.cpu.regs.read(Reg::A0);
+                let char = psx.cpu.regs.read(Reg::A0);
                 if let Ok(char) = char::try_from(char) {
                     print!("{char}");
                     if char == '\r' {
-                        self.psx.memory.kernel_stdout.push('\n');
+                        psx.memory.kernel_stdout.push('\n');
                     } else {
-                        self.psx.memory.kernel_stdout.push(char);
+                        psx.memory.kernel_stdout.push(char);
                     }
                 }
 
@@ -368,21 +355,18 @@ impl<'ctx> Interpreter<'ctx> {
 
             let args = match func.args() {
                 0 => vec![],
-                1 => vec![self.psx.cpu.regs.read(Reg::A0)],
-                2 => vec![
-                    self.psx.cpu.regs.read(Reg::A0),
-                    self.psx.cpu.regs.read(Reg::A1),
-                ],
+                1 => vec![psx.cpu.regs.read(Reg::A0)],
+                2 => vec![psx.cpu.regs.read(Reg::A0), psx.cpu.regs.read(Reg::A1)],
                 3 => vec![
-                    self.psx.cpu.regs.read(Reg::A0),
-                    self.psx.cpu.regs.read(Reg::A1),
-                    self.psx.cpu.regs.read(Reg::A2),
+                    psx.cpu.regs.read(Reg::A0),
+                    psx.cpu.regs.read(Reg::A1),
+                    psx.cpu.regs.read(Reg::A2),
                 ],
                 _ => vec![
-                    self.psx.cpu.regs.read(Reg::A0),
-                    self.psx.cpu.regs.read(Reg::A1),
-                    self.psx.cpu.regs.read(Reg::A2),
-                    self.psx.cpu.regs.read(Reg::A3),
+                    psx.cpu.regs.read(Reg::A0),
+                    psx.cpu.regs.read(Reg::A1),
+                    psx.cpu.regs.read(Reg::A2),
+                    psx.cpu.regs.read(Reg::A3),
                 ],
             };
 
@@ -393,70 +377,70 @@ impl<'ctx> Interpreter<'ctx> {
                 .join(", ");
 
             debug!(
-                self.psx.loggers.kernel,
+                psx.loggers.kernel,
                 "executed kernel function {func:?}({args})"
             );
         } else {
-            let code = self.psx.cpu.regs.read(Reg::R9) as u8;
+            let code = psx.cpu.regs.read(Reg::R9) as u8;
             warn!(
-                self.psx.loggers.kernel,
+                psx.loggers.kernel,
                 "executed unknown kernel function 0x{:02X} at {}", code, self.current_addr
             );
         }
     }
 
     /// Executes the next instruction and returns how many cycles it takes to complete.
-    pub fn exec_next(&mut self) -> u64 {
-        if self.psx.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
+    pub fn exec_next(&mut self, psx: &mut PSX) -> u64 {
+        if psx.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
             cold_path();
-            self.sideload();
+            self.sideload(psx);
         }
 
-        let pc = Address(self.psx.cpu.regs.read_pc());
-        let Ok(fetched) = self.psx.read::<_, true>(pc) else {
-            if let Some(load) = self.psx.cpu.load_delay_slot.take() {
-                self.psx.cpu.regs.write(load.reg, load.value);
+        let pc = Address(psx.cpu.regs.read_pc());
+        let Ok(fetched) = psx.read::<_, true>(pc) else {
+            if let Some(load) = psx.cpu.load_delay_slot.take() {
+                psx.cpu.regs.write(load.reg, load.value);
             }
-            if let Some(load) = self.psx.cop0.load_delay_slot.take() {
-                self.psx.cop0.regs.write(load.reg, load.value);
+            if let Some(load) = psx.cop0.load_delay_slot.take() {
+                psx.cop0.regs.write(load.reg, load.value);
             }
 
             self.trigger_exception_at(
-                self.psx.cpu.instr_delay_slot.1,
-                self.psx.cpu.regs.read_pc().into(),
+                psx,
+                psx.cpu.instr_delay_slot.1,
+                psx.cpu.regs.read_pc().into(),
                 Exception::AddressErrorLoad,
             );
             return DEFAULT_DELAY;
         };
 
         let (current_instr, current_addr) = std::mem::replace(
-            &mut self.psx.cpu.instr_delay_slot,
+            &mut psx.cpu.instr_delay_slot,
             (Instruction::from_bits(fetched), pc),
         );
 
         self.current_addr = current_addr;
-        self.psx
-            .cpu
+        psx.cpu
             .regs
-            .write_pc(self.psx.cpu.regs.read_pc().wrapping_add(4));
+            .write_pc(psx.cpu.regs.read_pc().wrapping_add(4));
 
-        self.log_kernel_calls();
+        self.log_kernel_calls(psx);
 
-        self.pending_load = self.psx.cpu.load_delay_slot.take();
-        let pending_load_cop0 = self.psx.cop0.load_delay_slot.take();
+        self.pending_load = psx.cpu.load_delay_slot.take();
+        let pending_load_cop0 = psx.cop0.load_delay_slot.take();
 
-        let cycles = if !self.check_interrupts() {
-            self.exec(current_instr)
+        let cycles = if !self.check_interrupts(psx) {
+            self.exec(psx, current_instr)
         } else {
             DEFAULT_DELAY
         };
 
         if let Some(load) = self.pending_load {
-            self.psx.cpu.regs.write(load.reg, load.value);
+            psx.cpu.regs.write(load.reg, load.value);
         }
 
         if let Some(load) = pending_load_cop0 {
-            self.psx.cop0.regs.write(load.reg, load.value);
+            psx.cop0.regs.write(load.reg, load.value);
         }
 
         if let Some(physical) = pc.physical()
@@ -465,8 +449,9 @@ impl<'ctx> Interpreter<'ctx> {
                 || physical == io::Reg::InterruptMask.address())
         {
             self.trigger_exception_at(
-                self.psx.cpu.instr_delay_slot.1,
-                self.psx.cpu.regs.read_pc().into(),
+                psx,
+                psx.cpu.instr_delay_slot.1,
+                psx.cpu.regs.read_pc().into(),
                 Exception::BusErrorInstruction,
             );
             return DEFAULT_DELAY;
