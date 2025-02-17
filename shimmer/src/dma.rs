@@ -166,19 +166,19 @@ impl LinkedTransfer {
         let next = node.bits(0, 24);
         let words = node.bits(24, 32);
 
+        for i in 0..words {
+            let addr = current_addr + (i + 1) * 4;
+            let word = psx.read::<u32, true>(Address(addr)).unwrap();
+            psx.gpu.render_queue.push_back(word);
+        }
+
+        psx.dma.channels[self.channel as usize]
+            .base
+            .set_addr(u24::new(next));
+
         if next == 0x00FF_FFFF {
             Progress::Finished
         } else {
-            for i in 0..words {
-                let addr = current_addr + (i + 1) * 4;
-                let word = psx.read::<u32, true>(Address(addr)).unwrap();
-                psx.gpu.render_queue.push_back(word);
-            }
-
-            psx.dma.channels[self.channel as usize]
-                .base
-                .set_addr(u24::new(next & !0b11));
-
             Progress::Yielded
         }
     }

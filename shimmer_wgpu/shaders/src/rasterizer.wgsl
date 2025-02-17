@@ -10,7 +10,7 @@ struct Config {
 
 fn drawing_area_contains(coords: vec2u) -> bool {
     let relative = coords - config.drawing_area_top_left;
-    return all((relative > vec2u(0)) && (relative < config.drawing_area_dimensions));
+    return all((relative >= vec2u(0)) && (relative <= config.drawing_area_dimensions));
 } 
 
 @group(0) @binding(0)

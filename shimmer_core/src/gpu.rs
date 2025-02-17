@@ -154,7 +154,7 @@ impl Status {
     pub fn update_dreq(&mut self) {
         let dir = self.dma_direction();
         match dir {
-            DmaDirection::Off => self.set_dma_request(true),
+            DmaDirection::Off => self.set_dma_request(false),
             DmaDirection::Fifo => self.set_dma_request(true),
             DmaDirection::CpuToGp0 => self.set_dma_request(self.ready_to_receive_block()),
             DmaDirection::GpuToCpu => self.set_dma_request(self.ready_to_send_vram()),

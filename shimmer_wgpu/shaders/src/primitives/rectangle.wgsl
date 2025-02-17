@@ -11,12 +11,8 @@ struct Rectangle {
 }
 
 fn rectangle_contains(rect: Rectangle, point: vec2u) -> bool {
-    let spoint = vec2i(point);
-    let sdimensions = vec2i(rect.dimensions);
-    let horizontal = (rect.top_left.x <= spoint.x) && (spoint.x < rect.top_left.x + sdimensions.x);
-    let vertical = (rect.top_left.y <= spoint.y) && (spoint.y < rect.top_left.y + sdimensions.y);
-
-    return horizontal && vertical;
+    let relative = vec2i(point) - rect.top_left;
+    return all(relative >= vec2i(0) && relative < vec2i(rect.dimensions));
 }
 
 fn rectangle_uv(rectangle: Rectangle, point: vec2u) -> vec2u {
