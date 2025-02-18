@@ -50,6 +50,7 @@ struct Controls {
 /// State of the application.
 struct State {
     emulator: Emulator,
+    emulator_config: shimmer::Config,
     renderer: WgpuRenderer,
     timing: Timing,
     controls: Controls,
@@ -92,7 +93,7 @@ impl State {
             logger: root_logger,
         };
 
-        let mut emulator = Emulator::new(emulator_config, renderer.clone()).unwrap();
+        let mut emulator = Emulator::new(emulator_config.clone(), renderer.clone()).unwrap();
         if let Some(path) = config.sideload_exe_path {
             use shimmer::core::binrw::BinReaderExt;
             let exe = std::fs::read(path).expect("should be a valid sideload exe path");
@@ -102,6 +103,7 @@ impl State {
 
         Self {
             emulator,
+            emulator_config,
             renderer,
             timing: Timing {
                 running_timer: Timer::new(),
@@ -187,18 +189,21 @@ impl App {
             unparker,
 
             windows,
-            file_dialog: FileDialog::new().as_modal(true),
+            file_dialog: FileDialog::new()
+                .as_modal(true)
+                .default_pos(cc.egui_ctx.screen_rect().right_bottom() / 2.0),
         }
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let mut reset = false;
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
-                    if ui.button("Open game directory").clicked() {
-                        self.file_dialog.pick_directory();
+                    if ui.button("Open .bin (MODE2/2352)").clicked() {
+                        self.file_dialog.pick_file();
                     }
                 });
 
@@ -206,6 +211,10 @@ impl eframe::App for App {
 
                 if ui.button("Organize").clicked() {
                     ui.ctx().memory_mut(|mem| mem.reset_areas());
+                }
+
+                if ui.button("Reset").clicked() {
+                    reset = true;
                 }
 
                 ui.separator();
@@ -221,10 +230,20 @@ impl eframe::App for App {
         let mut state = self.state.lock();
         let state = &mut *state;
 
+        if reset {
+            state.emulator =
+                Emulator::new(state.emulator_config.clone(), state.renderer.clone()).unwrap();
+        }
+
         egui::CentralPanel::default()
             // .frame(Frame::canvas(&Style::default()))
             .show(ctx, |ui| {
                 self.file_dialog.update(ctx);
+                if let Some(path) = self.file_dialog.take_picked() {
+                    let file = std::fs::File::open(path).unwrap();
+                    state.emulator.cdrom_mut().insert_rom(file);
+                }
+
                 self.windows.retain_mut(|window| {
                     let response = window.show(state, ui);
                     response.is_some()

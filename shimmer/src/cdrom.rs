@@ -12,7 +12,7 @@ use std::{
     collections::VecDeque,
     io::{Read, Seek},
 };
-use tinylog::{debug, info, trace, warn};
+use tinylog::{debug, error, info, trace, warn};
 
 pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
 
@@ -22,6 +22,9 @@ pub const COMPLETE_PAUSE_NOP_DELAY: Cycles = 232 * CYCLES_MICROS;
 pub const READ_DELAY: Cycles = 13 * CYCLES_MILLIS + 316 * CYCLES_MICROS;
 pub const SEEK_DELAY: Cycles = 1 * CYCLES_MILLIS;
 
+pub trait Rom: std::fmt::Debug + std::io::Read + std::io::Seek + Send {}
+impl<T> Rom for T where T: std::fmt::Debug + std::io::Read + std::io::Seek + Send {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
     Update,
@@ -30,13 +33,22 @@ pub enum Event {
     Read,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct Cdrom {
+    rom: Option<Box<dyn Rom>>,
     command_queue: VecDeque<u8>,
     interrupt_queue: VecDeque<InterruptKind>,
 }
 
 impl Cdrom {
+    pub fn new(rom: Option<Box<dyn Rom>>) -> Self {
+        Self {
+            rom,
+            command_queue: VecDeque::new(),
+            interrupt_queue: VecDeque::new(),
+        }
+    }
+
     fn next_interrupt(&mut self, psx: &mut PSX) {
         if psx.cdrom.interrupt_status.kind() == InterruptKind::None
             && let Some(kind) = self.interrupt_queue.pop_front()
@@ -45,7 +57,19 @@ impl Cdrom {
         }
     }
 
+    pub fn insert_rom<R>(&mut self, rom: R)
+    where
+        R: Rom + 'static,
+    {
+        self.rom = Some(Box::new(rom))
+    }
+
+    pub fn remove_rom(&mut self) {
+        self.rom = None;
+    }
+
     pub fn update(&mut self, psx: &mut PSX, event: Event) {
+        psx.cdrom.status.set_shell_open(self.rom.is_none());
         psx.cdrom.update_status();
 
         match event {
@@ -186,32 +210,33 @@ impl Cdrom {
                     return;
                 }
 
-                let mut rom = psx.cdrom.rom.as_ref().unwrap();
-                let size = psx.cdrom.mode.sector_size().value();
-                let offset = psx.cdrom.mode.sector_size().offset();
+                if let Some(rom) = &mut self.rom {
+                    info!(psx.loggers.cdrom, "read from sector {}", psx.cdrom.location);
+                    let size = psx.cdrom.mode.sector_size().value();
+                    let offset = psx.cdrom.mode.sector_size().offset();
 
-                info!(psx.loggers.cdrom, "read from secotr {}", psx.cdrom.location);
+                    if let Some(index) = psx.cdrom.location.index() {
+                        let mut buf = vec![0; size];
+                        let start_byte = index * 0x930;
+                        rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
+                            .unwrap();
+                        rom.read_exact(&mut buf).unwrap();
 
-                if let Some(index) = psx.cdrom.location.index() {
-                    let mut buf = vec![0; size];
-                    let start_byte = index * 0x930;
-                    rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
-                        .unwrap();
-                    rom.read_exact(&mut buf).unwrap();
+                        psx.cdrom.sector_data = VecDeque::from(buf);
+                    } else {
+                        error!(psx.loggers.cdrom, "reading from pregap");
+                        psx.cdrom.sector_data = VecDeque::from(vec![0; size]);
+                    }
 
-                    psx.cdrom.sector_data = VecDeque::from(buf);
-                } else {
-                    psx.cdrom.sector_data = VecDeque::from(vec![0; size]);
+                    psx.cdrom.location.advance();
+                    psx.scheduler.schedule(
+                        scheduler::Event::Cdrom(Event::Read),
+                        READ_DELAY / psx.cdrom.mode.speed().factor(),
+                    );
+
+                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                    self.interrupt_queue.push_back(InterruptKind::DataReady);
                 }
-
-                psx.cdrom.location.advance();
-                psx.scheduler.schedule(
-                    scheduler::Event::Cdrom(Event::Read),
-                    READ_DELAY / psx.cdrom.mode.speed().factor(),
-                );
-
-                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                self.interrupt_queue.push_back(InterruptKind::DataReady);
             }
         }
 

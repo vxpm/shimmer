@@ -1,5 +1,5 @@
 use bitos::{bitos, integer::u3};
-use std::{collections::VecDeque, fmt::Display, fs::File};
+use std::{collections::VecDeque, fmt::Display};
 use strum::FromRepr;
 use tinylog::{Logger, trace};
 
@@ -342,16 +342,13 @@ pub struct Cdrom {
     pub result_queue: VecDeque<u8>,
     pub sector_data: VecDeque<u8>,
 
-    pub rom: Option<File>,
     pub logger: Logger,
 }
 
 impl Cdrom {
-    pub fn new(rom: Option<File>, logger: Logger) -> Self {
+    pub fn new(logger: Logger) -> Self {
         Self {
-            status: Status::default()
-                .with_shell_open(rom.is_none())
-                .with_motor_on(true),
+            status: Status::default().with_shell_open(true).with_motor_on(true),
             command_status: Default::default(),
             interrupt_status: Default::default(),
             interrupt_mask: Default::default(),
@@ -365,7 +362,6 @@ impl Cdrom {
             result_queue: Default::default(),
             sector_data: Default::default(),
 
-            rom,
             logger,
         }
     }

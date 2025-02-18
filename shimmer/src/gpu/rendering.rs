@@ -149,7 +149,6 @@ impl Gpu {
             texconfig,
         };
 
-        debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
         self.renderer.exec(Command::Draw {
             primitive: Primitive::Triangle(triangle),
         });
@@ -161,7 +160,6 @@ impl Gpu {
                 texconfig,
             };
 
-            debug!(psx.loggers.gpu, "drawing triangle"; triangle = triangle);
             self.renderer.exec(Command::Draw {
                 primitive: Primitive::Triangle(triangle),
             });

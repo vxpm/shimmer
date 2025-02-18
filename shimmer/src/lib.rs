@@ -18,6 +18,7 @@ pub mod gpu;
 pub mod scheduler;
 pub mod sio0;
 
+use cdrom::Rom;
 use easyerr::{Error, ResultExt};
 use scheduler::{Event, Scheduler};
 use shimmer_core::{
@@ -82,6 +83,7 @@ pub struct PSX {
 }
 
 /// Emulator configuration.
+#[derive(Debug, Clone)]
 pub struct Config {
     /// The BIOS ROM data.
     pub bios: Vec<u8>,
@@ -134,7 +136,7 @@ impl Emulator {
                 cop0: Cop0::default(),
                 interrupts: InterruptController::default(),
                 gpu: Gpu::default(),
-                cdrom: Cdrom::new(rom, loggers.cdrom.clone()),
+                cdrom: Cdrom::new(loggers.cdrom.clone()),
                 sio0: Sio0::default(),
 
                 loggers,
@@ -143,7 +145,10 @@ impl Emulator {
             cpu: cpu::Interpreter::default(),
             dma: dma::Dma::default(),
             gpu,
-            cdrom: cdrom::Cdrom::default(),
+            cdrom: cdrom::Cdrom::new(rom.map(|r| {
+                let boxed: Box<dyn Rom> = Box::new(r);
+                boxed
+            })),
             sio0: sio0::Sio0::default(),
         })
     }
@@ -162,6 +167,10 @@ impl Emulator {
 
     pub fn joypad_mut(&mut self) -> &mut Joypad {
         self.sio0.joypad_mut()
+    }
+
+    pub fn cdrom_mut(&mut self) -> &mut cdrom::Cdrom {
+        &mut self.cdrom
     }
 
     pub fn cycle_for(&mut self, cycles: u64) {
