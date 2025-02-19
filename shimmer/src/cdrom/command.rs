@@ -33,7 +33,8 @@ impl Cdrom {
             | Command::ReadS
             | Command::Pause
             | Command::SeekL
-            | Command::SetFilter => ACK_DEFAULT_DELAY,
+            | Command::SetFilter
+            | Command::GetLocationP => ACK_DEFAULT_DELAY,
             Command::Init => ACK_INIT_DELAY,
             _ => todo!("schedule {cmd:?}"),
         };

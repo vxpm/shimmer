@@ -144,7 +144,7 @@ impl Cdrom {
                         sched_complete(psx, delay);
                     }
                     Command::SeekL => {
-                        assert!(!psx.cdrom.status.read());
+                        psx.cdrom.status.set_read(false);
                         psx.cdrom.status.set_seek(true);
                         sched_complete(psx, SEEK_DELAY);
                     }
@@ -168,6 +168,21 @@ impl Cdrom {
                         let file = psx.cdrom.parameter_queue.pop_front().unwrap();
                         let channel = psx.cdrom.parameter_queue.pop_front().unwrap();
                         info!(psx.loggers.cdrom, "set filter"; file = file, channel = channel);
+                    }
+                    Command::GetLocationP => {
+                        let encode_bcd = |value: u8| 10 * (value / 10) + (value % 10);
+                        psx.cdrom.result_queue.extend([
+                            0x01,
+                            0x01,
+                            encode_bcd(psx.cdrom.location.minutes()),
+                            encode_bcd(psx.cdrom.location.seconds()),
+                            encode_bcd(psx.cdrom.location.frames()),
+                            encode_bcd(psx.cdrom.location.minutes()),
+                            encode_bcd(psx.cdrom.location.seconds()),
+                            encode_bcd(psx.cdrom.location.frames()),
+                        ]);
+
+                        info!(psx.loggers.cdrom, "get location");
                     }
                     _ => todo!("ack {cmd:?}"),
                 }

@@ -311,6 +311,18 @@ impl Sector {
             self.minutes += 1;
         }
     }
+
+    pub fn minutes(&self) -> u8 {
+        self.minutes
+    }
+
+    pub fn seconds(&self) -> u8 {
+        self.seconds
+    }
+
+    pub fn frames(&self) -> u8 {
+        self.frames
+    }
 }
 
 impl Display for Sector {

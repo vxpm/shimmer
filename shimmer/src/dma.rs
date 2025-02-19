@@ -59,16 +59,12 @@ impl BurstTransfer {
                 }
             }
             Channel::CDROM => {
-                let data = if psx.cdrom.lock_data_queue {
-                    [0; 4]
-                } else {
-                    [
-                        psx.cdrom.read_from_sector(),
-                        psx.cdrom.read_from_sector(),
-                        psx.cdrom.read_from_sector(),
-                        psx.cdrom.read_from_sector(),
-                    ]
-                };
+                let data = [
+                    psx.cdrom.read_from_sector(),
+                    psx.cdrom.read_from_sector(),
+                    psx.cdrom.read_from_sector(),
+                    psx.cdrom.read_from_sector(),
+                ];
 
                 psx.write::<_, true>(Address(self.current_addr), u32::from_le_bytes(data))
                     .unwrap();
