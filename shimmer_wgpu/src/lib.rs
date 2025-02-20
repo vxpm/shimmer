@@ -104,6 +104,9 @@ impl Inner {
                 self.rasterizer.flush();
                 self.rasterizer.set_drawing_area(drawing_area);
             }
+            Command::SetDrawingSettings(settings) => {
+                self.rasterizer.set_drawing_settings(settings);
+            }
         }
     }
 }
@@ -150,12 +153,14 @@ impl WgpuRenderer {
     }
 
     pub fn render_display(&self, pass: &mut wgpu::RenderPass<'_>) {
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
+        // inner.rasterizer.flush();
         inner.display_renderer.render(pass);
     }
 
     pub fn render_vram(&self, pass: &mut wgpu::RenderPass<'_>) {
-        let inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap();
+        // inner.rasterizer.flush();
         inner.display_renderer.render_all(pass);
     }
 }

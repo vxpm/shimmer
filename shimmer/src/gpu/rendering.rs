@@ -15,7 +15,7 @@ use bitos::integer::{i11, u9, u10, u11};
 use shimmer_core::gpu::cmd::{
     EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
     rendering::{
-        CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
+        BlendingMode, CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
         VertexColorPacket, VertexPositionPacket, VertexUVPacket,
     },
 };
@@ -59,7 +59,7 @@ impl Gpu {
             },
             width: ((width & 0x3FF) + 0xF) & !0xF,
             height: height & 0x1FF,
-            blending: cmd.blending_mode(),
+            blending: BlendingMode::Opaque,
             texconfig: None,
         };
 

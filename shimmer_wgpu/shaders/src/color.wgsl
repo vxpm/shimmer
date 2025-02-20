@@ -23,6 +23,10 @@ fn rgb5m_to_rgba_norm(rgb5m: Rgb5m) -> RgbaNorm {
     return RgbaNorm(vec4f(vec3f(rgb5) / 32.0, 1.0));
 }
 
+fn rgb5m_mask(rgb5m: Rgb5m) -> bool {
+    return (rgb5m.value & 0x8000) > 0;
+}
+
 // A normalized RGBA color.
 struct RgbaNorm {
     value: vec4f,
