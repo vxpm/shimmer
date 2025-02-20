@@ -59,6 +59,7 @@ impl Gpu {
             texconfig: None,
         };
 
+        trace!(psx.loggers.gpu, "quick rect fill"; rect = rectangle);
         self.renderer.exec(Command::Draw {
             primitive: Primitive::Rectangle(rectangle),
         });
@@ -149,6 +150,7 @@ impl Gpu {
             texconfig,
         };
 
+        trace!(psx.loggers.gpu, "drawing triangle"; tri = triangle);
         self.renderer.exec(Command::Draw {
             primitive: Primitive::Triangle(triangle),
         });
@@ -160,6 +162,7 @@ impl Gpu {
                 texconfig,
             };
 
+            trace!(psx.loggers.gpu, "drawing triangle"; tri = triangle);
             self.renderer.exec(Command::Draw {
                 primitive: Primitive::Triangle(triangle),
             });

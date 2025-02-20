@@ -9,7 +9,7 @@ use shimmer::gpu::interface::{
     DrawingArea, Rectangle as InterfaceRectangle, Triangle as InterfaceTriangle,
 };
 use std::sync::Arc;
-use tinylog::{info, warn};
+use tinylog::{debug, info, trace, warn};
 use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
 
@@ -146,13 +146,15 @@ impl Rasterizer {
     }
 
     pub fn set_drawing_area(&mut self, area: DrawingArea) {
-        warn!(
+        trace!(
             self.ctx.logger(),
             "changed drawing area"; area = area
         );
 
-        self.config.drawing_area_coords =
-            UVec2::new(u32::from(area.coords.x.value()), u32::from(area.coords.y.value()));
+        self.config.drawing_area_coords = UVec2::new(
+            u32::from(area.coords.x.value()),
+            u32::from(area.coords.y.value()),
+        );
         self.config.drawing_area_dimensions = UVec2::new(
             u32::from(area.dimensions.width.value()),
             u32::from(area.dimensions.height.value()),
@@ -160,6 +162,11 @@ impl Rasterizer {
     }
 
     pub fn enqueue_triangle(&mut self, triangle: InterfaceTriangle) {
+        debug!(
+            self.ctx.logger(),
+            "enqueued triangle"; tri = triangle
+        );
+
         let triangle = data::Triangle::new(triangle);
         if let Some(sampling_region) = triangle.texconfig().sampling_region()
             && self.drawn_regions.is_dirty(sampling_region)
@@ -188,13 +195,18 @@ impl Rasterizer {
     }
 
     pub fn enqueue_rectangle(&mut self, rectangle: InterfaceRectangle) {
+        debug!(
+            self.ctx.logger(),
+            "enqueued rectangle"; rect = rectangle
+        );
+
         let rectangle = data::Rectangle::new(rectangle);
         if let Some(sampling_region) = rectangle.texconfig().sampling_region()
             && self.drawn_regions.is_dirty(sampling_region)
         {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty - flushing", sampling_region
+                "{:?} is dirty (sampling) - flushing", sampling_region
             );
             self.flush();
 

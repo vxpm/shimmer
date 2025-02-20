@@ -187,7 +187,7 @@ impl Gpu {
 
     /// Performs a VBlank.
     pub fn vblank(&mut self, psx: &mut PSX) {
-        trace!(psx.loggers.gpu, "== VBLANK =="; state = self.inner.clone());
+        trace!(psx.loggers.gpu, "== VBLANK ==");
         if psx.gpu.status.vertical_resolution() == VerticalResolution::R480 {
             psx.gpu
                 .status
