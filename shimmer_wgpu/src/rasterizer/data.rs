@@ -16,6 +16,8 @@ pub fn to_buffer<T: ShaderType + WriteInto>(value: &T) -> Vec<u8> {
 pub struct Config {
     pub drawing_area_coords: UVec2,
     pub drawing_area_dimensions: UVec2,
+
+    pub transparency_mode: u32,
 }
 
 #[derive(Debug, Clone, ShaderType)]
@@ -87,6 +89,7 @@ impl TexConfig {
 pub struct Triangle {
     vertices: [Vertex; 3],
     shading_mode: u32,
+    blending_mode: u32,
     texconfig: TexConfig,
 }
 
@@ -106,6 +109,7 @@ impl Triangle {
                 uv: UVec2::new(u32::from(v.u), u32::from(v.v)),
             }),
             shading_mode: triangle.shading as u32,
+            blending_mode: triangle.blending as u32,
             texconfig,
         };
 
@@ -138,10 +142,9 @@ impl Triangle {
 
 #[derive(Debug, Clone, ShaderType)]
 pub struct Rectangle {
-    top_left: IVec2,
-    top_left_uv: UVec2,
+    top_left: Vertex,
     dimensions: UVec2,
-    rgba: UVec4,
+    blending_mode: u32,
     texconfig: TexConfig,
 }
 
@@ -150,18 +153,24 @@ impl Rectangle {
         let texconfig = rectangle.texconfig.map(TexConfig::new).unwrap_or_default();
 
         Self {
-            top_left: IVec2::new(
-                i32::from(rectangle.x.value()),
-                i32::from(rectangle.y.value()),
-            ),
-            top_left_uv: UVec2::new(u32::from(rectangle.u), u32::from(rectangle.v)),
+            top_left: Vertex {
+                coords: IVec2::new(
+                    i32::from(rectangle.top_left.x.value()),
+                    i32::from(rectangle.top_left.y.value()),
+                ),
+                rgba: UVec4::new(
+                    u32::from(rectangle.top_left.color.r),
+                    u32::from(rectangle.top_left.color.g),
+                    u32::from(rectangle.top_left.color.b),
+                    255,
+                ),
+                uv: UVec2::new(
+                    u32::from(rectangle.top_left.u),
+                    u32::from(rectangle.top_left.v),
+                ),
+            },
             dimensions: UVec2::new(u32::from(rectangle.width), u32::from(rectangle.height)),
-            rgba: UVec4::new(
-                u32::from(rectangle.color.r),
-                u32::from(rectangle.color.g),
-                u32::from(rectangle.color.b),
-                255,
-            ),
+            blending_mode: rectangle.blending as u32,
             texconfig,
         }
     }
@@ -169,8 +178,8 @@ impl Rectangle {
     pub fn bounding_region(&self) -> Region {
         Region::new(
             (
-                self.top_left.x.clamp(0, i32::from(VRAM_WIDTH)) as u16,
-                self.top_left.y.clamp(0, i32::from(VRAM_WIDTH)) as u16,
+                self.top_left.coords.x.clamp(0, i32::from(VRAM_WIDTH)) as u16,
+                self.top_left.coords.y.clamp(0, i32::from(VRAM_WIDTH)) as u16,
             ),
             (self.dimensions.x as u16, self.dimensions.y as u16),
         )

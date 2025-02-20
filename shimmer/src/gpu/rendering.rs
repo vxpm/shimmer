@@ -4,7 +4,8 @@ use crate::{
     gpu::{
         State,
         interface::{
-            Command, CopyFromVram, DrawingArea, Rgba8, TexConfig, VramCoords, VramDimensions,
+            Command, CopyFromVram, DrawingArea, DrawingSettings, Rgba8, TexConfig, VramCoords,
+            VramDimensions,
             primitive::{Primitive, Rectangle, Triangle, Vertex},
         },
     },
@@ -49,13 +50,16 @@ impl Gpu {
         let (x, y) = (position.x(), position.y());
         let (width, height) = (dimensions.width(), dimensions.height());
         let rectangle = Rectangle {
-            color,
-            x: i11::new((x & 0x3F0) as i16),
-            y: i11::new((y & 0x1FF) as i16),
-            u: 0,
-            v: 0,
+            top_left: Vertex {
+                color,
+                x: i11::new((x & 0x3F0) as i16),
+                y: i11::new((y & 0x1FF) as i16),
+                u: 0,
+                v: 0,
+            },
             width: ((width & 0x3FF) + 0xF) & !0xF,
             height: height & 0x1FF,
+            blending: cmd.blending_mode(),
             texconfig: None,
         };
 
@@ -147,6 +151,7 @@ impl Gpu {
         let triangle = Triangle {
             vertices: tri_1,
             shading: cmd.shading_mode(),
+            blending: cmd.blending_mode(),
             texconfig,
         };
 
@@ -159,6 +164,7 @@ impl Gpu {
             let triangle = Triangle {
                 vertices: tri_2,
                 shading: cmd.shading_mode(),
+                blending: cmd.blending_mode(),
                 texconfig,
             };
 
@@ -244,6 +250,11 @@ impl Gpu {
 
         psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
         psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
+
+        self.renderer
+            .exec(Command::SetDrawingSettings(DrawingSettings {
+                transparency_mode: stat.transparency_mode(),
+            }));
     }
 
     #[expect(clippy::unused_self, reason = "consistency")]
@@ -349,13 +360,16 @@ impl Gpu {
         };
 
         let rectangle = Rectangle {
-            color,
-            x: position.x(),
-            y: position.y(),
-            u: uv.u(),
-            v: uv.v(),
+            top_left: Vertex {
+                color,
+                x: position.x(),
+                y: position.y(),
+                u: uv.u(),
+                v: uv.v(),
+            },
             width,
             height,
+            blending: cmd.blending_mode(),
             texconfig,
         };
 

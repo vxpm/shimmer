@@ -3,19 +3,18 @@
 
 // A triangle primitive.
 struct Rectangle {
-    top_left: vec2i,
-    top_left_uv: vec2u,
+    top_left: Vertex,
     dimensions: vec2u,
-    color: Rgba8,
+    blending_mode: BlendingMode,
     texture: TextureConfig,
 }
 
 fn rectangle_contains(rect: Rectangle, point: vec2u) -> bool {
-    let relative = vec2i(point) - rect.top_left;
+    let relative = vec2i(point) - rect.top_left.coords;
     return all(relative >= vec2i(0) && relative < vec2i(rect.dimensions));
 }
 
 fn rectangle_uv(rect: Rectangle, point: vec2u) -> vec2u {
-    let relative = vec2i(point) - rect.top_left;
-    return rect.top_left_uv + vec2u(relative);
+    let relative = vec2i(point) - rect.top_left.coords;
+    return rect.top_left.uv + vec2u(relative);
 }

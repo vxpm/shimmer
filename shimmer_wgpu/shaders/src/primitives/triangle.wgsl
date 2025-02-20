@@ -8,6 +8,8 @@ struct Triangle {
     vertices: array<Vertex, 3>,
     // Shading mode of this triangle.
     shading_mode: ShadingMode,
+    // Blending mode of this triangle.
+    blending_mode: BlendingMode,
     // Texture configuration of this triangle.
     texture: TextureConfig,
 }

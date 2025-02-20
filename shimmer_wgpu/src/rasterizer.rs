@@ -6,7 +6,7 @@ use data::{Config, to_buffer};
 use dirty::DirtyRegions;
 use glam::UVec2;
 use shimmer::gpu::interface::{
-    DrawingArea, Rectangle as InterfaceRectangle, Triangle as InterfaceTriangle,
+    DrawingArea, DrawingSettings, Rectangle as InterfaceRectangle, Triangle as InterfaceTriangle,
 };
 use std::sync::Arc;
 use tinylog::{debug, info, trace, warn};
@@ -63,6 +63,8 @@ impl Rasterizer {
         let config = Config {
             drawing_area_coords: UVec2::new(0, 0),
             drawing_area_dimensions: UVec2::new(1024, 512),
+
+            transparency_mode: 0,
         };
 
         let data_bind_group_layout =
@@ -143,6 +145,15 @@ impl Rasterizer {
             drawn_regions: DirtyRegions::default(),
             sampled_regions: DirtyRegions::default(),
         }
+    }
+
+    pub fn set_drawing_settings(&mut self, settings: DrawingSettings) {
+        trace!(
+            self.ctx.logger(),
+            "changed drawing settings"; settings = settings
+        );
+
+        self.config.transparency_mode = settings.transparency_mode as u32;
     }
 
     pub fn set_drawing_area(&mut self, area: DrawingArea) {

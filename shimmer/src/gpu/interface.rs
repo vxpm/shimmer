@@ -5,7 +5,7 @@ pub mod primitive;
 use bitos::integer::{u9, u10, u11};
 use shimmer_core::gpu::{
     HorizontalResolution, VerticalResolution,
-    texture::{Clut, TexPage, TexWindow},
+    texture::{Clut, TexPage, TexWindow, TransparencyMode},
 };
 
 pub use primitive::*;
@@ -65,6 +65,11 @@ pub struct CopyFromVram {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct DrawingSettings {
+    pub transparency_mode: TransparencyMode,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct DrawingArea {
     pub coords: VramCoords,
     pub dimensions: VramDimensions,
@@ -81,6 +86,7 @@ pub struct DisplayResolution {
 #[derive(Debug)]
 pub enum Command {
     // Configuration
+    SetDrawingSettings(DrawingSettings),
     SetDrawingArea(DrawingArea),
     SetDisplayTopLeft(VramCoords),
     SetDisplayResolution(DisplayResolution),

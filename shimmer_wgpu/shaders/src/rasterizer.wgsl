@@ -6,6 +6,8 @@
 struct Config {
     drawing_area_top_left: vec2u,
     drawing_area_dimensions: vec2u,
+
+    transparency_mode: TransparencyMode,
 }
 
 fn drawing_area_contains(coords: vec2u) -> bool {
@@ -73,7 +75,7 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     var color: Rgb5m;
     switch rectangle.texture.mode {
         case TEXTURE_MODE_NONE {
-            let rgba_norm = rgba8_normalize(rectangle.color);
+            let rgba_norm = rgba8_normalize(rectangle.top_left.color);
             color = rgba_norm_to_rgb5m(rgba_norm);
         }
         case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8 {
