@@ -41,12 +41,12 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
     switch triangle.texture.mode {
         case TEXTURE_MODE_NONE {
             if triangle.shading_mode == SHADING_MODE_GOURAUD {
-                let rgba_norm = triangle_color(triangle, bary_coords);
-                let dithered = rgba_norm_dither(vram_coords, rgba_norm);
-                color = rgba_norm_to_rgb5m(dithered);
+                let rgb_norm = triangle_color(triangle, bary_coords);
+                let dithered = rgb_norm_dither(vram_coords, rgb_norm);
+                color = rgb_norm_to_rgb5m(dithered);
             } else {
-                let rgba_norm = triangle_color(triangle, bary_coords);
-                color = rgba_norm_to_rgb5m(rgba_norm);
+                let rgb_norm = triangle_color(triangle, bary_coords);
+                color = rgb_norm_to_rgb5m(rgb_norm);
             }
         }
         case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8, TEXTURE_MODE_FULL {
@@ -77,8 +77,8 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     var allow_transparency = true;
     switch rectangle.texture.mode {
         case TEXTURE_MODE_NONE {
-            let rgba_norm = rgba8_normalize(rectangle.top_left.color);
-            color = rgba_norm_to_rgb5m(rgba_norm);
+            let rgb_norm = rgb8_to_rgb_norm(rectangle.top_left.color);
+            color = rgb_norm_to_rgb5m(rgb_norm);
         }
         case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8 {
             let uv = rectangle_uv(rectangle, vram_coords);
@@ -102,27 +102,27 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     }
 
     if rectangle.blending_mode == BLENDING_MODE_TRANSPARENT && allow_transparency {
-        let bg = rgb5m_to_rgba_norm(vram_get_color_rgb5m(vram_coords));
-        let fg = rgb5m_to_rgba_norm(color);
+        let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
+        let fg = rgb5m_to_rgb_norm(color);
 
-        var blended = rgb5m_to_rgba_norm(RGB5M_PLACEHOLDER);
+        var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
         switch config.transparency_mode {
             case TRANSPARENCY_MODE_AVG {
-                blended = RgbaNorm((bg.value + fg.value) / 2.0);
+                blended = RgbNorm((bg.value + fg.value) / 2.0);
             }
             case TRANSPARENCY_MODE_ADD {
-                blended = RgbaNorm(clamp(bg.value + fg.value, vec4f(0.0), vec4f(1.0)));
+                blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
             }
             case TRANSPARENCY_MODE_SUB {
-                blended = RgbaNorm(clamp(bg.value - fg.value, vec4f(0.0), vec4f(1.0)));
+                blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
             }
             case TRANSPARENCY_MODE_ACC {
-                blended = RgbaNorm(clamp(bg.value + fg.value / 4.0, vec4f(0.0), vec4f(1.0)));
+                blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
             }
             default: {}
         }
 
-        color = rgba_norm_to_rgb5m(blended);
+        color = rgb_norm_to_rgb5m(blended);
     }
 
     vram_set_color_rgb5m(vram_coords, color);

@@ -23,7 +23,7 @@ pub struct Config {
 #[derive(Debug, Clone, ShaderType)]
 pub struct Vertex {
     pub coords: IVec2,
-    pub rgba: UVec4,
+    pub rgb: UVec4,
     pub uv: UVec2,
 }
 
@@ -100,11 +100,11 @@ impl Triangle {
         let mut result = Self {
             vertices: triangle.vertices.map(|v| Vertex {
                 coords: IVec2::new(i32::from(v.x.value()), i32::from(v.y.value())),
-                rgba: UVec4::new(
+                rgb: UVec4::new(
                     u32::from(v.color.r),
                     u32::from(v.color.g),
                     u32::from(v.color.b),
-                    255,
+                    0,
                 ),
                 uv: UVec2::new(u32::from(v.u), u32::from(v.v)),
             }),
@@ -158,11 +158,11 @@ impl Rectangle {
                     i32::from(rectangle.top_left.x.value()),
                     i32::from(rectangle.top_left.y.value()),
                 ),
-                rgba: UVec4::new(
+                rgb: UVec4::new(
                     u32::from(rectangle.top_left.color.r),
                     u32::from(rectangle.top_left.color.g),
                     u32::from(rectangle.top_left.color.b),
-                    255,
+                    0,
                 ),
                 uv: UVec2::new(
                     u32::from(rectangle.top_left.u),

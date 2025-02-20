@@ -54,7 +54,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4f {
 
     // assume 16 bit (rgb5m) mode
     var rgb5m = vram_get_color_rgb5m(vram_coords);
-    var rgba_norm = rgb5m_to_rgba_norm(rgb5m);
+    var rgb_norm = rgb5m_to_rgb_norm(rgb5m);
 
-    return rgba_norm.value;
+    return vec4f(rgb_norm.value, 1.0);
 }

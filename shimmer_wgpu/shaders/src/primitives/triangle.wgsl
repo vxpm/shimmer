@@ -45,12 +45,12 @@ fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
     return vec3f(wa, wb, wc) / total;
 }
 
-fn triangle_color(triangle: Triangle, bary_coords: vec3f) -> RgbaNorm {
-    let a = rgba8_normalize(triangle.vertices[0].color).value * bary_coords.x;
-    let b = rgba8_normalize(triangle.vertices[1].color).value * bary_coords.y;
-    let c = rgba8_normalize(triangle.vertices[2].color).value * bary_coords.z;
+fn triangle_color(triangle: Triangle, bary_coords: vec3f) -> RgbNorm {
+    let a = rgb8_to_rgb_norm(triangle.vertices[0].color).value * bary_coords.x;
+    let b = rgb8_to_rgb_norm(triangle.vertices[1].color).value * bary_coords.y;
+    let c = rgb8_to_rgb_norm(triangle.vertices[2].color).value * bary_coords.z;
 
-    return RgbaNorm(a + b + c);
+    return RgbNorm(a + b + c);
 }
 
 fn triangle_uv(triangle: Triangle, bary_coords: vec3f) -> vec2u {

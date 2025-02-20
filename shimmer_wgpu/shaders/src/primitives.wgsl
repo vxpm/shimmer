@@ -9,7 +9,7 @@ const BLENDING_MODE_TRANSPARENT: BlendingMode = 1;
 // A single vertex of a primitive.
 struct Vertex {
     coords: vec2i,
-    color: Rgba8,
+    color: Rgb8,
     uv: vec2u,
 }
 
