@@ -17,24 +17,23 @@ fn _triangle_cross_2d(a: vec2f, b: vec2f) -> f32 {
 }
 
 fn _triangle_is_top_or_left_edge(edge: vec2f) -> bool {
-    var is_top = edge.y == 0 && edge.x < 0;
-    var is_left = edge.y < 0;
+    var is_top = edge.y == 0.0 && edge.x < 0.0;
+    var is_left = edge.y > 0.0;
     return is_top || is_left;
 }
 
 fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
-    let offset = vec2f(0.5);
-    let ap = vec2f(point - triangle.vertices[0].coords) + offset;
-    let bp = vec2f(point - triangle.vertices[1].coords) + offset;
-    let cp = vec2f(point - triangle.vertices[2].coords) + offset;
+    let ap = vec2f(point - triangle.vertices[0].coords);
+    let bp = vec2f(point - triangle.vertices[1].coords);
+    let cp = vec2f(point - triangle.vertices[2].coords);
 
     let ab = vec2f(triangle.vertices[1].coords - triangle.vertices[0].coords);
     let bc = vec2f(triangle.vertices[2].coords - triangle.vertices[1].coords);
     let ca = vec2f(triangle.vertices[0].coords - triangle.vertices[2].coords);
 
-    let bias_a = select(0.0, 0.5, _triangle_is_top_or_left_edge(bc));
-    let bias_b = select(0.0, 0.5, _triangle_is_top_or_left_edge(ca));
-    let bias_c = select(0.0, 0.5, _triangle_is_top_or_left_edge(ab));
+    let bias_a = select(0.0, 0.01, _triangle_is_top_or_left_edge(bc));
+    let bias_b = select(0.0, 0.01, _triangle_is_top_or_left_edge(ca));
+    let bias_c = select(0.0, 0.01, _triangle_is_top_or_left_edge(ab));
 
     let total = abs(_triangle_cross_2d(ab, ca));
     let wa = _triangle_cross_2d(bc, bp) - bias_a;
