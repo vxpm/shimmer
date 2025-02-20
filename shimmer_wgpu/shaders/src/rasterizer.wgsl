@@ -38,6 +38,7 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
     }
 
     var color: Rgb5m;
+    var allow_transparency = true;
     switch triangle.texture.mode {
         case TEXTURE_MODE_NONE {
             if triangle.shading_mode == SHADING_MODE_GOURAUD {
@@ -58,10 +59,36 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
             } else {
                 color = texel;
             }
+
+            allow_transparency = rgb5m_mask(texel);
         }
         default: {
             color = RGB5M_PLACEHOLDER;
         }
+    }
+
+    if triangle.blending_mode == BLENDING_MODE_TRANSPARENT && allow_transparency {
+        let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
+        let fg = rgb5m_to_rgb_norm(color);
+
+        var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
+        switch config.transparency_mode {
+            case TRANSPARENCY_MODE_AVG {
+                blended = RgbNorm((bg.value + fg.value) / 2.0);
+            }
+            case TRANSPARENCY_MODE_ADD {
+                blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
+            }
+            case TRANSPARENCY_MODE_SUB {
+                blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
+            }
+            case TRANSPARENCY_MODE_ACC {
+                blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
+            }
+            default: {}
+        }
+
+        color = rgb_norm_to_rgb5m(blended);
     }
 
     vram_set_color_rgb5m(vram_coords, color);
