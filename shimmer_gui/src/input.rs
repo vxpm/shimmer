@@ -1,3 +1,4 @@
+use eframe::egui::{Context, Key};
 use gilrs::{Button, GamepadId, Gilrs};
 
 pub struct Input {
@@ -16,7 +17,27 @@ impl Input {
         }
     }
 
-    pub fn update(&mut self, joypad: &mut shimmer::sio0::Joypad) {
+    pub fn update(&mut self, ctx: &Context, joypad: &mut shimmer::sio0::Joypad) {
+        ctx.input(|i| {
+            let digital = &mut joypad.digital_input;
+            digital.set_cross(i.key_down(Key::X));
+            digital.set_square(i.key_down(Key::Z));
+            digital.set_circle(i.key_down(Key::C));
+            digital.set_triangle(i.key_down(Key::V));
+
+            digital.set_joy_right(i.key_down(Key::ArrowRight));
+            digital.set_joy_left(i.key_down(Key::ArrowLeft));
+            digital.set_joy_up(i.key_down(Key::ArrowUp));
+            digital.set_joy_down(i.key_down(Key::ArrowDown));
+
+            digital.set_start(i.key_down(Key::Space));
+            digital.set_select(i.key_down(Key::Q));
+
+            if i.key_down(Key::W) {
+                digital.set_start(!digital.start());
+            }
+        });
+
         while let Some(event) = self.gilrs.next_event() {
             if self.active_gamepad.is_some_and(|id| event.id == id) {
                 let digital = &mut joypad.digital_input;

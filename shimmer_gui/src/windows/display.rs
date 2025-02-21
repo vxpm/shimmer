@@ -90,7 +90,7 @@ impl WindowUi for Display {
             position
         });
 
-        state.input.update(state.emulator.joypad_mut());
+        state.input.update(ui.ctx(), state.emulator.joypad_mut());
 
         if self.vram
             && frame_response.response.hovered()
