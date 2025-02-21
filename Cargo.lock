@@ -490,15 +490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.54"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7caa3f9de89ddbe2c607f4101924c5abec803763ae9534e4f4d7d8f84aa81f0"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "codespan-reporting"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -653,26 +644,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "cue"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75765c4831c86140893fdd6af61dd461950fcdedea4cf3af2042e1b08cd41355"
-dependencies = [
- "cue-sys",
- "libc",
-]
-
-[[package]]
-name = "cue-sys"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d655a8fb46d3d9550ff44ade93963b2edb770acf0f5ab7d24e29591778d55f8"
-dependencies = [
- "cmake",
- "libc",
-]
 
 [[package]]
 name = "cursor-icon"
@@ -2505,7 +2476,6 @@ dependencies = [
  "binrw",
  "bitos",
  "bytesize",
- "cue",
  "easyerr",
  "oneshot",
  "shimmer_core",

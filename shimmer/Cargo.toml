@@ -21,4 +21,3 @@ zerocopy.workspace = true
 
 arrayvec = "0.7"
 binrw = "0.14"
-cue = "3"
