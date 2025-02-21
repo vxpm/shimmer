@@ -9,7 +9,7 @@ struct Triangle {
     // Shading mode of this triangle.
     shading_mode: ShadingMode,
     // Blending mode of this triangle.
-    blending_mode: BlendingMode,
+    transparency_mode: TransparencyMode,
     // Texture configuration of this triangle.
     texture: TextureConfig,
 }

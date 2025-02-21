@@ -17,7 +17,7 @@ pub struct Config {
     pub drawing_area_coords: UVec2,
     pub drawing_area_dimensions: UVec2,
 
-    pub transparency_mode: u32,
+    pub blending_mode: u32,
 }
 
 #[derive(Debug, Clone, ShaderType)]
@@ -89,7 +89,7 @@ impl TexConfig {
 pub struct Triangle {
     vertices: [Vertex; 3],
     shading_mode: u32,
-    blending_mode: u32,
+    transparency_mode: u32,
     texconfig: TexConfig,
 }
 
@@ -109,7 +109,7 @@ impl Triangle {
                 uv: UVec2::new(u32::from(v.u), u32::from(v.v)),
             }),
             shading_mode: triangle.shading as u32,
-            blending_mode: triangle.blending as u32,
+            transparency_mode: triangle.transparency as u32,
             texconfig,
         };
 
@@ -144,7 +144,7 @@ impl Triangle {
 pub struct Rectangle {
     top_left: Vertex,
     dimensions: UVec2,
-    blending_mode: u32,
+    transparency_mode: u32,
     texconfig: TexConfig,
 }
 
@@ -170,7 +170,7 @@ impl Rectangle {
                 ),
             },
             dimensions: UVec2::new(u32::from(rectangle.width), u32::from(rectangle.height)),
-            blending_mode: rectangle.blending as u32,
+            transparency_mode: rectangle.transparency as u32,
             texconfig,
         }
     }

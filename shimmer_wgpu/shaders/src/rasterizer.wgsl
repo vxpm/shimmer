@@ -7,7 +7,7 @@ struct Config {
     drawing_area_top_left: vec2u,
     drawing_area_dimensions: vec2u,
 
-    transparency_mode: TransparencyMode,
+    blending_mode: BlendingMode,
 }
 
 fn drawing_area_contains(coords: vec2u) -> bool {
@@ -67,22 +67,22 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
         }
     }
 
-    if triangle.blending_mode == BLENDING_MODE_TRANSPARENT && allow_transparency {
+    if triangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && allow_transparency {
         let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
         let fg = rgb5m_to_rgb_norm(color);
 
         var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
-        switch config.transparency_mode {
-            case TRANSPARENCY_MODE_AVG {
+        switch config.blending_mode {
+            case BLENDING_MODE_AVG {
                 blended = RgbNorm((bg.value + fg.value) / 2.0);
             }
-            case TRANSPARENCY_MODE_ADD {
+            case BLENDING_MODE_ADD {
                 blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
             }
-            case TRANSPARENCY_MODE_SUB {
+            case BLENDING_MODE_SUB {
                 blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
             }
-            case TRANSPARENCY_MODE_ACC {
+            case BLENDING_MODE_ACC {
                 blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
             }
             default: {}
@@ -128,22 +128,22 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
         }
     }
 
-    if rectangle.blending_mode == BLENDING_MODE_TRANSPARENT && allow_transparency {
+    if rectangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && allow_transparency {
         let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
         let fg = rgb5m_to_rgb_norm(color);
 
         var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
-        switch config.transparency_mode {
-            case TRANSPARENCY_MODE_AVG {
+        switch config.blending_mode {
+            case BLENDING_MODE_AVG {
                 blended = RgbNorm((bg.value + fg.value) / 2.0);
             }
-            case TRANSPARENCY_MODE_ADD {
+            case BLENDING_MODE_ADD {
                 blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
             }
-            case TRANSPARENCY_MODE_SUB {
+            case BLENDING_MODE_SUB {
                 blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
             }
-            case TRANSPARENCY_MODE_ACC {
+            case BLENDING_MODE_ACC {
                 blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
             }
             default: {}

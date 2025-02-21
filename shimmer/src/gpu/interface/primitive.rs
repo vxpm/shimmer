@@ -1,6 +1,6 @@
 use super::{Rgba8, TexConfig};
 use bitos::integer::i11;
-use shimmer_core::gpu::cmd::rendering::{BlendingMode, ShadingMode};
+use shimmer_core::gpu::cmd::rendering::{ShadingMode, TransparencyMode};
 
 /// A single triangle vertex.
 #[derive(Debug, Clone, Copy)]
@@ -17,7 +17,7 @@ pub struct Vertex {
 pub struct Triangle {
     pub vertices: [Vertex; 3],
     pub shading: ShadingMode,
-    pub blending: BlendingMode,
+    pub transparency: TransparencyMode,
     pub texconfig: Option<TexConfig>,
 }
 
@@ -27,7 +27,7 @@ pub struct Rectangle {
     pub top_left: Vertex,
     pub width: u16,
     pub height: u16,
-    pub blending: BlendingMode,
+    pub transparency: TransparencyMode,
     pub texconfig: Option<TexConfig>,
 }
 

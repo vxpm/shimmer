@@ -2,9 +2,9 @@
 //!include primitives/triangle
 //!include primitives/rectangle
 
-alias BlendingMode = u32;
-const BLENDING_MODE_OPAQUE: BlendingMode = 0;
-const BLENDING_MODE_TRANSPARENT: BlendingMode = 1;
+alias TransparencyMode = u32;
+const TRANSPARENCY_MODE_OPAQUE: TransparencyMode = 0;
+const TRANSPARENCY_MODE_TRANSPARENT: TransparencyMode = 1;
 
 // A single vertex of a primitive.
 struct Vertex {

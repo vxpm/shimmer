@@ -50,7 +50,7 @@ impl Rasterizer {
             drawing_area_coords: UVec2::new(0, 0),
             drawing_area_dimensions: UVec2::new(1024, 512),
 
-            transparency_mode: 0,
+            blending_mode: 0,
         };
 
         let data_bind_group_layout =
@@ -146,7 +146,7 @@ impl Rasterizer {
             "changed drawing settings"; settings = settings
         );
 
-        self.config.transparency_mode = settings.transparency_mode as u32;
+        self.config.blending_mode = settings.blending_mode as u32;
         self.commands.push(Command::Config);
         self.configs.push(self.config.clone());
     }

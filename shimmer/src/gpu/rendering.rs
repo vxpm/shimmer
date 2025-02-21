@@ -15,8 +15,8 @@ use bitos::integer::{i11, u9, u10, u11};
 use shimmer_core::gpu::cmd::{
     EnvironmentOpcode, MiscOpcode, RenderingCommand, RenderingOpcode,
     rendering::{
-        BlendingMode, CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
-        VertexColorPacket, VertexPositionPacket, VertexUVPacket,
+        CoordPacket, LineMode, PolygonMode, RectangleMode, ShadingMode, SizePacket,
+        TransparencyMode, VertexColorPacket, VertexPositionPacket, VertexUVPacket,
     },
 };
 use tinylog::{debug, error, info, trace};
@@ -59,7 +59,7 @@ impl Gpu {
             },
             width: ((width & 0x3FF) + 0xF) & !0xF,
             height: height & 0x1FF,
-            blending: BlendingMode::Opaque,
+            transparency: TransparencyMode::Opaque,
             texconfig: None,
         };
 
@@ -136,7 +136,7 @@ impl Gpu {
             let stat = &mut psx.gpu.status;
             stat.set_texpage_x_base(texpage.x_base());
             stat.set_texpage_y_base(texpage.y_base());
-            stat.set_transparency_mode(texpage.transparency_mode());
+            stat.set_blending_mode(texpage.blending_mode());
             stat.set_texpage_depth(texpage.depth());
 
             if psx.gpu.environment.double_vram {
@@ -151,7 +151,7 @@ impl Gpu {
         let triangle = Triangle {
             vertices: tri_1,
             shading: cmd.shading_mode(),
-            blending: cmd.blending_mode(),
+            transparency: cmd.transparency_mode(),
             texconfig,
         };
 
@@ -164,7 +164,7 @@ impl Gpu {
             let triangle = Triangle {
                 vertices: tri_2,
                 shading: cmd.shading_mode(),
-                blending: cmd.blending_mode(),
+                transparency: cmd.transparency_mode(),
                 texconfig,
             };
 
@@ -237,7 +237,7 @@ impl Gpu {
         let stat = &mut psx.gpu.status;
         stat.set_texpage_x_base(settings.texpage().x_base());
         stat.set_texpage_y_base(settings.texpage().y_base());
-        stat.set_transparency_mode(settings.texpage().transparency_mode());
+        stat.set_blending_mode(settings.texpage().blending_mode());
         stat.set_texpage_depth(settings.texpage().depth());
         stat.set_compression_mode(settings.compression_mode());
         stat.set_enable_drawing_to_display(settings.enable_drawing_to_display());
@@ -253,7 +253,7 @@ impl Gpu {
 
         self.renderer
             .exec(Command::SetDrawingSettings(DrawingSettings {
-                transparency_mode: stat.transparency_mode(),
+                blending_mode: stat.blending_mode(),
             }));
     }
 
@@ -369,7 +369,7 @@ impl Gpu {
             },
             width,
             height,
-            blending: cmd.blending_mode(),
+            transparency: cmd.transparency_mode(),
             texconfig,
         };
 

@@ -5,7 +5,7 @@ pub mod primitive;
 use bitos::integer::{u9, u10, u11};
 use shimmer_core::gpu::{
     HorizontalResolution, VerticalResolution,
-    texture::{Clut, TexPage, TexWindow, TransparencyMode},
+    texture::{Clut, TexPage, TexWindow, BlendingMode},
 };
 
 pub use primitive::*;
@@ -66,7 +66,7 @@ pub struct CopyFromVram {
 
 #[derive(Debug, Clone, Copy)]
 pub struct DrawingSettings {
-    pub transparency_mode: TransparencyMode,
+    pub blending_mode: BlendingMode,
 }
 
 #[derive(Debug, Clone, Copy)]

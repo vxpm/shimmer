@@ -1,10 +1,10 @@
 //!include utils
 
-alias TransparencyMode = u32;
-const TRANSPARENCY_MODE_AVG: TransparencyMode = 0;
-const TRANSPARENCY_MODE_ADD: TransparencyMode = 1;
-const TRANSPARENCY_MODE_SUB: TransparencyMode = 2;
-const TRANSPARENCY_MODE_ACC: TransparencyMode = 3;
+alias BlendingMode = u32;
+const BLENDING_MODE_AVG: BlendingMode = 0;
+const BLENDING_MODE_ADD: BlendingMode = 1;
+const BLENDING_MODE_SUB: BlendingMode = 2;
+const BLENDING_MODE_ACC: BlendingMode = 3;
 
 struct Rgb5m {
     value: u32,

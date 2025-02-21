@@ -31,10 +31,10 @@ pub enum TextureMode {
     Raw = 1,
 }
 
-/// The blending mode of a rendering command.
+/// The transparency mode of a rendering command.
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BlendingMode {
+pub enum TransparencyMode {
     Opaque = 0,
     SemiTransparent = 1,
 }
@@ -123,7 +123,7 @@ pub struct PolygonCmd {
     #[bits(24)]
     pub texture_mode: TextureMode,
     #[bits(25)]
-    pub blending_mode: BlendingMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(26)]
     pub textured: bool,
     #[bits(27)]
@@ -151,7 +151,7 @@ pub struct LineCmd {
     #[bits(16..24)]
     pub color_b: u8,
     #[bits(25)]
-    pub transparency_mode: BlendingMode,
+    pub blending_mode: TransparencyMode,
     #[bits(27)]
     pub line_mode: LineMode,
     #[bits(28)]
@@ -181,7 +181,7 @@ pub struct RectangleCmd {
     #[bits(24)]
     pub texture_mode: TextureMode,
     #[bits(25)]
-    pub blending_mode: BlendingMode,
+    pub transparency_mode: TransparencyMode,
     #[bits(26)]
     pub textured: bool,
     #[bits(27..29)]

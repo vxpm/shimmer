@@ -15,10 +15,10 @@ pub enum Depth {
     Reserved = 3,
 }
 
-/// The transparency mode of a texture.
+/// The blending mode of a texture.
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TransparencyMode {
+pub enum BlendingMode {
     /// Final Color = Old / 2 + New / 2
     Half = 0,
     /// Final Color = Old + New
@@ -38,7 +38,7 @@ pub struct TexPage {
     #[bits(4)]
     pub y_base: u1,
     #[bits(5..7)]
-    pub transparency_mode: TransparencyMode,
+    pub blending_mode: BlendingMode,
     #[bits(7..9)]
     pub depth: Depth,
 }

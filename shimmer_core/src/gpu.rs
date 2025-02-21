@@ -9,7 +9,7 @@ use bitos::{
     integer::{i11, u1, u4, u9, u10, u12},
 };
 use std::{collections::VecDeque, ops::Range};
-use texture::{TexPage, TexWindow, TransparencyMode};
+use texture::{BlendingMode, TexPage, TexWindow};
 
 #[bitos(2)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -95,7 +95,7 @@ pub struct Status {
     #[bits(4..5)]
     pub texpage_y_base: u1,
     #[bits(5..7)]
-    pub transparency_mode: TransparencyMode,
+    pub blending_mode: BlendingMode,
     #[bits(7..9)]
     pub texpage_depth: texture::Depth,
     #[bits(9)]
@@ -165,7 +165,7 @@ impl Status {
         TexPage::default()
             .with_x_base(self.texpage_x_base())
             .with_y_base(self.texpage_y_base())
-            .with_transparency_mode(self.transparency_mode())
+            .with_blending_mode(self.blending_mode())
             .with_depth(self.texpage_depth())
     }
 }

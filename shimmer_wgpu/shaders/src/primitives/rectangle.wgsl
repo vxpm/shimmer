@@ -5,7 +5,7 @@
 struct Rectangle {
     top_left: Vertex,
     dimensions: vec2u,
-    blending_mode: BlendingMode,
+    transparency_mode: TransparencyMode,
     texture: TextureConfig,
 }
 
