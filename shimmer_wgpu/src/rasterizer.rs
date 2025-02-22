@@ -128,9 +128,9 @@ impl Rasterizer {
             data_bind_group_layout,
             pipeline,
 
-            config,
+            config: config.clone(),
 
-            configs: Vec::with_capacity(64),
+            configs: vec![config],
             commands: Vec::with_capacity(64),
             triangles: Vec::with_capacity(64),
             rectangles: Vec::with_capacity(64),
@@ -165,6 +165,8 @@ impl Rasterizer {
             u32::from(area.dimensions.width.value()),
             u32::from(area.dimensions.height.value()),
         );
+        self.commands.push(Command::Config);
+        self.configs.push(self.config.clone());
     }
 
     pub fn enqueue_triangle(&mut self, triangle: InterfaceTriangle) {
@@ -237,8 +239,6 @@ impl Rasterizer {
         if self.commands.is_empty() {
             return;
         }
-
-        self.configs.push(self.config.clone());
 
         info!(self.ctx.logger(), "flushing rasterizer");
         assert_eq!(
@@ -356,5 +356,7 @@ impl Rasterizer {
 
         self.drawn_regions.clear();
         self.sampled_regions.clear();
+
+        self.configs.push(self.config.clone());
     }
 }

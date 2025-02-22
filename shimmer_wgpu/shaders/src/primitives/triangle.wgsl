@@ -14,35 +14,58 @@ struct Triangle {
     texture: TextureConfig,
 }
 
-fn _triangle_cross_2d(a: vec2f, b: vec2f) -> f32 {
+fn _triangle_cross_2d(a: vec2i, b: vec2i) -> i32 {
     return a.x * b.y - a.y * b.x;
 }
 
-fn _triangle_is_top_or_left_edge(edge: vec2f) -> bool {
-    var is_top = edge.y == 0.0 && edge.x < 0.0;
-    var is_left = edge.y > 0.0;
-    return is_top || is_left;
+fn _triangle_is_top_or_left_edge(edge: vec2i) -> bool {
+    var is_top = edge.y == 0 && edge.x > 0;
+    var is_left = edge.y < 0;
+    return is_left || is_top;
 }
 
-fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> vec3f {
-    let ap = vec2f(point - triangle.vertices[0].coords);
-    let bp = vec2f(point - triangle.vertices[1].coords);
-    let cp = vec2f(point - triangle.vertices[2].coords);
+struct BaryCoords {
+    is_inside: bool,
+    weights: vec3f,
+}
 
-    let ab = vec2f(triangle.vertices[1].coords - triangle.vertices[0].coords);
-    let bc = vec2f(triangle.vertices[2].coords - triangle.vertices[1].coords);
-    let ca = vec2f(triangle.vertices[0].coords - triangle.vertices[2].coords);
+fn triangle_barycentric_coords_of(triangle: Triangle, point: vec2i) -> BaryCoords {
+    let ap = point - triangle.vertices[0].coords;
+    let bp = point - triangle.vertices[1].coords;
+    let cp = point - triangle.vertices[2].coords;
 
-    let bias_a = select(0.0, 0.01, _triangle_is_top_or_left_edge(bc));
-    let bias_b = select(0.0, 0.01, _triangle_is_top_or_left_edge(ca));
-    let bias_c = select(0.0, 0.01, _triangle_is_top_or_left_edge(ab));
+    let ab = triangle.vertices[1].coords - triangle.vertices[0].coords;
+    let bc = triangle.vertices[2].coords - triangle.vertices[1].coords;
+    let ca = triangle.vertices[0].coords - triangle.vertices[2].coords;
+
+    let areas = vec3i(
+        _triangle_cross_2d(bc, bp),
+        _triangle_cross_2d(ca, cp),
+        _triangle_cross_2d(ab, ap),
+    );
+
+    let is_top_left = vec3<bool>(
+        _triangle_is_top_or_left_edge(bc),
+        _triangle_is_top_or_left_edge(ca),
+        _triangle_is_top_or_left_edge(ab),
+    );
+
+    var is_inside = all(areas >= vec3i(0));
+    if areas.x == 0 && !is_top_left.x {
+        is_inside = false;
+    }
+
+    if areas.y == 0 && !is_top_left.y {
+        is_inside = false;
+    }
+
+    if areas.z == 0 && !is_top_left.z {
+        is_inside = false;
+    }
 
     let total = abs(_triangle_cross_2d(ab, ca));
-    let wa = _triangle_cross_2d(bc, bp) - bias_a;
-    let wb = _triangle_cross_2d(ca, cp) - bias_b;
-    let wc = _triangle_cross_2d(ab, ap) - bias_c;
-
-    return vec3f(wa, wb, wc) / total;
+    let weights = vec3f(areas) / f32(total);
+    return BaryCoords(is_inside, weights);
 }
 
 fn triangle_color(triangle: Triangle, bary_coords: vec3f) -> RgbNorm {

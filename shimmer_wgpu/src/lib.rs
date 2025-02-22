@@ -101,7 +101,6 @@ impl Inner {
                 self.transfers.copy_to_vram(&copy);
             }
             Command::SetDrawingArea(drawing_area) => {
-                self.rasterizer.flush();
                 self.rasterizer.set_drawing_area(drawing_area);
             }
             Command::SetDrawingSettings(settings) => {
@@ -154,13 +153,13 @@ impl WgpuRenderer {
 
     pub fn render_display(&self, pass: &mut wgpu::RenderPass<'_>) {
         let mut inner = self.inner.lock().unwrap();
-        // inner.rasterizer.flush();
+        inner.rasterizer.flush();
         inner.display_renderer.render(pass);
     }
 
     pub fn render_vram(&self, pass: &mut wgpu::RenderPass<'_>) {
         let mut inner = self.inner.lock().unwrap();
-        // inner.rasterizer.flush();
+        inner.rasterizer.flush();
         inner.display_renderer.render_all(pass);
     }
 }

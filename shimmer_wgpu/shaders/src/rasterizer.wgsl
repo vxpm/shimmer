@@ -30,12 +30,12 @@ var<storage, read> triangles: array<Triangle>;
 var<storage, read> rectangles: array<Rectangle>;
 
 fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
-    var bary_coords = triangle_barycentric_coords_of(triangle, vec2i(vram_coords));
-    var is_inside = (bary_coords.x >= 0.0) && (bary_coords.y >= 0.0) && (bary_coords.z >= 0.0);
-
-    if !is_inside {
+    let info = triangle_barycentric_coords_of(triangle, vec2i(vram_coords));
+    if !info.is_inside {
         return false;
     }
+
+    let bary_coords = info.weights;
 
     var color: Rgb5m;
     var allow_transparency = true;
@@ -107,7 +107,7 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
             let rgb_norm = rgb8_to_rgb_norm(rectangle.top_left.color);
             color = rgb_norm_to_rgb5m(rgb_norm);
         }
-        case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8 {
+        case TEXTURE_MODE_LUT4, TEXTURE_MODE_LUT8, TEXTURE_MODE_FULL {
             let uv = rectangle_uv(rectangle, vram_coords);
             let texel = texture_texel(rectangle.texture, uv);
 
@@ -118,10 +118,6 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
             }
 
             allow_transparency = rgb5m_mask(texel);
-        }
-        case TEXTURE_MODE_FULL {
-            let uv = rectangle_uv(rectangle, vram_coords);
-            color = texture_texel(rectangle.texture, uv);
         }
         default: {
             color = RGB5M_PLACEHOLDER;
