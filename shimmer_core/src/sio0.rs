@@ -133,12 +133,18 @@ pub struct DigitalInput {
 }
 
 #[bitos(16)]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct AnalogInput {
     #[bits(0..8)]
     pub analog_x: u8,
     #[bits(8..16)]
     pub analog_y: u8,
+}
+
+impl Default for AnalogInput {
+    fn default() -> Self {
+        Self::from_bits(0).with_analog_x(0x80).with_analog_y(0x80)
+    }
 }
 
 #[derive(Debug, Clone)]
