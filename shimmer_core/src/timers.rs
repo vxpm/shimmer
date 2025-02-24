@@ -28,8 +28,8 @@ pub enum IrqRepeatMode {
 #[bitos(1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IrqToggleMode {
-    Oneshot,
-    Repeat,
+    Pulse,
+    Toggle,
 }
 
 #[bitos(32)]
@@ -49,9 +49,9 @@ pub struct TimerMode {
     /// Whether a IRQ should be fired once the target value has been reached.
     #[bits(4)]
     pub irq_when_at_target: bool,
-    /// Whether a IRQ should be fired once the timer's value has overflowed.
+    /// Whether a IRQ should be fired once the timer's value has reached 0xFFFF.
     #[bits(5)]
-    pub irq_at_overflow: bool,
+    pub irq_at_max: bool,
     /// How the IRQ should repeat.
     #[bits(6)]
     pub irq_repeat_mode: IrqRepeatMode,
@@ -63,17 +63,17 @@ pub struct TimerMode {
     #[bits(8..10)]
     pub clock_source: u2,
 
-    /// Whether IRQ are enabled.
+    /// Whether an interrupt has been requested.
     #[bits(10)]
-    pub irq: bool,
+    pub no_irq: bool,
     /// Whether the target has been reached since the last time this register was read. Resets on
     /// read.
     #[bits(11)]
     pub reached_target: bool,
-    /// Whether the timer's value has overflowed since the last time this register was read. Resets
-    /// on read.
+    /// Whether the timer's value has reached 0xFFFF since the last time this register was read.
+    /// Resets on read.
     #[bits(12)]
-    pub overflowed: bool,
+    pub reached_max: bool,
 }
 
 #[derive(Default)]
@@ -114,12 +114,33 @@ pub struct Timer2 {
 }
 
 impl Timer2 {
-    pub fn tick(&mut self) -> u64 {
-        self.value = self.value.wrapping_add(1);
+    pub fn should_tick(&self) -> bool {
+        !self.mode.sync() || matches!(self.mode.sync_mode().value(), 1 | 2)
+    }
+
+    pub fn can_raise_irq(&self) -> bool {
+        match self.mode.irq_repeat_mode() {
+            IrqRepeatMode::Oneshot => self.mode.no_irq(),
+            IrqRepeatMode::Repeat => true,
+        }
+    }
+
+    pub fn update_no_irq(&mut self) {
+        match self.mode.irq_toggle_mode() {
+            IrqToggleMode::Pulse => {
+                self.mode.set_no_irq(false);
+            }
+            IrqToggleMode::Toggle => {
+                self.mode.set_no_irq(!self.mode.no_irq());
+            }
+        }
+    }
+
+    pub fn cycles_per_tick(&self) -> u64 {
         if self.mode.clock_source().value() < 2 {
-            1
+            2
         } else {
-            8
+            16
         }
     }
 }

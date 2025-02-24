@@ -139,7 +139,12 @@ impl PSX {
                     let value = self.timers.timer2.mode.to_bits();
                     let bytes = value.as_bytes();
 
-                    P::read_from_buf(&bytes[offset..])
+                    let result = P::read_from_buf(&bytes[offset..]);
+
+                    self.timers.timer2.mode.set_reached_target(false);
+                    self.timers.timer2.mode.set_reached_max(false);
+
+                    result
                 }
                 io::Reg::Timer2Target => {
                     let bytes = self.timers.timer2.target.as_bytes();
@@ -395,9 +400,11 @@ impl PSX {
 
                     let bytes = self.timers.timer1.mode.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
+
+                    self.timers.timer1.mode.set_no_irq(true);
                 }
                 io::Reg::Timer1Target => {
-                    let bytes = self.timers.timer1.value.as_mut_bytes();
+                    let bytes = self.timers.timer1.target.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                 }
                 io::Reg::Timer2Value => {
@@ -409,9 +416,11 @@ impl PSX {
 
                     let bytes = self.timers.timer2.mode.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
+
+                    self.timers.timer2.mode.set_no_irq(true);
                 }
                 io::Reg::Timer2Target => {
-                    let bytes = self.timers.timer2.value.as_mut_bytes();
+                    let bytes = self.timers.timer2.target.as_mut_bytes();
                     value.write_to(&mut bytes[offset..]);
                 }
                 io::Reg::JoyData => {

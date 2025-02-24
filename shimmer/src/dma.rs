@@ -227,7 +227,7 @@ impl Dma {
             }
             _ => {
                 error!(
-                    psx.loggers.cdrom,
+                    psx.loggers.dma,
                     "advancing unimplemented channel: {channel:?}"
                 )
             }

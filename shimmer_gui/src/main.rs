@@ -29,7 +29,10 @@ use std::{
     },
     time::Duration,
 };
-use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};
+use tinylog::{
+    drain::{buf::RecordBuf, fmt},
+    logger::LoggerFamily,
+};
 use util::Timer;
 use windows::{AppWindow, AppWindowKind};
 
@@ -65,6 +68,7 @@ impl State {
         let log_records = RecordBuf::new();
         let log_family = LoggerFamily::builder()
             .with_drain(log_records.drain())
+            // .with_drain(fmt::FmtDrain::new(std::io::stdout(), false))
             .build();
 
         let level = if cfg!(debug_assertions) {

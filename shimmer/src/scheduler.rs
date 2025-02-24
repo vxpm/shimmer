@@ -1,6 +1,6 @@
 //! The event scheduler of the [`PSX`](super::PSX).
 
-use crate::{cdrom, sio0};
+use crate::{cdrom, sio0, timers};
 
 /// Possible schedule events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,10 +19,8 @@ pub enum Event {
     Cdrom(cdrom::Event),
     /// Update the SIO state machine.
     Sio(sio0::Event),
-    /// Advance Timer1.
-    Timer1,
-    /// Advance Timer2.
-    Timer2,
+    /// Update timers.
+    Timer(timers::Event),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,8 +54,7 @@ impl Scheduler {
 
         scheduler.schedule(Event::Cpu, 0);
         scheduler.schedule(Event::VBlank, 0);
-        scheduler.schedule(Event::Timer1, 0);
-        scheduler.schedule(Event::Timer2, 0);
+        scheduler.schedule(Event::Timer(timers::Event::Setup), 0);
 
         scheduler
     }

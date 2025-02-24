@@ -349,15 +349,15 @@ impl Reg {
             Reg::DmaInterrupt => (0x1F80_10F4, 4),
 
             // Timers
-            Reg::Timer0Value => (0x1F80_1100, 2),
-            Reg::Timer0Mode => (0x1F80_1104, 2),
-            Reg::Timer0Target => (0x1F80_1108, 2),
-            Reg::Timer1Value => (0x1F80_1110, 2),
-            Reg::Timer1Mode => (0x1F80_1114, 2),
-            Reg::Timer1Target => (0x1F80_1118, 2),
-            Reg::Timer2Value => (0x1F80_1120, 2),
-            Reg::Timer2Mode => (0x1F80_1124, 2),
-            Reg::Timer2Target => (0x1F80_1128, 2),
+            Reg::Timer0Value => (0x1F80_1100, 4),
+            Reg::Timer0Mode => (0x1F80_1104, 4),
+            Reg::Timer0Target => (0x1F80_1108, 4),
+            Reg::Timer1Value => (0x1F80_1110, 4),
+            Reg::Timer1Mode => (0x1F80_1114, 4),
+            Reg::Timer1Target => (0x1F80_1118, 4),
+            Reg::Timer2Value => (0x1F80_1120, 4),
+            Reg::Timer2Mode => (0x1F80_1124, 4),
+            Reg::Timer2Target => (0x1F80_1128, 4),
 
             // CDROM
             Reg::Cdrom0 => (0x1F80_1800, 1),

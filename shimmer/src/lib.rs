@@ -17,6 +17,7 @@ pub mod dma;
 pub mod gpu;
 pub mod scheduler;
 pub mod sio0;
+pub mod timers;
 
 use cdrom::Rom;
 use easyerr::{Error, ResultExt};
@@ -47,6 +48,7 @@ pub struct Loggers {
     pub gpu: Logger,
     pub cdrom: Logger,
     pub sio: Logger,
+    pub timers: Logger,
 }
 
 impl Loggers {
@@ -59,6 +61,7 @@ impl Loggers {
             gpu: logger.child("gpu", tinylog::Level::Trace),
             cdrom: logger.child("cdrom", tinylog::Level::Trace),
             sio: logger.child("sio", tinylog::Level::Trace),
+            timers: logger.child("timers", tinylog::Level::Trace),
             root: logger,
         }
     }
@@ -109,6 +112,7 @@ pub struct Emulator {
     dma: dma::Dma,
     cdrom: cdrom::Cdrom,
     sio0: sio0::Sio0,
+    timers: timers::Timers,
 }
 
 impl Emulator {
@@ -126,6 +130,16 @@ impl Emulator {
             .transpose()?;
 
         Ok(Self {
+            cpu: cpu::Interpreter::default(),
+            dma: dma::Dma::default(),
+            gpu,
+            cdrom: cdrom::Cdrom::new(rom.map(|r| {
+                let boxed: Box<dyn Rom> = Box::new(r);
+                boxed
+            })),
+            sio0: sio0::Sio0::default(),
+            timers: timers::Timers::new(loggers.timers.clone()),
+
             psx: PSX {
                 scheduler: Scheduler::new(),
 
@@ -141,15 +155,6 @@ impl Emulator {
 
                 loggers,
             },
-
-            cpu: cpu::Interpreter::default(),
-            dma: dma::Dma::default(),
-            gpu,
-            cdrom: cdrom::Cdrom::new(rom.map(|r| {
-                let boxed: Box<dyn Rom> = Box::new(r);
-                boxed
-            })),
-            sio0: sio0::Sio0::default(),
         })
     }
 
@@ -201,13 +206,8 @@ impl Emulator {
                     Event::VBlank => {
                         self.gpu.vblank(&mut self.psx);
                     }
-                    Event::Timer1 => {
-                        let cycles = self.psx.timers.timer1.tick();
-                        self.psx.scheduler.schedule(Event::Timer1, cycles);
-                    }
-                    Event::Timer2 => {
-                        let cycles = self.psx.timers.timer2.tick();
-                        self.psx.scheduler.schedule(Event::Timer2, cycles);
+                    Event::Timer(event) => {
+                        self.timers.update(&mut self.psx, event);
                     }
                     Event::Gpu => {
                         self.gpu.exec_queued(&mut self.psx);
