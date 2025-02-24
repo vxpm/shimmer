@@ -7,7 +7,7 @@ use shimmer_core::{
     interrupts::Interrupt,
     mem::Address,
 };
-use tinylog::{error, info, trace, warn};
+use tinylog::{debug, error, info, trace, warn};
 
 /// The progress made by a transfer.
 enum Progress {
@@ -161,6 +161,8 @@ impl LinkedTransfer {
         let node = psx.read::<u32, true>(Address(current_addr)).unwrap();
         let next = node.bits(0, 24);
         let words = node.bits(24, 32);
+
+        trace!(psx.loggers.dma, "linked list transfer"; current_node = current_addr, next_node = next, words = words);
 
         for i in 0..words {
             let addr = current_addr + (i + 1) * 4;
