@@ -67,6 +67,8 @@ pub struct CopyFromVram {
 #[derive(Debug, Clone, Copy)]
 pub struct DrawingSettings {
     pub blending_mode: BlendingMode,
+    pub write_to_mask: bool,
+    pub check_mask: bool,
 }
 
 #[derive(Debug, Clone, Copy)]

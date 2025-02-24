@@ -54,6 +54,9 @@ impl Rasterizer {
             drawing_area_coords: UVec2::ZERO,
             drawing_area_dimensions: UVec2::new(1024, 512),
 
+            write_to_mask: false as u32,
+            check_mask: false as u32,
+
             texwindow_mask: UVec2::ZERO,
             texwindow_offset: UVec2::ZERO,
 
@@ -154,6 +157,8 @@ impl Rasterizer {
         );
 
         self.config.blending_mode = settings.blending_mode as u32;
+        self.config.write_to_mask = settings.write_to_mask as u32;
+        self.config.check_mask = settings.check_mask as u32;
 
         self.commands.push(Command::Config);
         self.configs.push(self.config.clone());

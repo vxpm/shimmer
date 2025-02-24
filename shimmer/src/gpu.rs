@@ -94,14 +94,18 @@ impl Gpu {
 
                     let mut data = Vec::with_capacity(count as usize * 4);
                     for _ in 0..count {
-                        data.extend(
-                            psx.gpu
-                                .render_queue
-                                .pop_front()
-                                .unwrap()
-                                .to_le_bytes()
-                                .into_iter(),
-                        );
+                        use zerocopy::byteorder::{LE, U16};
+
+                        let packet = psx.gpu.render_queue.pop_front().unwrap();
+
+                        let [mut a, mut b]: [U16<LE>; 2] = zerocopy::transmute!(packet);
+                        if psx.gpu.status.write_to_mask() {
+                            a.set(a.get() | 0x8000);
+                            b.set(b.get() | 0x8000);
+                        }
+
+                        data.extend(a.to_bytes());
+                        data.extend(b.to_bytes());
                     }
 
                     self.renderer.exec(Command::CopyToVram(CopyToVram {

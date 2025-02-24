@@ -7,6 +7,9 @@ struct Config {
     drawing_area_top_left: vec2u,
     drawing_area_dimensions: vec2u,
 
+    write_to_mask: u32,
+    check_mask: u32,
+
     texwindow_mask: vec2u,
     texwindow_offset: vec2u,
 
@@ -35,6 +38,10 @@ var<storage, read> rectangles: array<Rectangle>;
 fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
     let info = triangle_barycentric_coords_of(triangle, vec2i(vram_coords));
     if !info.is_inside {
+        return false;
+    }
+
+    if (config.check_mask > 0) && rgb5m_get_mask(vram_get_color_rgb5m(vram_coords)) {
         return false;
     }
 
@@ -78,12 +85,20 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
         color = rgb_norm_to_rgb5m(blended);
     }
 
+    if config.write_to_mask > 0 {
+        color = rgb5m_set_mask(color);
+    }
+
     vram_set_color_rgb5m(vram_coords, color);
     return true;
 }
 
 fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     if !rectangle_contains(rectangle, vram_coords) {
+        return false;
+    }
+
+    if (config.check_mask > 0) && rgb5m_get_mask(vram_get_color_rgb5m(vram_coords)) {
         return false;
     }
 
@@ -117,6 +132,10 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
         let blended = rgb_norm_blend(config.blending_mode, bg, fg);
 
         color = rgb_norm_to_rgb5m(blended);
+    }
+
+    if config.write_to_mask > 0 {
+        color = rgb5m_set_mask(color);
     }
 
     vram_set_color_rgb5m(vram_coords, color);

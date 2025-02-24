@@ -105,6 +105,7 @@ impl Inner {
             }
             Command::SetDrawingSettings(settings) => {
                 self.rasterizer.set_drawing_settings(settings);
+                self.transfers.set_check_mask(settings.check_mask);
             }
             Command::SetTexWindow(texwindow) => {
                 self.rasterizer.set_texwindow(texwindow);

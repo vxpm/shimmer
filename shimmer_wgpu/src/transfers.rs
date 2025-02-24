@@ -9,6 +9,7 @@ use wgpu::util::DeviceExt;
 struct Config {
     position: UVec2,
     dimensions: UVec2,
+    check_mask: u32,
 }
 
 pub struct Transfers {
@@ -18,6 +19,8 @@ pub struct Transfers {
     bind_group_layout: wgpu::BindGroupLayout,
     vram_to_cpu_pipeline: wgpu::ComputePipeline,
     cpu_to_vram_pipeline: wgpu::ComputePipeline,
+
+    check_mask: bool,
 }
 
 impl Transfers {
@@ -91,7 +94,13 @@ impl Transfers {
             bind_group_layout: transfers_bind_group_layout,
             vram_to_cpu_pipeline,
             cpu_to_vram_pipeline,
+
+            check_mask: false,
         }
+    }
+
+    pub fn set_check_mask(&mut self, value: bool) {
+        self.check_mask = value;
     }
 
     pub fn copy_from_vram(&mut self, copy: CopyFromVram) {
@@ -105,6 +114,7 @@ impl Transfers {
                 u32::from(copy.dimensions.width.value()),
                 u32::from(copy.dimensions.height.value()),
             ),
+            check_mask: false as u32,
         };
 
         let mut data = StorageBuffer::new(Vec::new());
@@ -202,6 +212,7 @@ impl Transfers {
                 u32::from(copy.dimensions.width.value()),
                 u32::from(copy.dimensions.height.value()),
             ),
+            check_mask: self.check_mask as u32,
         };
 
         let mut data = StorageBuffer::new(Vec::new());

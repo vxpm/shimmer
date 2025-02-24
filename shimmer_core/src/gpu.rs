@@ -107,7 +107,7 @@ pub struct Status {
     pub write_to_mask: bool,
     /// If enabled, pixels can only be drawn to non-masked areas.
     #[bits(12)]
-    pub enable_mask: bool,
+    pub check_mask: bool,
     #[bits(13)]
     pub interlace: bool,
     #[bits(14)]

@@ -59,5 +59,8 @@ pub struct DrawingOffsetCmd {
 #[bitos(32)]
 #[derive(Debug, Clone)]
 pub struct MaskSettingsCmd {
-    // TODO: define this
+    #[bits(0)]
+    pub write_to_mask: bool,
+    #[bits(1)]
+    pub check_mask: bool,
 }

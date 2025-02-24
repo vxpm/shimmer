@@ -17,6 +17,9 @@ pub struct Config {
     pub drawing_area_coords: UVec2,
     pub drawing_area_dimensions: UVec2,
 
+    pub write_to_mask: u32,
+    pub check_mask: u32,
+
     pub texwindow_mask: UVec2,
     pub texwindow_offset: UVec2,
 

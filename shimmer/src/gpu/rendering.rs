@@ -200,6 +200,16 @@ impl Gpu {
         }));
     }
 
+    fn renderer_exec_drawing_settings(&mut self, psx: &mut PSX) {
+        let stat = &mut psx.gpu.status;
+        self.renderer
+            .exec(Command::SetDrawingSettings(DrawingSettings {
+                blending_mode: stat.blending_mode(),
+                write_to_mask: stat.write_to_mask(),
+                check_mask: stat.check_mask(),
+            }));
+    }
+
     fn exec_drawing_area_top_left(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.drawing_area_corner_cmd();
         info!(psx.loggers.gpu, "updating drawing area top left"; top_left = cmd.clone());
@@ -251,10 +261,7 @@ impl Gpu {
         psx.gpu.environment.textured_rect_flip_x = settings.textured_rect_flip_x();
         psx.gpu.environment.textured_rect_flip_y = settings.textured_rect_flip_y();
 
-        self.renderer
-            .exec(Command::SetDrawingSettings(DrawingSettings {
-                blending_mode: stat.blending_mode(),
-            }));
+        self.renderer_exec_drawing_settings(psx);
     }
 
     #[expect(clippy::unused_self, reason = "consistency")]
@@ -265,6 +272,17 @@ impl Gpu {
 
         self.renderer
             .exec(Command::SetTexWindow(settings.texwindow()));
+    }
+
+    #[expect(clippy::unused_self, reason = "consistency")]
+    fn exec_mask_settings(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
+        let settings = cmd.mask_settings_cmd();
+        info!(psx.loggers.gpu, "updating mask settings"; settings = settings.clone());
+
+        psx.gpu.status.set_write_to_mask(settings.write_to_mask());
+        psx.gpu.status.set_check_mask(settings.check_mask());
+
+        self.renderer_exec_drawing_settings(psx);
     }
 
     fn exec_cpu_to_vram_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
@@ -436,11 +454,7 @@ impl Gpu {
                 EnvironmentOpcode::DrawingOffset => self.exec_drawing_offset(psx, cmd),
                 EnvironmentOpcode::DrawingSettings => self.exec_drawing_settings(psx, cmd),
                 EnvironmentOpcode::TexWindowSettings => self.exec_texwindow_settings(psx, cmd),
-                _ => error!(
-                    psx.loggers.gpu,
-                    "unimplemented rendering (environment) command: {:?}",
-                    cmd.environment_opcode()
-                ),
+                EnvironmentOpcode::MaskSettings => self.exec_mask_settings(psx, cmd),
             },
             RenderingOpcode::Polygon => self.exec_polygon(psx, cmd),
             RenderingOpcode::CpuToVramBlit => self.exec_cpu_to_vram_blit(psx, cmd),
