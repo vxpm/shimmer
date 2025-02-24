@@ -5,8 +5,12 @@ use crate::{context::Context, util::ShaderSlice, vram::Vram};
 use data::{Config, to_buffer};
 use dirty::DirtyRegions;
 use glam::UVec2;
-use shimmer::gpu::interface::{
-    DrawingArea, DrawingSettings, Rectangle as InterfaceRectangle, Triangle as InterfaceTriangle,
+use shimmer::{
+    core::gpu::texture::TexWindow,
+    gpu::interface::{
+        DrawingArea, DrawingSettings, Rectangle as InterfaceRectangle,
+        Triangle as InterfaceTriangle,
+    },
 };
 use std::sync::Arc;
 use tinylog::{debug, info, trace, warn};
@@ -47,8 +51,11 @@ impl Rasterizer {
             .create_shader_module(wgpu::include_wgsl!("../shaders/built/rasterizer.wgsl"));
 
         let config = Config {
-            drawing_area_coords: UVec2::new(0, 0),
+            drawing_area_coords: UVec2::ZERO,
             drawing_area_dimensions: UVec2::new(1024, 512),
+
+            texwindow_mask: UVec2::ZERO,
+            texwindow_offset: UVec2::ZERO,
 
             blending_mode: 0,
         };
@@ -147,6 +154,7 @@ impl Rasterizer {
         );
 
         self.config.blending_mode = settings.blending_mode as u32;
+
         self.commands.push(Command::Config);
         self.configs.push(self.config.clone());
     }
@@ -164,6 +172,25 @@ impl Rasterizer {
         self.config.drawing_area_dimensions = UVec2::new(
             u32::from(area.dimensions.width.value()),
             u32::from(area.dimensions.height.value()),
+        );
+
+        self.commands.push(Command::Config);
+        self.configs.push(self.config.clone());
+    }
+
+    pub fn set_texwindow(&mut self, window: TexWindow) {
+        trace!(
+            self.ctx.logger(),
+            "changed texture window"; window = window
+        );
+
+        self.config.texwindow_mask = UVec2::new(
+            u32::from(window.mask_x().value()),
+            u32::from(window.mask_y().value()),
+        );
+        self.config.texwindow_offset = UVec2::new(
+            u32::from(window.offset_x().value()),
+            u32::from(window.offset_y().value()),
         );
         self.commands.push(Command::Config);
         self.configs.push(self.config.clone());

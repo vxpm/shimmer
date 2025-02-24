@@ -5,7 +5,7 @@ pub mod primitive;
 use bitos::integer::{u9, u10, u11};
 use shimmer_core::gpu::{
     HorizontalResolution, VerticalResolution,
-    texture::{Clut, TexPage, TexWindow, BlendingMode},
+    texture::{BlendingMode, Clut, TexPage, TexWindow},
 };
 
 pub use primitive::*;
@@ -90,6 +90,7 @@ pub enum Command {
     SetDrawingArea(DrawingArea),
     SetDisplayTopLeft(VramCoords),
     SetDisplayResolution(DisplayResolution),
+    SetTexWindow(TexWindow),
 
     // Control
     VBlank,

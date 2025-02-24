@@ -61,7 +61,7 @@ impl Gpu {
 
                     let cmd = RenderingCommand::from_bits(*packet);
                     if psx.gpu.render_queue.len() <= cmd.args() {
-                        debug!(
+                        trace!(
                             psx.loggers.gpu,
                             "{cmd:?} is waiting for arguments (has {}/{})",
                             psx.gpu.render_queue.len() - 1,

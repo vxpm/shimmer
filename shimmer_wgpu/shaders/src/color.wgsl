@@ -23,14 +23,20 @@ fn rgb5m_to_rgb_norm(rgb5m: Rgb5m) -> RgbNorm {
     return RgbNorm(vec3f(rgb5) / 32.0);
 }
 
-fn rgb5m_mask(rgb5m: Rgb5m) -> bool {
+fn rgb5m_get_mask(rgb5m: Rgb5m) -> bool {
     return (rgb5m.value & 0x8000) > 0;
+}
+
+fn rgb5m_set_mask(rgb5m: Rgb5m) -> Rgb5m {
+    return Rgb5m(rgb5m.value | 0x8000);
 }
 
 // A normalized RGB color.
 struct RgbNorm {
     value: vec3f,
 }
+
+const RGB_NORM_PLACEHOLDER = RgbNorm(vec3f(1.0, 0.0, 0.88));
 
 fn rgb_norm_dither(coords: vec2u, rgb: RgbNorm) -> RgbNorm {
     const dither: mat4x4f = mat4x4f(
@@ -61,3 +67,23 @@ fn rgb8_to_rgb_norm(rgb: Rgb8) -> RgbNorm {
     return RgbNorm(vec3f(rgb.value) / 255.0);
 }
 
+fn rgb_norm_blend(mode: BlendingMode, bg: RgbNorm, fg: RgbNorm) -> RgbNorm {
+    var blended = RGB_NORM_PLACEHOLDER.value;
+    switch mode {
+        case BLENDING_MODE_AVG {
+            blended = (bg.value + fg.value) / 2.0;
+        }
+        case BLENDING_MODE_ADD {
+            blended = bg.value + fg.value;
+        }
+        case BLENDING_MODE_SUB {
+            blended = bg.value - fg.value;
+        }
+        case BLENDING_MODE_ACC {
+            blended = bg.value + fg.value / 4.0;
+        }
+        default: {}
+    }
+
+    return RgbNorm(clamp(blended, vec3f(0.0), vec3f(1.0)));
+}

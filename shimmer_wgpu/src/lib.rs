@@ -106,6 +106,9 @@ impl Inner {
             Command::SetDrawingSettings(settings) => {
                 self.rasterizer.set_drawing_settings(settings);
             }
+            Command::SetTexWindow(texwindow) => {
+                self.rasterizer.set_texwindow(texwindow);
+            }
         }
     }
 }

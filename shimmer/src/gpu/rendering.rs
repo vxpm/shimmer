@@ -262,6 +262,9 @@ impl Gpu {
         let settings = cmd.texture_window_settings_cmd();
         info!(psx.loggers.gpu, "updating texwindow settings"; settings = settings.clone());
         psx.gpu.environment.texwindow = settings.texwindow();
+
+        self.renderer
+            .exec(Command::SetTexWindow(settings.texwindow()));
     }
 
     fn exec_cpu_to_vram_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
@@ -373,7 +376,7 @@ impl Gpu {
             texconfig,
         };
 
-        info!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle);
+        trace!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle);
         self.renderer.exec(Command::Draw {
             primitive: Primitive::Rectangle(rectangle),
         });

@@ -7,13 +7,16 @@ struct Config {
     drawing_area_top_left: vec2u,
     drawing_area_dimensions: vec2u,
 
+    texwindow_mask: vec2u,
+    texwindow_offset: vec2u,
+
     blending_mode: BlendingMode,
 }
 
 fn drawing_area_contains(coords: vec2u) -> bool {
     let relative = coords - config.drawing_area_top_left;
     return all((relative >= vec2u(0)) && (relative <= config.drawing_area_dimensions));
-} 
+}
 
 var<private> config: Config;
 
@@ -38,7 +41,7 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
     let bary_coords = info.weights;
 
     var color: Rgb5m;
-    var allow_transparency = true;
+    var pixel_transparency = true;
     switch triangle.texture.mode {
         case TEXTURE_MODE_NONE {
             if triangle.shading_mode == SHADING_MODE_GOURAUD {
@@ -60,33 +63,17 @@ fn render_triangle(triangle: Triangle, vram_coords: vec2u) -> bool {
                 color = texel;
             }
 
-            allow_transparency = rgb5m_mask(texel);
+            pixel_transparency = rgb5m_get_mask(texel);
         }
         default: {
             color = RGB5M_PLACEHOLDER;
         }
     }
 
-    if triangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && allow_transparency {
+    if triangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && pixel_transparency {
         let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
         let fg = rgb5m_to_rgb_norm(color);
-
-        var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
-        switch config.blending_mode {
-            case BLENDING_MODE_AVG {
-                blended = RgbNorm((bg.value + fg.value) / 2.0);
-            }
-            case BLENDING_MODE_ADD {
-                blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
-            }
-            case BLENDING_MODE_SUB {
-                blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
-            }
-            case BLENDING_MODE_ACC {
-                blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
-            }
-            default: {}
-        }
+        let blended = rgb_norm_blend(config.blending_mode, bg, fg);
 
         color = rgb_norm_to_rgb5m(blended);
     }
@@ -101,7 +88,7 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
     }
 
     var color: Rgb5m;
-    var allow_transparency = true;
+    var pixel_transparency = true;
     switch rectangle.texture.mode {
         case TEXTURE_MODE_NONE {
             let rgb_norm = rgb8_to_rgb_norm(rectangle.top_left.color);
@@ -117,33 +104,17 @@ fn render_rectangle(rectangle: Rectangle, vram_coords: vec2u) -> bool {
                 color = texel;
             }
 
-            allow_transparency = rgb5m_mask(texel);
+            pixel_transparency = rgb5m_get_mask(texel);
         }
         default: {
             color = RGB5M_PLACEHOLDER;
         }
     }
 
-    if rectangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && allow_transparency {
+    if rectangle.transparency_mode == TRANSPARENCY_MODE_TRANSPARENT && pixel_transparency {
         let bg = rgb5m_to_rgb_norm(vram_get_color_rgb5m(vram_coords));
         let fg = rgb5m_to_rgb_norm(color);
-
-        var blended = rgb5m_to_rgb_norm(RGB5M_PLACEHOLDER);
-        switch config.blending_mode {
-            case BLENDING_MODE_AVG {
-                blended = RgbNorm((bg.value + fg.value) / 2.0);
-            }
-            case BLENDING_MODE_ADD {
-                blended = RgbNorm(clamp(bg.value + fg.value, vec3f(0.0), vec3f(1.0)));
-            }
-            case BLENDING_MODE_SUB {
-                blended = RgbNorm(clamp(bg.value - fg.value, vec3f(0.0), vec3f(1.0)));
-            }
-            case BLENDING_MODE_ACC {
-                blended = RgbNorm(clamp(bg.value + fg.value / 4.0, vec3f(0.0), vec3f(1.0)));
-            }
-            default: {}
-        }
+        let blended = rgb_norm_blend(config.blending_mode, bg, fg);
 
         color = rgb_norm_to_rgb5m(blended);
     }
