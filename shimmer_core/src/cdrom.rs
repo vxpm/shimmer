@@ -389,7 +389,7 @@ impl Cdrom {
         self.command_status
             .set_result_fifo_not_empty(!self.result_queue.is_empty());
         self.command_status
-            .set_data_request(!self.sector_data.is_empty());
+            .set_data_request(!self.sector_data.is_empty() && !self.lock_sector_data);
     }
 
     pub fn read(&mut self, reg: Reg) -> u8 {
