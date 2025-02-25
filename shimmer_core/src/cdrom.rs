@@ -347,7 +347,7 @@ pub struct Cdrom {
     pub mode: Mode,
 
     pub location: Sector,
-    pub lock_data_queue: bool,
+    pub lock_sector_data: bool,
 
     pub write_queue: VecDeque<RegWrite>,
     pub parameter_queue: VecDeque<u8>,
@@ -367,7 +367,7 @@ impl Cdrom {
             mode: Default::default(),
 
             location: Default::default(),
-            lock_data_queue: true,
+            lock_sector_data: true,
 
             write_queue: Default::default(),
             parameter_queue: Default::default(),
@@ -427,7 +427,7 @@ impl Cdrom {
     }
 
     pub fn read_from_sector(&mut self) -> u8 {
-        if self.lock_data_queue {
+        if self.lock_sector_data {
             return 0;
         }
 

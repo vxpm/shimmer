@@ -16,10 +16,10 @@ use tinylog::{debug, error, info, trace, warn};
 
 pub const CDROM_VERSION: [u8; 4] = [0x94, 0x09, 0x19, 0xc0];
 
-pub const COMPLETE_GETID_DELAY: Cycles = 559 * CYCLES_MICROS;
-pub const COMPLETE_PAUSE_DELAY: Cycles = 64 * CYCLES_MILLIS + 34 * CYCLES_MICROS;
+pub const COMPLETE_GETID_DELAY: Cycles = 574 * CYCLES_MICROS;
+pub const COMPLETE_PAUSE_DELAY: Cycles = 64 * CYCLES_MILLIS + 36 * CYCLES_MICROS;
 pub const COMPLETE_PAUSE_NOP_DELAY: Cycles = 232 * CYCLES_MICROS;
-pub const READ_DELAY: Cycles = 13 * CYCLES_MILLIS + 316 * CYCLES_MICROS;
+pub const READ_DELAY: Cycles = 13 * CYCLES_MILLIS + 325 * CYCLES_MICROS;
 pub const SEEK_DELAY: Cycles = 1 * CYCLES_MILLIS;
 
 pub trait Rom: std::fmt::Debug + std::io::Read + std::io::Seek + Send {}
