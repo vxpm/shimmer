@@ -17,6 +17,6 @@ impl Cdrom {
     pub fn control_request(&mut self, psx: &mut PSX, value: u8) {
         let cmd = ControlRequest::from_bits(value);
         trace!(psx.loggers.cdrom, "control request"; request = cmd);
-        psx.cdrom.lock_data_queue = !cmd.request_sector_buffer_read();
+        psx.cdrom.lock_sector_data = !cmd.request_sector_buffer_read();
     }
 }

@@ -137,7 +137,7 @@ impl Cdrom {
                     }
                     Command::Pause => {
                         let delay = if psx.cdrom.status.read() {
-                            COMPLETE_PAUSE_DELAY / psx.cdrom.mode.speed().factor()
+                            COMPLETE_PAUSE_DELAY
                         } else {
                             COMPLETE_PAUSE_NOP_DELAY
                         };
@@ -225,33 +225,35 @@ impl Cdrom {
                     return;
                 }
 
-                if let Some(rom) = &mut self.rom {
-                    info!(psx.loggers.cdrom, "read from sector {}", psx.cdrom.location);
-                    let size = psx.cdrom.mode.sector_size().value();
-                    let offset = psx.cdrom.mode.sector_size().offset();
+                let Some(rom) = &mut self.rom else {
+                    panic!("reading without a disk");
+                };
 
-                    if let Some(index) = psx.cdrom.location.index() {
-                        let mut buf = vec![0; size];
-                        let start_byte = index * 0x930;
-                        rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
-                            .unwrap();
-                        rom.read_exact(&mut buf).unwrap();
+                info!(psx.loggers.cdrom, "read from sector {}", psx.cdrom.location);
+                let size = psx.cdrom.mode.sector_size().value();
+                let offset = psx.cdrom.mode.sector_size().offset();
 
-                        psx.cdrom.sector_data = VecDeque::from(buf);
-                    } else {
-                        error!(psx.loggers.cdrom, "reading from pregap");
-                        psx.cdrom.sector_data = VecDeque::from(vec![0; size]);
-                    }
+                if let Some(index) = psx.cdrom.location.index() {
+                    let mut buf = vec![0; size];
+                    let start_byte = index * 0x930;
+                    rom.seek(std::io::SeekFrom::Start(start_byte + offset as u64))
+                        .unwrap();
+                    rom.read_exact(&mut buf).unwrap();
 
-                    psx.cdrom.location.advance();
-                    psx.scheduler.schedule(
-                        scheduler::Event::Cdrom(Event::Read),
-                        READ_DELAY / psx.cdrom.mode.speed().factor(),
-                    );
-
-                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
-                    self.interrupt_queue.push_back(InterruptKind::DataReady);
+                    psx.cdrom.sector_data = VecDeque::from(buf);
+                } else {
+                    error!(psx.loggers.cdrom, "reading from pregap");
+                    psx.cdrom.sector_data = VecDeque::from(vec![0; size]);
                 }
+
+                psx.cdrom.location.advance();
+                psx.scheduler.schedule(
+                    scheduler::Event::Cdrom(Event::Read),
+                    READ_DELAY / psx.cdrom.mode.speed().factor(),
+                );
+
+                psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                self.interrupt_queue.push_back(InterruptKind::DataReady);
             }
         }
 
