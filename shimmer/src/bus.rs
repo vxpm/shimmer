@@ -131,6 +131,25 @@ impl PSX {
                         .schedule(Event::Cdrom(cdrom::Event::Update), 0);
                     P::read_from_buf(self.cdrom.read(reg).as_bytes())
                 }
+                io::Reg::Timer1Value => {
+                    let bytes = self.timers.timer1.value.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
+                io::Reg::Timer1Mode => {
+                    let value = self.timers.timer1.mode.to_bits();
+                    let bytes = value.as_bytes();
+
+                    let result = P::read_from_buf(&bytes[offset..]);
+
+                    self.timers.timer1.mode.set_reached_target(false);
+                    self.timers.timer1.mode.set_reached_max(false);
+
+                    result
+                }
+                io::Reg::Timer1Target => {
+                    let bytes = self.timers.timer1.target.as_bytes();
+                    P::read_from_buf(&bytes[offset..])
+                }
                 io::Reg::Timer2Value => {
                     let bytes = self.timers.timer2.value.as_bytes();
                     P::read_from_buf(&bytes[offset..])
