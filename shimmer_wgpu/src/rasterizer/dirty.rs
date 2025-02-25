@@ -1,4 +1,4 @@
-use crate::vram::VRAM_WIDTH;
+use crate::vram::{VRAM_HEIGHT, VRAM_WIDTH};
 use bitvec::BitArr;
 
 const DIRTY_REGION_LEN: u16 = 32;
@@ -44,15 +44,18 @@ impl DirtyRegions {
         let start_y = (region.top_left.1) / DIRTY_REGION_LEN;
         let end_y = (region.top_left.1 + region.dimensions.1 - 1) / DIRTY_REGION_LEN;
 
-        self.regions.set(
-            (start_y * (VRAM_WIDTH / DIRTY_REGION_LEN) + start_x) as usize,
-            true,
-        );
-
         for y in start_y..=end_y {
             for x in start_x..=end_x {
-                self.regions
-                    .set((y * (VRAM_WIDTH / DIRTY_REGION_LEN) + x) as usize, true);
+                let x = x % (VRAM_WIDTH / DIRTY_REGION_LEN);
+                let y = y % (VRAM_HEIGHT / DIRTY_REGION_LEN);
+
+                let bit = self
+                    .regions
+                    .get_mut((y * (VRAM_WIDTH / DIRTY_REGION_LEN) + x) as usize);
+
+                if let Some(mut bit) = bit {
+                    *bit = true;
+                }
             }
         }
     }
@@ -75,9 +78,13 @@ impl DirtyRegions {
 
         for y in start_y..=end_y {
             for x in start_x..=end_x {
-                if *self
+                let x = x % (VRAM_WIDTH / DIRTY_REGION_LEN);
+                let y = y % (VRAM_HEIGHT / DIRTY_REGION_LEN);
+
+                if self
                     .regions
                     .get((y * (VRAM_WIDTH / DIRTY_REGION_LEN) + x) as usize)
+                    .map(|bit| *bit)
                     .unwrap()
                 {
                     return true;
