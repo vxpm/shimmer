@@ -1,4 +1,4 @@
-use super::Gpu;
+use super::{Gpu, interface::CopyInVram};
 use crate::{
     PSX,
     gpu::{
@@ -345,6 +345,40 @@ impl Gpu {
         psx.scheduler.schedule(Event::DmaUpdate, 0);
     }
 
+    fn exec_vram_to_vram_blit(&mut self, psx: &mut PSX, _: RenderingCommand) {
+        let src = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        let dest = CoordPacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+        let size = SizePacket::from_bits(psx.gpu.render_queue.pop_front().unwrap());
+
+        let effective_width = if size.width() == 0 {
+            0x400
+        } else {
+            ((size.width() - 1) & 0x3FF) + 1
+        };
+
+        let effective_height = if size.height() == 0 {
+            0x200
+        } else {
+            ((size.height() - 1) & 0x1FF) + 1
+        };
+
+        let copy = CopyInVram {
+            source: VramCoords {
+                x: u10::new(src.x()),
+                y: u9::new(src.y()),
+            },
+            destination: VramCoords {
+                x: u10::new(dest.x()),
+                y: u9::new(dest.y()),
+            },
+            dimensions: VramDimensions {
+                width: u11::new(effective_width),
+                height: u10::new(effective_height),
+            },
+        };
+        self.renderer.exec(Command::CopyInVram(copy));
+    }
+
     fn exec_rectangle(&mut self, psx: &mut PSX, cmd: RenderingCommand) {
         let cmd = cmd.rectangle_cmd();
         let color = Rgba8::new(cmd.r(), cmd.g(), cmd.b());
@@ -459,9 +493,9 @@ impl Gpu {
             RenderingOpcode::Polygon => self.exec_polygon(psx, cmd),
             RenderingOpcode::CpuToVramBlit => self.exec_cpu_to_vram_blit(psx, cmd),
             RenderingOpcode::VramToCpuBlit => self.exec_vram_to_cpu_blit(psx, cmd),
+            RenderingOpcode::VramToVramBlit => self.exec_vram_to_vram_blit(psx, cmd),
             RenderingOpcode::Rectangle => self.exec_rectangle(psx, cmd),
             RenderingOpcode::Line => self.exec_line(psx, cmd),
-            _ => error!(psx.loggers.gpu, "unimplemented rendering command: {cmd:?}"),
         }
     }
 }

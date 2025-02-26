@@ -100,6 +100,10 @@ impl Inner {
                 self.rasterizer.flush();
                 self.transfers.copy_to_vram(&copy);
             }
+            Command::CopyInVram(copy) => {
+                self.rasterizer.flush();
+                self.transfers.copy_in_vram(&copy);
+            }
             Command::SetDrawingArea(drawing_area) => {
                 self.rasterizer.set_drawing_area(drawing_area);
             }

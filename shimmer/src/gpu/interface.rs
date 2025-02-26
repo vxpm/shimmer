@@ -64,6 +64,14 @@ pub struct CopyFromVram {
     pub response: oneshot::Sender<Vec<u8>>,
 }
 
+/// A data copy inside VRAM.
+#[derive(Debug)]
+pub struct CopyInVram {
+    pub source: VramCoords,
+    pub destination: VramCoords,
+    pub dimensions: VramDimensions,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct DrawingSettings {
     pub blending_mode: BlendingMode,
@@ -100,6 +108,7 @@ pub enum Command {
     // Copy data
     CopyToVram(CopyToVram),
     CopyFromVram(CopyFromVram),
+    CopyInVram(CopyInVram),
 
     // Draw
     Draw { primitive: Primitive },
