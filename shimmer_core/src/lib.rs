@@ -2,7 +2,6 @@
 //! implementation independent way. The emulator implementation itself lives in the `shimmer` crate.
 
 #![feature(inline_const_pat)]
-#![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
 

@@ -5,7 +5,6 @@
 //! for renderer implementations.
 
 #![feature(inline_const_pat)]
-#![feature(unbounded_shifts)]
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
 #![feature(cold_path)]
@@ -107,6 +106,7 @@ pub struct Emulator {
     /// The state of the system.
     psx: PSX,
 
+    cpu_cycles_pending: u64,
     cpu: cpu::Interpreter,
     gpu: gpu::Gpu,
     dma: dma::Dma,
@@ -130,6 +130,7 @@ impl Emulator {
             .transpose()?;
 
         Ok(Self {
+            cpu_cycles_pending: 0,
             cpu: cpu::Interpreter::default(),
             dma: dma::Dma::default(),
             gpu,
@@ -178,53 +179,75 @@ impl Emulator {
         &mut self.cdrom
     }
 
-    pub fn cycle_for(&mut self, cycles: u64) {
-        let mut remaining = cycles;
-        loop {
-            let until_next = self.psx.scheduler.until_next().unwrap();
-            if until_next <= remaining {
-                self.psx.scheduler.advance(until_next);
-                remaining -= until_next;
-            } else {
-                self.psx.scheduler.advance(remaining);
-                return;
+    pub fn process_event(&mut self, event: Event) {
+        match event {
+            Event::VBlank => {
+                self.gpu.vblank(&mut self.psx);
+            }
+            Event::Timer(event) => {
+                self.timers.update(&mut self.psx, event);
+            }
+            Event::Gpu => {
+                self.gpu.exec_queued(&mut self.psx);
+            }
+            Event::DmaUpdate => {
+                self.dma.update(&mut self.psx);
+            }
+            Event::DmaAdvance => {
+                self.dma.advance(&mut self.psx);
+            }
+            Event::Cdrom(event) => {
+                self.cdrom.update(&mut self.psx, event);
+            }
+            Event::Sio(event) => {
+                self.sio0.update(&mut self.psx, event);
+            }
+        }
+    }
+
+    fn exec_until_next_event(&mut self, limit: u64) -> u64 {
+        let mut cycles = 0;
+        let mut remaining = self.psx.scheduler.until_next().unwrap_or(limit).min(limit);
+        let mut time_at_event = self.psx.scheduler.elapsed() + remaining;
+
+        while remaining > 0 {
+            if self.psx.scheduler.last_scheduled_time() < time_at_event {
+                remaining = self.psx.scheduler.until_next().unwrap().min(limit);
+                time_at_event = self.psx.scheduler.last_scheduled_time();
+                continue;
             }
 
-            while let Some(e) = self.psx.scheduler.pop() {
-                match e {
-                    Event::Cpu => {
-                        // stall cpu while DMA is ongoing
-                        if self.dma.ongoing() {
-                            cold_path();
-                            self.psx.scheduler.schedule(Event::Cpu, 16);
-                            continue;
-                        }
+            // stall CPU while DMA is ongoing
+            let elapsed = if self.dma.ongoing() {
+                1
+            } else {
+                self.cpu.exec_next(&mut self.psx)
+            };
 
-                        let cycles = self.cpu.exec_next(&mut self.psx);
-                        self.psx.scheduler.schedule(Event::Cpu, cycles);
-                    }
-                    Event::VBlank => {
-                        self.gpu.vblank(&mut self.psx);
-                    }
-                    Event::Timer(event) => {
-                        self.timers.update(&mut self.psx, event);
-                    }
-                    Event::Gpu => {
-                        self.gpu.exec_queued(&mut self.psx);
-                    }
-                    Event::DmaUpdate => {
-                        self.dma.update(&mut self.psx);
-                    }
-                    Event::DmaAdvance => {
-                        self.dma.advance(&mut self.psx);
-                    }
-                    Event::Cdrom(event) => {
-                        self.cdrom.update(&mut self.psx, event);
-                    }
-                    Event::Sio(event) => {
-                        self.sio0.update(&mut self.psx, event);
-                    }
-                }
+            if elapsed > remaining {
+                self.cpu_cycles_pending = elapsed - remaining;
+                cycles += remaining;
+                remaining -= remaining;
+            } else {
+                cycles += elapsed;
+                remaining -= elapsed;
+            }
+        }
+
+        cycles
+    }
+
+    pub fn cycle_for(&mut self, cycles: u64) {
+        let mut remaining = cycles.saturating_sub(self.cpu_cycles_pending);
+        self.cpu_cycles_pending = self.cpu_cycles_pending.saturating_sub(cycles);
+
+        while remaining > 0 {
+            let executed = self.exec_until_next_event(remaining);
+            self.psx.scheduler.advance(executed);
+            remaining -= executed;
+
+            while let Some(event) = self.psx.scheduler.pop() {
+                self.process_event(event);
             }
         }
     }

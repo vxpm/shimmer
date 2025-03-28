@@ -21,6 +21,7 @@ use parking_lot::Mutex;
 use shimmer::Emulator;
 use shimmer_wgpu::WgpuRenderer;
 use std::{
+    io::BufReader,
     path::PathBuf,
     random::random,
     sync::{
@@ -29,10 +30,7 @@ use std::{
     },
     time::Duration,
 };
-use tinylog::{
-    drain::{buf::RecordBuf, fmt},
-    logger::LoggerFamily,
-};
+use tinylog::{drain::buf::RecordBuf, logger::LoggerFamily};
 use util::Timer;
 use windows::{AppWindow, AppWindowKind};
 
@@ -245,7 +243,7 @@ impl eframe::App for App {
                 self.file_dialog.update(ctx);
                 if let Some(path) = self.file_dialog.take_picked() {
                     let file = std::fs::File::open(path).unwrap();
-                    state.emulator.cdrom_mut().insert_rom(file);
+                    state.emulator.cdrom_mut().insert_rom(BufReader::new(file));
                 }
 
                 self.windows.retain_mut(|window| {

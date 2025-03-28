@@ -5,8 +5,6 @@ use crate::{cdrom, sio0, timers};
 /// Possible schedule events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
-    /// Execute the next CPU instruction.
-    Cpu,
     /// Fire a VBlank.
     VBlank,
     /// Update the GPU state machine.
@@ -25,7 +23,7 @@ pub enum Event {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ScheduledEvent {
-    happens_at: u64,
+    time: u64,
     event: Event,
 }
 
@@ -35,8 +33,12 @@ struct ScheduledEvent {
 /// happen next.
 #[derive(Debug)]
 pub struct Scheduler {
+    /// How many cycles have been executed since the start.
     elapsed: u64,
+    /// Scheduled events.
     scheduled: Vec<ScheduledEvent>,
+    /// The time at which the last scheduled event will happen.
+    last_scheduled_time: u64,
 }
 
 impl Default for Scheduler {
@@ -50,9 +52,9 @@ impl Scheduler {
         let mut scheduler = Self {
             elapsed: 0,
             scheduled: Vec::with_capacity(16),
+            last_scheduled_time: u64::MAX,
         };
 
-        scheduler.schedule(Event::Cpu, 0);
         scheduler.schedule(Event::VBlank, 0);
         scheduler.schedule(Event::Timer(timers::Event::Setup), 0);
 
@@ -61,9 +63,10 @@ impl Scheduler {
 
     #[inline(always)]
     pub fn schedule(&mut self, event: Event, after: u64) {
+        self.last_scheduled_time = self.elapsed + after;
         self.scheduled.push(ScheduledEvent {
             event,
-            happens_at: self.elapsed + after,
+            time: self.last_scheduled_time,
         });
     }
 
@@ -81,20 +84,25 @@ impl Scheduler {
     pub fn until_next(&self) -> Option<u64> {
         self.scheduled
             .iter()
-            .min_by_key(|e| e.happens_at)
-            .map(|e| e.happens_at - self.elapsed)
+            .min_by_key(|e| e.time)
+            .map(|e| e.time - self.elapsed)
     }
 
     #[inline(always)]
     pub fn pop(&mut self) -> Option<Event> {
         self.scheduled
             .iter()
-            .position(|e| e.happens_at <= self.elapsed)
+            .position(|e| e.time <= self.elapsed)
             .map(|i| self.scheduled.swap_remove(i).event)
     }
 
     #[inline(always)]
     pub fn elapsed(&self) -> u64 {
         self.elapsed
+    }
+
+    #[inline(always)]
+    pub fn last_scheduled_time(&self) -> u64 {
+        self.last_scheduled_time
     }
 }
