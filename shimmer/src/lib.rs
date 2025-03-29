@@ -106,7 +106,6 @@ pub struct Emulator {
     /// The state of the system.
     psx: PSX,
 
-    cpu_cycles_pending: u64,
     cpu: cpu::Interpreter,
     gpu: gpu::Gpu,
     dma: dma::Dma,
@@ -130,7 +129,6 @@ impl Emulator {
             .transpose()?;
 
         Ok(Self {
-            cpu_cycles_pending: 0,
             cpu: cpu::Interpreter::default(),
             dma: dma::Dma::default(),
             gpu,
@@ -224,23 +222,17 @@ impl Emulator {
                 self.cpu.exec_next(&mut self.psx)
             };
 
-            if elapsed > remaining {
-                self.cpu_cycles_pending = elapsed - remaining;
-                cycles += remaining;
-                remaining -= remaining;
-            } else {
-                cycles += elapsed;
-                remaining -= elapsed;
-            }
+            // HACK: trades some precision for ease of implementation, shouldn't matter much. most
+            // noticeable effect is slightly higher emulation speed, but it's still pretty minor
+            cycles += elapsed.min(remaining);
+            remaining -= elapsed.min(remaining);
         }
 
         cycles
     }
 
     pub fn cycle_for(&mut self, cycles: u64) {
-        let mut remaining = cycles.saturating_sub(self.cpu_cycles_pending);
-        self.cpu_cycles_pending = self.cpu_cycles_pending.saturating_sub(cycles);
-
+        let mut remaining = cycles;
         while remaining > 0 {
             let executed = self.exec_until_next_event(remaining);
             self.psx.scheduler.advance(executed);
