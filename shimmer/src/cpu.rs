@@ -37,6 +37,7 @@ pub struct Interpreter {
     pending_load: Option<RegLoad>,
     load_delay_slot: Option<RegLoad>,
     instr_delay_slot: (Instruction, Address),
+    cop0_load_delay_slot: Option<RegLoad>,
 }
 
 const DEFAULT_DELAY: Cycles = 2;
@@ -386,7 +387,7 @@ impl Interpreter {
             if let Some(load) = self.load_delay_slot.take() {
                 psx.cpu.regs.write(load.reg, load.value);
             }
-            if let Some(load) = psx.cop0.load_delay_slot.take() {
+            if let Some(load) = self.cop0_load_delay_slot.take() {
                 psx.cop0.regs.write(load.reg, load.value);
             }
 
@@ -412,7 +413,7 @@ impl Interpreter {
         self.log_kernel_calls(psx);
 
         self.pending_load = self.load_delay_slot.take();
-        let pending_load_cop0 = psx.cop0.load_delay_slot.take();
+        let pending_load_cop0 = self.cop0_load_delay_slot.take();
 
         let cycles = if !self.check_interrupts(psx) {
             self.exec(psx, current_instr)

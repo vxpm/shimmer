@@ -11,7 +11,7 @@ impl Interpreter {
 
         match instr.cop() {
             COP::COP0 => {
-                psx.cop0.load_delay_slot = Some(RegLoad {
+                self.cop0_load_delay_slot = Some(RegLoad {
                     reg: instr.rd(),
                     value: rt,
                 })
