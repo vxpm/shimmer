@@ -35,6 +35,8 @@ pub struct Interpreter {
     current_addr: Address,
     /// Value going to be loaded into a register after execution.
     pending_load: Option<RegLoad>,
+    load_delay_slot: Option<RegLoad>,
+    instr_delay_slot: (Instruction, Address),
 }
 
 const DEFAULT_DELAY: Cycles = 2;
@@ -45,7 +47,7 @@ impl Interpreter {
     #[inline(never)]
     fn sideload(&mut self, psx: &mut PSX) {
         if let Some(exe) = &psx.memory.sideload {
-            psx.cpu.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
+            self.instr_delay_slot = (Instruction::NOP, exe.header.initial_pc);
             psx.cpu.regs.write_pc(exe.header.initial_pc.value());
             psx.cpu.regs.write(Reg::GP, exe.header.initial_gp);
 
@@ -105,7 +107,7 @@ impl Interpreter {
         }
 
         // flush pipeline
-        psx.cpu.instr_delay_slot = (Instruction::NOP, self.current_addr);
+        self.instr_delay_slot = (Instruction::NOP, self.current_addr);
 
         // update sr
         psx.cop0.regs.system_status_mut().start_exception();
@@ -137,12 +139,7 @@ impl Interpreter {
     /// Trigger an exception. This method should only be used inside instruction methods - if
     /// triggering an exception somewhere else, use [`trigger_exception_at`].
     fn trigger_exception(&mut self, psx: &mut PSX, exception: Exception) {
-        self.trigger_exception_at(
-            psx,
-            self.current_addr,
-            psx.cpu.instr_delay_slot.1,
-            exception,
-        );
+        self.trigger_exception_at(psx, self.current_addr, self.instr_delay_slot.1, exception);
     }
 
     /// Cancels a pending load to the given register, if it exists.
@@ -171,7 +168,7 @@ impl Interpreter {
                 info!(
                     psx.loggers.cpu,
                     "triggered interrupt {:?} at {}",
-                    requested_interrupt, psx.cpu.instr_delay_slot.1;
+                    requested_interrupt, self.instr_delay_slot.1;
                 );
             }
 
@@ -369,16 +366,24 @@ impl Interpreter {
         }
     }
 
+    pub fn load_delay_slot(&self) -> Option<RegLoad> {
+        self.load_delay_slot.clone()
+    }
+
+    pub fn instr_delay_slot(&self) -> (Instruction, Address) {
+        self.instr_delay_slot.clone()
+    }
+
     /// Executes the next instruction and returns how many cycles it takes to complete.
     pub fn exec_next(&mut self, psx: &mut PSX) -> u64 {
-        if psx.cpu.instr_delay_slot.1.value() == 0x8003_0000 {
+        if self.instr_delay_slot.1.value() == 0x8003_0000 {
             cold_path();
             self.sideload(psx);
         }
 
         let pc = Address(psx.cpu.regs.read_pc());
         let Ok(fetched) = psx.read::<_, true>(pc) else {
-            if let Some(load) = psx.cpu.load_delay_slot.take() {
+            if let Some(load) = self.load_delay_slot.take() {
                 psx.cpu.regs.write(load.reg, load.value);
             }
             if let Some(load) = psx.cop0.load_delay_slot.take() {
@@ -387,7 +392,7 @@ impl Interpreter {
 
             self.trigger_exception_at(
                 psx,
-                psx.cpu.instr_delay_slot.1,
+                self.instr_delay_slot.1,
                 psx.cpu.regs.read_pc().into(),
                 Exception::AddressErrorLoad,
             );
@@ -395,7 +400,7 @@ impl Interpreter {
         };
 
         let (current_instr, current_addr) = std::mem::replace(
-            &mut psx.cpu.instr_delay_slot,
+            &mut self.instr_delay_slot,
             (Instruction::from_bits(fetched), pc),
         );
 
@@ -406,7 +411,7 @@ impl Interpreter {
 
         self.log_kernel_calls(psx);
 
-        self.pending_load = psx.cpu.load_delay_slot.take();
+        self.pending_load = self.load_delay_slot.take();
         let pending_load_cop0 = psx.cop0.load_delay_slot.take();
 
         let cycles = if !self.check_interrupts(psx) {
@@ -430,7 +435,7 @@ impl Interpreter {
         {
             self.trigger_exception_at(
                 psx,
-                psx.cpu.instr_delay_slot.1,
+                self.instr_delay_slot.1,
                 psx.cpu.regs.read_pc().into(),
                 Exception::BusErrorInstruction,
             );

@@ -310,7 +310,7 @@ impl WindowUi for InstructionViewer {
     }
 
     fn show(&mut self, state: &mut State, ui: &mut Ui) {
-        let next = state.emulator.psx().cpu.instr_delay_slot.1;
+        let next = state.emulator.cpu().instr_delay_slot().1;
         if self.follow_next {
             self.target = next.value();
         }

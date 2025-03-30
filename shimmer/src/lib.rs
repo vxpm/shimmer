@@ -177,6 +177,10 @@ impl Emulator {
         &mut self.cdrom
     }
 
+    pub fn cpu(&self) -> &cpu::Interpreter {
+        &self.cpu
+    }
+
     pub fn process_event(&mut self, event: Event) {
         match event {
             Event::VBlank => {

@@ -5,7 +5,7 @@ use shimmer_core::cpu::instr::{BZKind, Instruction};
 impl Interpreter {
     /// `pc = (pc & (0b1111 << 28)) | (imm26 << 2)`
     pub fn jmp(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
-        let high = psx.cpu.instr_delay_slot.1.value() & (0b1111 << 28);
+        let high = self.instr_delay_slot.1.value() & (0b1111 << 28);
         let low = instr.imm26().value() << 2;
         psx.cpu.regs.write_pc(high | low);
 
@@ -14,8 +14,7 @@ impl Interpreter {
 
     #[inline(always)]
     fn branch(&mut self, psx: &mut PSX, offset: i16) {
-        let addr = psx
-            .cpu
+        let addr = self
             .instr_delay_slot
             .1
             .value()
@@ -38,7 +37,7 @@ impl Interpreter {
 
     /// `r31 = delay_slot + 4; pc = (pc & (0b1111 << 28)) | (imm26 << 2)`
     pub fn jal(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
-        let high = psx.cpu.instr_delay_slot.1.value() & (0b1111 << 28);
+        let high = self.instr_delay_slot.1.value() & (0b1111 << 28);
         let low = instr.imm26().value() << 2;
         let addr = high | low;
 

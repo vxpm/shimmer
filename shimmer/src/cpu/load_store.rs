@@ -30,7 +30,7 @@ impl Interpreter {
 
         if let Ok(value) = psx.read::<u32, false>(addr) {
             self.cancel_load(instr.rt());
-            psx.cpu.load_delay_slot = Some(RegLoad {
+            self.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value,
             });
@@ -82,7 +82,7 @@ impl Interpreter {
 
         if let Ok(value) = psx.read::<i8, false>(addr) {
             self.cancel_load(instr.rt());
-            psx.cpu.load_delay_slot = Some(RegLoad {
+            self.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: i32::from(value) as u32,
             });
@@ -100,7 +100,7 @@ impl Interpreter {
 
         if let Ok(value) = psx.read::<u8, false>(addr) {
             self.cancel_load(instr.rt());
-            psx.cpu.load_delay_slot = Some(RegLoad {
+            self.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: u32::from(value),
             });
@@ -118,7 +118,7 @@ impl Interpreter {
 
         if let Ok(value) = psx.read::<u16, false>(addr) {
             self.cancel_load(instr.rt());
-            psx.cpu.load_delay_slot = Some(RegLoad {
+            self.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: u32::from(value),
             });
@@ -136,7 +136,7 @@ impl Interpreter {
 
         if let Ok(value) = psx.read::<i16, false>(addr) {
             self.cancel_load(instr.rt());
-            psx.cpu.load_delay_slot = Some(RegLoad {
+            self.load_delay_slot = Some(RegLoad {
                 reg: instr.rt(),
                 value: i32::from(value) as u32,
             });
@@ -197,7 +197,7 @@ impl Interpreter {
         }
 
         self.cancel_load(instr.rt());
-        psx.cpu.load_delay_slot = Some(RegLoad {
+        self.load_delay_slot = Some(RegLoad {
             reg: instr.rt(),
             value: u32::from_be_bytes(result),
         });
@@ -225,7 +225,7 @@ impl Interpreter {
         }
 
         self.cancel_load(instr.rt());
-        psx.cpu.load_delay_slot = Some(RegLoad {
+        self.load_delay_slot = Some(RegLoad {
             reg: instr.rt(),
             value: u32::from_le_bytes(result),
         });

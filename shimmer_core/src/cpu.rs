@@ -326,7 +326,4 @@ pub struct RegLoad {
 pub struct Cpu {
     pub regs: Registers,
     pub cache_control: u32,
-    // TODO: move these to the interpreter
-    pub load_delay_slot: Option<RegLoad>,
-    pub instr_delay_slot: (Instruction, Address),
 }
