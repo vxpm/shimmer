@@ -3,6 +3,7 @@
 mod arith_logic;
 mod coproc;
 mod exception;
+mod gte;
 mod jump_branch;
 mod load_store;
 
@@ -12,11 +13,8 @@ use shimmer_core::{
     cpu::{
         Reg, RegLoad,
         cop0::Exception,
-        instr::{Instruction, SpecialCoOpcode},
+        instr::{CopOpcode, Instruction, Opcode, SpecialOpcode},
     },
-};
-use shimmer_core::{
-    cpu::instr::{CoOpcode, Opcode, SpecialOpcode},
     interrupts::Interrupt,
     kernel,
     mem::{Address, Region, io},
@@ -37,7 +35,6 @@ pub struct Interpreter {
     pending_load: Option<RegLoad>,
     load_delay_slot: Option<RegLoad>,
     instr_delay_slot: (Instruction, Address),
-    cop0_load_delay_slot: Option<RegLoad>,
 }
 
 const DEFAULT_DELAY: Cycles = 2;
@@ -79,7 +76,7 @@ impl Interpreter {
     ) {
         let in_branch_delay = address.value().wrapping_add(4) != delay_slot.value();
         psx.cop0.regs.write(
-            Reg::COP0_EPC,
+            shimmer_core::cpu::cop0::Reg::COP0_EPC,
             if in_branch_delay {
                 address.value().wrapping_sub(4)
             } else {
@@ -181,6 +178,21 @@ impl Interpreter {
         }
     }
 
+    fn cop_instr(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
+        if let Some(cop_op) = instr.cop_op() {
+            match cop_op {
+                CopOpcode::MFC => self.mfc(psx, instr),
+                CopOpcode::CFC => self.cfc(psx, instr),
+                CopOpcode::MTC => self.mtc(psx, instr),
+                CopOpcode::CTC => self.ctc(psx, instr),
+                CopOpcode::BRANCH => todo!(),
+            }
+        } else {
+            // TODO: warn
+            DEFAULT_DELAY
+        }
+    }
+
     fn exec(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
         if let Some(op) = instr.op() {
             match op {
@@ -211,32 +223,28 @@ impl Interpreter {
                 Opcode::SWL => self.swl(psx, instr),
                 Opcode::SWR => self.swr(psx, instr),
                 Opcode::XORI => self.xori(psx, instr),
-                Opcode::COP2 => {
-                    warn!(psx.loggers.cpu, "ignoring GTE instruction");
-                    DEFAULT_DELAY
-                }
-                Opcode::COP0 | Opcode::COP1 | Opcode::COP3 => {
-                    if let Some(op) = instr.cop_op() {
-                        match op {
-                            CoOpcode::MFC => self.mfc(psx, instr),
-                            CoOpcode::CFC => todo!(),
-                            CoOpcode::MTC => self.mtc(psx, instr),
-                            CoOpcode::CTC => todo!("{:?}", instr.cop()),
-                            CoOpcode::BRANCH => todo!(),
-                            CoOpcode::SPECIAL => {
-                                if let Some(op) = instr.cop_special_op() {
-                                    match op {
-                                        SpecialCoOpcode::RFE => self.rfe(psx, instr),
-                                    }
-                                } else {
-                                    DEFAULT_DELAY
-                                }
-                            }
-                        }
-                    } else {
-                        DEFAULT_DELAY
+                Opcode::COP0 => {
+                    if instr.cop_cmd() {
+                        // TODO: check if really RFE
+                        return self.rfe(psx, instr);
                     }
+
+                    self.cop_instr(psx, instr)
                 }
+                Opcode::COP2 => {
+                    if instr.cop_cmd() {
+                        self.exec_gte(
+                            psx,
+                            shimmer_core::gte::instr::Instruction::from_bits(instr.imm25().value()),
+                        );
+
+                        return DEFAULT_DELAY;
+                    }
+
+                    self.cop_instr(psx, instr)
+                }
+                Opcode::COP1 | Opcode::COP3 => self.cop_instr(psx, instr),
+                Opcode::LWC0 | Opcode::LWC1 | Opcode::LWC2 | Opcode::LWC3 => self.lwc(psx, instr),
                 Opcode::SWC0 | Opcode::SWC1 | Opcode::SWC2 | Opcode::SWC3 => self.swc(psx, instr),
                 Opcode::SPECIAL => {
                     if let Some(op) = instr.special_op() {
@@ -274,10 +282,6 @@ impl Interpreter {
                         error!(psx.loggers.cpu, "illegal special op");
                         DEFAULT_DELAY
                     }
-                }
-                _ => {
-                    error!(psx.loggers.cpu, "can't execute op {op:?}");
-                    DEFAULT_DELAY
                 }
             }
         } else {
@@ -387,9 +391,6 @@ impl Interpreter {
             if let Some(load) = self.load_delay_slot.take() {
                 psx.cpu.regs.write(load.reg, load.value);
             }
-            if let Some(load) = self.cop0_load_delay_slot.take() {
-                psx.cop0.regs.write(load.reg, load.value);
-            }
 
             self.trigger_exception_at(
                 psx,
@@ -413,9 +414,9 @@ impl Interpreter {
         self.log_kernel_calls(psx);
 
         self.pending_load = self.load_delay_slot.take();
-        let pending_load_cop0 = self.cop0_load_delay_slot.take();
-
-        let cycles = if !self.check_interrupts(psx) {
+        let cycles = if current_instr.op().is_some_and(|op| op == Opcode::COP2)
+            || !self.check_interrupts(psx)
+        {
             self.exec(psx, current_instr)
         } else {
             DEFAULT_DELAY
@@ -423,10 +424,6 @@ impl Interpreter {
 
         if let Some(load) = self.pending_load {
             psx.cpu.regs.write(load.reg, load.value);
-        }
-
-        if let Some(load) = pending_load_cop0 {
-            psx.cop0.regs.write(load.reg, load.value);
         }
 
         if let Some(physical) = pc.physical()

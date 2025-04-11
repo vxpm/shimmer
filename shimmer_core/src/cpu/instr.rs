@@ -3,7 +3,7 @@
 use super::{COP, Reg};
 use bitos::{
     bitos,
-    integer::{u4, u5, u20, u26},
+    integer::{u4, u5, u20, u25, u26},
 };
 use strum::IntoStaticStr;
 
@@ -44,7 +44,9 @@ pub enum Opcode {
     SW = 0x2B,
     SWR = 0x2E,
     LWC0 = 0x30,
+    LWC1 = 0x31,
     LWC2 = 0x32,
+    LWC3 = 0x33,
     SWC0 = 0x38,
     SWC1 = 0x39,
     SWC2 = 0x3A,
@@ -94,20 +96,19 @@ pub enum SpecialOpcode {
     SLTU = 0x2B,
 }
 
-#[bitos(5)]
+#[bitos(4)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
-pub enum CoOpcode {
+pub enum CopOpcode {
     MFC = 0x00,
     CFC = 0x02,
     MTC = 0x04,
     CTC = 0x06,
     BRANCH = 0x08,
-    SPECIAL = 0x10,
 }
 
 #[bitos(6)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr)]
-pub enum SpecialCoOpcode {
+pub enum SpecialCop0Opcode {
     RFE = 0x10,
 }
 
@@ -132,19 +133,42 @@ pub struct Instruction {
     #[bits(26..28)]
     pub cop: COP,
 
-    #[bits(21..26)]
-    pub cop_op: Option<CoOpcode>,
+    #[bits(25)]
+    pub cop_cmd: bool,
+
+    #[bits(21..25)]
+    pub cop_op: Option<CopOpcode>,
 
     #[bits(0..6)]
-    pub cop_special_op: Option<SpecialCoOpcode>,
+    pub cop0_special_op: Option<SpecialCop0Opcode>,
 
     /// The destination register of this instruction.
     #[bits(11..16)]
     pub rd: Reg,
 
+    /// The destination register of this instruction.
+    #[bits(11..16)]
+    pub cop0_rd: crate::cpu::cop0::Reg,
+
+    /// The destination register of this instruction.
+    #[bits(11..16)]
+    pub gte_data_rd: crate::gte::DataReg,
+
+    /// The destination register of this instruction.
+    #[bits(11..16)]
+    pub gte_control_rd: crate::gte::ControlReg,
+
     /// The target register of this instruction.
     #[bits(16..21)]
     pub rt: Reg,
+
+    /// The target register of this instruction.
+    #[bits(11..16)]
+    pub cop0_rt: crate::cpu::cop0::Reg,
+
+    /// The target register of this instruction.
+    #[bits(16..21)]
+    pub gte_data_rt: crate::gte::DataReg,
 
     /// The source register of this instruction.
     #[bits(21..26)]
@@ -161,8 +185,13 @@ pub struct Instruction {
     #[bits(0..16)]
     pub signed_imm16: i16,
 
+    /// The 20 bit immediate value of this instruction.
     #[bits(6..26)]
     pub imm20: u20,
+
+    /// The 25 bit immediate value of this instruction. Used only by COP2.
+    #[bits(0..25)]
+    pub imm25: u25,
 
     /// The 26 bit immediate value of this instruction.
     #[bits(0..26)]
@@ -344,44 +373,32 @@ impl Instruction {
             Opcode::XORI => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LUI => args!(rt: CPU; U16;),
             Opcode::COP0 => match self.cop_op()? {
-                CoOpcode::MFC => args!(rd: COP0; rt: CPU;),
-                CoOpcode::CFC => args!(rd: COP0; rt: CPU;),
-                CoOpcode::MTC => args!(rd: COP0; rt: CPU;),
-                CoOpcode::CTC => args!(rd: COP0; rt: CPU;),
-                CoOpcode::BRANCH => args!(),
-                CoOpcode::SPECIAL => match self.cop_special_op()? {
-                    SpecialCoOpcode::RFE => args!(),
-                },
+                CopOpcode::MFC => args!(rd: COP0; rt: CPU;),
+                CopOpcode::CFC => args!(rd: COP0; rt: CPU;),
+                CopOpcode::MTC => args!(rd: COP0; rt: CPU;),
+                CopOpcode::CTC => args!(rd: COP0; rt: CPU;),
+                CopOpcode::BRANCH => args!(),
             },
             Opcode::COP1 => match self.cop_op()? {
-                CoOpcode::MFC => args!(rd: COP1; rt: CPU;),
-                CoOpcode::CFC => args!(rd: COP1; rt: CPU;),
-                CoOpcode::MTC => args!(rd: COP1; rt: CPU;),
-                CoOpcode::CTC => args!(rd: COP1; rt: CPU;),
-                CoOpcode::BRANCH => args!(),
-                CoOpcode::SPECIAL => match self.cop_special_op()? {
-                    SpecialCoOpcode::RFE => args!(),
-                },
+                CopOpcode::MFC => args!(rd: COP1; rt: CPU;),
+                CopOpcode::CFC => args!(rd: COP1; rt: CPU;),
+                CopOpcode::MTC => args!(rd: COP1; rt: CPU;),
+                CopOpcode::CTC => args!(rd: COP1; rt: CPU;),
+                CopOpcode::BRANCH => args!(),
             },
             Opcode::COP2 => match self.cop_op()? {
-                CoOpcode::MFC => args!(rd: COP2; rt: CPU;),
-                CoOpcode::CFC => args!(rd: COP2; rt: CPU;),
-                CoOpcode::MTC => args!(rd: COP2; rt: CPU;),
-                CoOpcode::CTC => args!(rd: COP2; rt: CPU;),
-                CoOpcode::BRANCH => args!(),
-                CoOpcode::SPECIAL => match self.cop_special_op()? {
-                    SpecialCoOpcode::RFE => args!(),
-                },
+                CopOpcode::MFC => args!(rd: COP2; rt: CPU;),
+                CopOpcode::CFC => args!(rd: COP2; rt: CPU;),
+                CopOpcode::MTC => args!(rd: COP2; rt: CPU;),
+                CopOpcode::CTC => args!(rd: COP2; rt: CPU;),
+                CopOpcode::BRANCH => args!(),
             },
             Opcode::COP3 => match self.cop_op()? {
-                CoOpcode::MFC => args!(rd: COP3; rt: CPU;),
-                CoOpcode::CFC => args!(rd: COP3; rt: CPU;),
-                CoOpcode::MTC => args!(rd: COP3; rt: CPU;),
-                CoOpcode::CTC => args!(rd: COP3; rt: CPU;),
-                CoOpcode::BRANCH => args!(),
-                CoOpcode::SPECIAL => match self.cop_special_op()? {
-                    SpecialCoOpcode::RFE => args!(),
-                },
+                CopOpcode::MFC => args!(rd: COP3; rt: CPU;),
+                CopOpcode::CFC => args!(rd: COP3; rt: CPU;),
+                CopOpcode::MTC => args!(rd: COP3; rt: CPU;),
+                CopOpcode::CTC => args!(rd: COP3; rt: CPU;),
+                CopOpcode::BRANCH => args!(),
             },
             Opcode::LB => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LH => args!(rs: CPU; rt: CPU; U16;),
@@ -396,7 +413,9 @@ impl Instruction {
             Opcode::SW => args!(rs: CPU; rt: CPU; U16;),
             Opcode::SWR => args!(rs: CPU; rt: CPU; U16;),
             Opcode::LWC0 => args!(rs: CPU; rt: COP0; U16;),
+            Opcode::LWC1 => args!(rs: CPU; rt: COP0; U16;),
             Opcode::LWC2 => args!(rs: CPU; rt: COP2; U16;),
+            Opcode::LWC3 => args!(rs: CPU; rt: COP0; U16;),
             Opcode::SWC0 => args!(rs: CPU; rt: COP0; U16;),
             Opcode::SWC1 => args!(rs: CPU; rt: COP1; U16;),
             Opcode::SWC2 => args!(rs: CPU; rt: COP2; U16;),
@@ -422,8 +441,9 @@ impl Instruction {
             Some(<&'static str>::from(self.bz_kind()).to_owned())
         } else if matches!(self.op(), Some(Opcode::COP0 | Opcode::COP2)) {
             let cop: &'static str = self.cop().into();
-            if self.cop_op() == Some(CoOpcode::SPECIAL) {
-                self.cop_special_op()
+            if self.cop_cmd() {
+                // TODO: fix this
+                self.cop0_special_op()
                     .map(|op| format!("{cop}_{}", <&'static str>::from(op)))
             } else {
                 self.cop_op()

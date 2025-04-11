@@ -184,12 +184,23 @@ impl Cdrom {
 
                         info!(psx.loggers.cdrom, "get location");
                     }
-                    _ => todo!("ack {cmd:?}"),
+                    // TODO: unstub
+                    Command::GetTN | Command::GetTD => {
+                        psx.cdrom.result_queue.extend([1, 1]);
+                    }
+                    _ => {
+                        error!(
+                            psx.loggers.cdrom,
+                            "tried to ack {cmd:?} but it has no implementation yet"
+                        );
+                    }
                 }
 
                 debug!(psx.loggers.cdrom, "acknowledging {cmd:?}"; stat = psx.cdrom.status);
                 if push_stat {
-                    psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
+                    psx.cdrom
+                        .result_queue
+                        .push_front(psx.cdrom.status.to_bits());
                 }
                 self.interrupt_queue.push_back(InterruptKind::Acknowledge);
             }
@@ -218,7 +229,7 @@ impl Cdrom {
                 if push_stat {
                     psx.cdrom.result_queue.push_back(psx.cdrom.status.to_bits());
                 }
-                self.interrupt_queue.push_back(InterruptKind::Complete);
+                self.interrupt_queue.push_front(InterruptKind::Complete);
             }
             Event::Read => {
                 if !psx.cdrom.status.read() {

@@ -8,6 +8,7 @@
 #![feature(debug_closure_helpers)]
 #![feature(let_chains)]
 #![feature(cold_path)]
+#![feature(int_roundings)]
 
 mod bus;
 pub mod cdrom;
@@ -26,6 +27,7 @@ use shimmer_core::{
     cpu::{Cpu, cop0::Cop0},
     dma::Controller as DmaController,
     gpu::Gpu,
+    gte::Gte,
     interrupts::Controller as InterruptController,
     mem::Memory,
     sio0::Sio0,
@@ -43,6 +45,7 @@ pub struct Loggers {
     pub bus: Logger,
     pub dma: Logger,
     pub cpu: Logger,
+    pub gte: Logger,
     pub kernel: Logger,
     pub gpu: Logger,
     pub cdrom: Logger,
@@ -56,6 +59,7 @@ impl Loggers {
             bus: logger.child("bus", tinylog::Level::Trace),
             dma: logger.child("dma", tinylog::Level::Trace),
             cpu: logger.child("cpu", tinylog::Level::Trace),
+            gte: logger.child("gte", tinylog::Level::Trace),
             kernel: logger.child("kernel", tinylog::Level::Trace),
             gpu: logger.child("gpu", tinylog::Level::Trace),
             cdrom: logger.child("cdrom", tinylog::Level::Trace),
@@ -78,6 +82,7 @@ pub struct PSX {
     pub dma: DmaController,
     pub cpu: Cpu,
     pub cop0: Cop0,
+    pub gte: Gte,
     pub interrupts: InterruptController,
     pub gpu: Gpu,
     pub cdrom: Cdrom,
@@ -130,8 +135,8 @@ impl Emulator {
 
         Ok(Self {
             cpu: cpu::Interpreter::default(),
-            dma: dma::Dma::default(),
             gpu,
+            dma: dma::Dma::default(),
             cdrom: cdrom::Cdrom::new(rom.map(|r| {
                 let boxed: Box<dyn Rom> = Box::new(r);
                 boxed
@@ -147,6 +152,7 @@ impl Emulator {
                 dma: DmaController::default(),
                 cpu: Cpu::default(),
                 cop0: Cop0::default(),
+                gte: Gte::default(),
                 interrupts: InterruptController::default(),
                 gpu: Gpu::default(),
                 cdrom: Cdrom::new(loggers.cdrom.clone()),
@@ -221,6 +227,7 @@ impl Emulator {
 
             // stall CPU while DMA is ongoing
             let elapsed = if self.dma.ongoing() {
+                cold_path();
                 1
             } else {
                 self.cpu.exec_next(&mut self.psx)

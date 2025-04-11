@@ -10,6 +10,7 @@ pub mod cpu;
 pub mod dma;
 pub mod exe;
 pub mod gpu;
+pub mod gte;
 pub mod interrupts;
 pub mod kernel;
 pub mod mem;

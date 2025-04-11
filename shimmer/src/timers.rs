@@ -12,12 +12,12 @@ pub enum Event {
 
 #[derive(Debug)]
 pub struct Timers {
-    logger: Logger,
+    _logger: Logger,
 }
 
 impl Timers {
     pub fn new(logger: Logger) -> Self {
-        Self { logger }
+        Self { _logger: logger }
     }
 
     fn tick_timer1(&mut self, psx: &mut PSX) {

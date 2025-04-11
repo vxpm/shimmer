@@ -3,9 +3,8 @@
 pub mod cop0;
 pub mod instr;
 
-use crate::mem::{self, Address};
+use crate::mem;
 use bitos::bitos;
-use instr::Instruction;
 use strum::{EnumMessage, IntoStaticStr, VariantArray};
 
 /// The frequency of the CPU, in Hz.
@@ -36,7 +35,7 @@ impl COP {
     }
 }
 
-/// A general purpose register of the CPU or one of it's coprocessors.
+/// A general purpose register of the CPU.
 #[bitos(5)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantArray, EnumMessage)]
 pub enum Reg {
@@ -172,18 +171,6 @@ impl Reg {
     pub const FP: Reg = Reg::R30;
     pub const RA: Reg = Reg::R31;
 
-    pub const COP0_BPC: Reg = Reg::R3;
-    pub const COP0_BDA: Reg = Reg::R5;
-    pub const COP0_JUMPDEST: Reg = Reg::R6;
-    pub const COP0_DCIC: Reg = Reg::R7;
-    pub const COP0_BAD_VADDR: Reg = Reg::R8;
-    pub const COP0_BDAM: Reg = Reg::R9;
-    pub const COP0_BPCM: Reg = Reg::R11;
-    pub const COP0_SR: Reg = Reg::R12;
-    pub const COP0_CAUSE: Reg = Reg::R13;
-    pub const COP0_EPC: Reg = Reg::R14;
-    pub const COP0_PRID: Reg = Reg::R15;
-
     pub fn alt_name(&self) -> &'static str {
         match self {
             Reg::R0 => "00",
@@ -221,7 +208,6 @@ impl Reg {
         }
     }
 
-    // TODO: move it here since this enum is used for the COPs too
     pub fn description(&self) -> &'static str {
         self.get_documentation().unwrap()
     }

@@ -2,10 +2,59 @@
 //! track of the CPU state.
 
 use super::COP;
-use super::RegLoad;
-use crate::cpu::Reg;
 use bitos::BitUtils;
 use bitos::bitos;
+
+#[bitos(5)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reg {
+    R0,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R6,
+    R7,
+    R8,
+    R9,
+    R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
+    R16,
+    R17,
+    R18,
+    R19,
+    R20,
+    R21,
+    R22,
+    R23,
+    R24,
+    R25,
+    R26,
+    R27,
+    R28,
+    R29,
+    R30,
+    R31,
+}
+
+impl Reg {
+    pub const COP0_BPC: Reg = Reg::R3;
+    pub const COP0_BDA: Reg = Reg::R5;
+    pub const COP0_JUMPDEST: Reg = Reg::R6;
+    pub const COP0_DCIC: Reg = Reg::R7;
+    pub const COP0_BAD_VADDR: Reg = Reg::R8;
+    pub const COP0_BDAM: Reg = Reg::R9;
+    pub const COP0_BPCM: Reg = Reg::R11;
+    pub const COP0_SR: Reg = Reg::R12;
+    pub const COP0_CAUSE: Reg = Reg::R13;
+    pub const COP0_EPC: Reg = Reg::R14;
+    pub const COP0_PRID: Reg = Reg::R15;
+}
 
 /// A CPU exception kind.
 #[bitos(5)]

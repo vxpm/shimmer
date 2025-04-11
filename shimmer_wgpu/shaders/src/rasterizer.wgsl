@@ -174,6 +174,9 @@ fn render(@builtin(global_invocation_id) global_id: vec3u) {
                 vram_set_color_rgb5m(vram_coords, RGB5M_PLACEHOLDER);
                 return;
             } 
+            case COMMAND_FINISH {
+                return;
+            }
         }
     }
 }

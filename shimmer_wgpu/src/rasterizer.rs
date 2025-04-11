@@ -1,7 +1,11 @@
 mod data;
 mod dirty;
 
-use crate::{context::Context, util::ShaderSlice, vram::Vram};
+use crate::{
+    context::Context,
+    util::{BufferPool, ShaderSlice},
+    vram::Vram,
+};
 use data::{Config, to_buffer};
 use dirty::DirtyRegions;
 use glam::UVec2;
@@ -14,12 +18,14 @@ use shimmer::{
 };
 use std::sync::Arc;
 use tinylog::{debug, info, trace, warn};
-use wgpu::util::DeviceExt;
 use zerocopy::{Immutable, IntoBytes};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoBytes, Immutable)]
+const MAX_SYNCS_PER_VBLANK: u32 = 128;
+
+#[derive(Clone, Copy, PartialEq, Eq, Immutable, IntoBytes)]
 #[repr(u32)]
-enum Command {
+pub enum Command {
+    Finish,
     Config,
     Triangle,
     Rectangle,
@@ -33,6 +39,9 @@ pub struct Rasterizer {
     data_bind_group_layout: wgpu::BindGroupLayout,
     pipeline: wgpu::ComputePipeline,
 
+    buffer_pool: BufferPool,
+    command_buffers: Vec<wgpu::CommandBuffer>,
+
     config: Config,
 
     configs: Vec<Config>,
@@ -40,6 +49,7 @@ pub struct Rasterizer {
     triangles: Vec<data::Triangle>,
     rectangles: Vec<data::Rectangle>,
 
+    syncs: u32,
     drawn_regions: DirtyRegions,
     sampled_regions: DirtyRegions,
 }
@@ -131,22 +141,29 @@ impl Rasterizer {
             });
 
         Self {
-            ctx,
-
             vram_bind_group: vram.bind_group().clone(),
 
             data_bind_group_layout,
             pipeline,
 
+            buffer_pool: BufferPool::new(
+                ctx.clone(),
+                wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            ),
+
             config: config.clone(),
+            command_buffers: Vec::new(),
 
             configs: vec![config],
             commands: Vec::with_capacity(64),
             triangles: Vec::with_capacity(64),
             rectangles: Vec::with_capacity(64),
 
+            syncs: 0,
             drawn_regions: DirtyRegions::default(),
             sampled_regions: DirtyRegions::default(),
+
+            ctx,
         }
     }
 
@@ -213,9 +230,9 @@ impl Rasterizer {
         {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty (sampling) - flushing", sampling_region
+                "{:?} is dirty (on triangle sampling) - syncing", sampling_region
             );
-            self.flush();
+            self.sync();
 
             self.sampled_regions.mark(sampling_region);
         }
@@ -224,9 +241,9 @@ impl Rasterizer {
         if self.sampled_regions.is_dirty(drawing_region) {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty (drawing) - flushing", drawing_region
+                "{:?} is dirty (on triangle drawing) - syncing", drawing_region
             );
-            self.flush();
+            self.sync();
         }
 
         self.drawn_regions.mark(drawing_region);
@@ -246,9 +263,9 @@ impl Rasterizer {
         {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty (sampling) - flushing", sampling_region
+                "{:?} is dirty (on rectangle sampling) - syncing", sampling_region
             );
-            self.flush();
+            self.sync();
 
             self.sampled_regions.mark(sampling_region);
         }
@@ -257,9 +274,9 @@ impl Rasterizer {
         if self.sampled_regions.is_dirty(drawing_region) {
             warn!(
                 self.ctx.logger(),
-                "{:?} is dirty (drawing) - flushing", drawing_region
+                "{:?} is dirty (on rectangle drawing) - syncing", drawing_region
             );
-            self.flush();
+            self.sync();
         }
 
         self.drawn_regions.mark(drawing_region);
@@ -267,57 +284,62 @@ impl Rasterizer {
         self.rectangles.push(rectangle);
     }
 
+    pub fn vblank(&mut self) {
+        self.syncs = 0;
+        self.sync();
+        self.flush();
+    }
+
     pub fn flush(&mut self) {
+        info!(self.ctx.logger(), "flushing rasterizer");
+        self.ctx.queue().submit(self.command_buffers.drain(..));
+        self.buffer_pool.reclaim();
+    }
+
+    pub fn sync(&mut self) {
         if self.commands.is_empty() {
             return;
         }
 
-        info!(self.ctx.logger(), "flushing rasterizer");
+        if self.syncs >= MAX_SYNCS_PER_VBLANK {
+            warn!(
+                self.ctx.logger(),
+                "too many synchronization points - ignoring sync request"
+            );
+            return;
+        }
+
+        self.syncs += 1;
+        info!(self.ctx.logger(), "synchronizing rasterizer");
         assert_eq!(
             self.rectangles.len() + self.triangles.len() + self.configs.len() - 1,
             self.commands.len()
         );
 
-        // configs buffer
-        let configs_buffer =
-            self.ctx
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("rasterizer configs"),
-                    contents: &to_buffer(&self.configs),
-                    usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                });
+        let configs_data = to_buffer(&self.configs);
+        let configs_buffer = self.buffer_pool.get(configs_data.len() as u64);
+        self.ctx
+            .queue()
+            .write_buffer(&configs_buffer, 0, &configs_data);
 
-        // commands buffer
-        let commands_buffer =
-            self.ctx
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("rasterizer commands"),
-                    usage: wgpu::BufferUsages::STORAGE,
-                    contents: self.commands.as_bytes(),
-                });
+        self.commands.push(Command::Finish);
+        let commands_data = self.commands.as_bytes();
+        let commands_buffer = self.buffer_pool.get(commands_data.len() as u64);
+        self.ctx
+            .queue()
+            .write_buffer(&commands_buffer, 0, &commands_data);
 
-        // primitives
-        let triangle_data = to_buffer(&ShaderSlice::new(&self.triangles));
-        let triangles_buffer =
-            self.ctx
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("rasterizer triangles"),
-                    usage: wgpu::BufferUsages::STORAGE,
-                    contents: &triangle_data,
-                });
+        let triangles_data = to_buffer(&ShaderSlice::new(&self.triangles));
+        let triangles_buffer = self.buffer_pool.get(triangles_data.len() as u64);
+        self.ctx
+            .queue()
+            .write_buffer(&triangles_buffer, 0, &triangles_data);
 
-        let rectangle_data = to_buffer(&ShaderSlice::new(&self.rectangles));
-        let rectangles_buffer =
-            self.ctx
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("rasterizer rectangles"),
-                    usage: wgpu::BufferUsages::STORAGE,
-                    contents: &rectangle_data,
-                });
+        let rectangles_data = to_buffer(&ShaderSlice::new(&self.rectangles));
+        let rectangles_buffer = self.buffer_pool.get(rectangles_data.len() as u64);
+        self.ctx
+            .queue()
+            .write_buffer(&rectangles_buffer, 0, &rectangles_data);
 
         // bind group
         let rasterizer_bind_group =
@@ -362,7 +384,6 @@ impl Rasterizer {
                     ],
                 });
 
-        // render
         let mut encoder = self
             .ctx
             .device()
@@ -379,7 +400,11 @@ impl Rasterizer {
         pass.dispatch_workgroups(1024 / 8, 512 / 8, 1);
 
         std::mem::drop(pass);
-        self.ctx.queue().submit([encoder.finish()]);
+        self.command_buffers.push(encoder.finish());
+
+        if self.command_buffers.len() >= 8 {
+            self.flush();
+        }
 
         self.commands.clear();
         self.configs.clear();

@@ -76,7 +76,7 @@ impl Inner {
     fn exec(&mut self, command: Command) {
         match command {
             Command::VBlank => {
-                self.rasterizer.flush();
+                self.rasterizer.vblank();
             }
             Command::Draw { primitive } => match primitive {
                 Primitive::Triangle(triangle) => self.rasterizer.enqueue_triangle(triangle),
@@ -93,14 +93,17 @@ impl Inner {
                 );
             }
             Command::CopyFromVram(copy) => {
+                self.rasterizer.sync();
                 self.rasterizer.flush();
                 self.transfers.copy_from_vram(copy);
             }
             Command::CopyToVram(copy) => {
+                self.rasterizer.sync();
                 self.rasterizer.flush();
                 self.transfers.copy_to_vram(&copy);
             }
             Command::CopyInVram(copy) => {
+                self.rasterizer.sync();
                 self.rasterizer.flush();
                 self.transfers.copy_in_vram(&copy);
             }
@@ -161,13 +164,13 @@ impl WgpuRenderer {
 
     pub fn render_display(&self, pass: &mut wgpu::RenderPass<'_>) {
         let mut inner = self.inner.lock().unwrap();
-        inner.rasterizer.flush();
+        inner.rasterizer.sync();
         inner.display_renderer.render(pass);
     }
 
     pub fn render_vram(&self, pass: &mut wgpu::RenderPass<'_>) {
         let mut inner = self.inner.lock().unwrap();
-        inner.rasterizer.flush();
+        inner.rasterizer.sync();
         inner.display_renderer.render_all(pass);
     }
 }

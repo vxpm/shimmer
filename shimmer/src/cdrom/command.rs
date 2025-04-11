@@ -22,21 +22,23 @@ impl Cdrom {
         // info!(psx.loggers.cdrom, "received command {cmd:?}"; stat = psx.cdrom.status);
 
         let delay = match cmd {
-            Command::Nop
-            | Command::Test
-            | Command::Mute
-            | Command::Demute
-            | Command::GetID
-            | Command::SetLocation
-            | Command::SetMode
-            | Command::ReadN
-            | Command::ReadS
-            | Command::Pause
-            | Command::SeekL
-            | Command::SetFilter
-            | Command::GetLocationP => ACK_DEFAULT_DELAY,
+            // Command::Nop
+            // | Command::Test
+            // | Command::Mute
+            // | Command::Demute
+            // | Command::GetID
+            // | Command::SetLocation
+            // | Command::SetMode
+            // | Command::ReadN
+            // | Command::ReadS
+            // | Command::Pause
+            // | Command::SeekL
+            // | Command::SetFilter
+            // | Command::GetTN
+            // | Command::GetTD
+            // | Command::GetLocationP => ACK_DEFAULT_DELAY,
             Command::Init => ACK_INIT_DELAY,
-            _ => todo!("schedule {cmd:?}"),
+            _ => ACK_DEFAULT_DELAY,
         };
 
         psx.scheduler

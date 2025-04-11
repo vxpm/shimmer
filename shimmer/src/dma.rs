@@ -7,7 +7,7 @@ use shimmer_core::{
     interrupts::Interrupt,
     mem::Address,
 };
-use tinylog::{debug, error, info, trace, warn};
+use tinylog::{error, info, trace, warn};
 
 /// The progress made by a transfer.
 enum Progress {

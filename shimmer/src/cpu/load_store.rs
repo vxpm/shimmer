@@ -263,20 +263,49 @@ impl Interpreter {
 
     pub fn swc(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
         let rs = psx.cpu.regs.read(instr.rs());
-        let _addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
         let system_status = psx.cop0.regs.system_status();
 
         match instr.cop() {
-            COP::COP0 if system_status.cop0_enabled_in_user_mode() => (),
+            COP::COP0 if system_status.cop0_enabled_in_user_mode() => {
+                let rt = psx.cop0.regs.read(instr.cop0_rt());
+                if psx.write::<_, true>(addr, rt).is_err() {
+                    self.trigger_exception(psx, Exception::AddressErrorStore);
+                }
+            }
             COP::COP1 if system_status.cop1_enabled() => (),
             COP::COP2 if system_status.cop2_enabled() => {
-                /* let rt = psx.gte.regs.read(instr.rt());
-                if psx.write(addr, rt).is_err() {
-                    self.trigger_exception(Exception::AddressErrorStore);
-                }*/
+                let rt = psx.gte.regs.read(instr.gte_data_rt().into());
+                if psx.write::<_, true>(addr, rt).is_err() {
+                    self.trigger_exception(psx, Exception::AddressErrorStore);
+                }
             }
             COP::COP3 if system_status.cop3_enabled() => (),
             _ => self.trigger_exception(psx, Exception::CopUnusable),
+        }
+
+        MEMORY_OP_DELAY
+    }
+
+    pub fn lwc(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
+        let rs = psx.cpu.regs.read(instr.rs());
+        let addr = Address(rs.wrapping_add_signed(i32::from(instr.signed_imm16())));
+
+        if let Ok(value) = psx.read::<_, true>(addr) {
+            let system_status = psx.cop0.regs.system_status();
+            match instr.cop() {
+                COP::COP0 if system_status.cop0_enabled_in_user_mode() => {
+                    psx.cop0.regs.write(instr.cop0_rt(), value);
+                }
+                COP::COP1 if system_status.cop1_enabled() => (),
+                COP::COP2 if system_status.cop2_enabled() => {
+                    psx.gte.regs.write(instr.gte_data_rt().into(), value);
+                }
+                COP::COP3 if system_status.cop3_enabled() => (),
+                _ => self.trigger_exception(psx, Exception::CopUnusable),
+            }
+        } else {
+            self.trigger_exception(psx, Exception::AddressErrorLoad);
         }
 
         MEMORY_OP_DELAY
