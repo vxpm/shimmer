@@ -21,6 +21,18 @@ pub struct Triangle {
     pub texconfig: Option<TexConfig>,
 }
 
+impl Triangle {
+    pub fn is_too_big(&self) -> bool {
+        let dist = |a: Vertex, b: Vertex| {
+            a.x.value().abs_diff(b.x.value()) > 1023 || a.y.value().abs_diff(b.y.value()) > 511
+        };
+
+        dist(self.vertices[0], self.vertices[1])
+            || dist(self.vertices[1], self.vertices[2])
+            || dist(self.vertices[2], self.vertices[1])
+    }
+}
+
 /// A rectangle primitive.
 #[derive(Debug, Clone, Copy)]
 pub struct Rectangle {
@@ -29,6 +41,12 @@ pub struct Rectangle {
     pub height: u16,
     pub transparency: TransparencyMode,
     pub texconfig: Option<TexConfig>,
+}
+
+impl Rectangle {
+    pub fn is_too_big(&self) -> bool {
+        self.width > 1023 || self.height > 511
+    }
 }
 
 /// A drawing primitive.

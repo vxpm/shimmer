@@ -148,29 +148,35 @@ impl Gpu {
             texconfig
         });
 
-        let triangle = Triangle {
+        let first_triangle = Triangle {
             vertices: tri_1,
             shading: cmd.shading_mode(),
             transparency: cmd.transparency_mode(),
             texconfig,
         };
 
-        trace!(psx.loggers.gpu, "drawing triangle"; tri = triangle);
+        let second_triangle = Triangle {
+            vertices: tri_2,
+            shading: cmd.shading_mode(),
+            transparency: cmd.transparency_mode(),
+            texconfig,
+        };
+
+        if first_triangle.is_too_big()
+            || (cmd.polygon_mode() == PolygonMode::Rectangle && second_triangle.is_too_big())
+        {
+            return;
+        }
+
+        trace!(psx.loggers.gpu, "drawing triangle"; tri = first_triangle);
         self.renderer.exec(Command::Draw {
-            primitive: Primitive::Triangle(triangle),
+            primitive: Primitive::Triangle(first_triangle),
         });
 
         if cmd.polygon_mode() == PolygonMode::Rectangle {
-            let triangle = Triangle {
-                vertices: tri_2,
-                shading: cmd.shading_mode(),
-                transparency: cmd.transparency_mode(),
-                texconfig,
-            };
-
-            trace!(psx.loggers.gpu, "drawing triangle"; tri = triangle);
+            trace!(psx.loggers.gpu, "drawing triangle"; tri = second_triangle);
             self.renderer.exec(Command::Draw {
-                primitive: Primitive::Triangle(triangle),
+                primitive: Primitive::Triangle(second_triangle),
             });
         }
     }
@@ -427,6 +433,10 @@ impl Gpu {
             transparency: cmd.transparency_mode(),
             texconfig,
         };
+
+        if rectangle.is_too_big() {
+            return;
+        }
 
         trace!(psx.loggers.gpu, "drawing rectangle"; rectangle = rectangle);
         self.renderer.exec(Command::Draw {
