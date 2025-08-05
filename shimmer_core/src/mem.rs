@@ -50,34 +50,22 @@ impl Segment {
 /// A memory region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Region {
-    Ram,
-    RamMirror,
-    Expansion1,
-    ScratchPad,
-    IOPorts,
-    Expansion2,
-    Expansion3,
-    BIOS,
+    Ram = 0x0000_0000,
+    RamMirror = 0x0020_0000,
+    Expansion1 = 0x1F00_0000,
+    ScratchPad = 0x1F80_0000,
+    IOPorts = 0x1F80_1000,
+    Expansion2 = 0x1F80_2000,
+    Expansion3 = 0x1FA0_0000,
+    BIOS = 0x1FC0_0000,
 }
 
 #[expect(clippy::len_without_is_empty, reason = "not a collection")]
 impl Region {
     /// The length of this region, in bytes.
     #[inline(always)]
-    pub const fn start(&self) -> PhysicalAddress {
-        // SAFETY: the addresses are in the physical range
-        unsafe {
-            PhysicalAddress::new_unchecked(match self {
-                Region::Ram => 0x0000_0000,
-                Region::RamMirror => 0x0020_0000,
-                Region::Expansion1 => 0x1F00_0000,
-                Region::ScratchPad => 0x1F80_0000,
-                Region::IOPorts => 0x1F80_1000,
-                Region::Expansion2 => 0x1F80_2000,
-                Region::Expansion3 => 0x1FA0_0000,
-                Region::BIOS => 0x1FC0_0000,
-            })
-        }
+    pub const fn start(self) -> PhysicalAddress {
+        PhysicalAddress(self as u32)
     }
 
     /// The length of this region, in bytes.

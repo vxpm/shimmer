@@ -1,3 +1,5 @@
+use std::hint::{cold_path, unreachable_unchecked};
+
 use crate::{PSX, cdrom, scheduler::Event, sio0};
 use bitos::integer::u7;
 use easyerr::Error;
@@ -228,15 +230,20 @@ impl PSX {
             };
 
             let offset = phys.value() - region.start().value();
-            match region {
-                Region::Ram => self.memory.ram[offset as usize..].read(),
-                Region::RamMirror => self.memory.ram[(offset & 0x001F_FFFF) as usize..].read(),
-                Region::Expansion1 => self.memory.expansion_1[offset as usize..].read(),
-                Region::ScratchPad => self.memory.scratchpad[offset as usize..].read(),
-                Region::IOPorts => self.read_io_ports::<P, SILENT>(addr),
-                Region::Expansion2 => self.memory.expansion_2[offset as usize..].read(),
-                Region::Expansion3 => self.memory.expansion_3[offset as usize..].read(),
-                Region::BIOS => self.memory.bios[offset as usize..].read(),
+            if region == Region::Ram {
+                return self.memory.ram[offset as usize..].read();
+            } else {
+                cold_path();
+                match region {
+                    Region::Ram => unsafe { unreachable_unchecked() },
+                    Region::RamMirror => self.memory.ram[(offset & 0x001F_FFFF) as usize..].read(),
+                    Region::Expansion1 => self.memory.expansion_1[offset as usize..].read(),
+                    Region::ScratchPad => self.memory.scratchpad[offset as usize..].read(),
+                    Region::IOPorts => self.read_io_ports::<P, SILENT>(addr),
+                    Region::Expansion2 => self.memory.expansion_2[offset as usize..].read(),
+                    Region::Expansion3 => self.memory.expansion_3[offset as usize..].read(),
+                    Region::BIOS => self.memory.bios[offset as usize..].read(),
+                }
             }
         } else {
             self.cpu.cache_control.as_bytes().read()

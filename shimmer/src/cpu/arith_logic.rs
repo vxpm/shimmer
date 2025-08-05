@@ -23,6 +23,7 @@ impl Interpreter {
     }
 
     /// `rd = rt << imm5`
+    #[inline(always)]
     pub fn sll(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
         let rt = psx.cpu.regs.read(instr.rt());
         let result = rt.unbounded_shl(u32::from(instr.imm5().value()));
@@ -33,6 +34,7 @@ impl Interpreter {
     }
 
     /// `rt = rs + imm16`
+    #[inline(always)]
     pub fn addiu(&mut self, psx: &mut PSX, instr: Instruction) -> u64 {
         let rs = psx.cpu.regs.read(instr.rs());
         let result = rs.wrapping_add_signed(i32::from(instr.signed_imm16()));
